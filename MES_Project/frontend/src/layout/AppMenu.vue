@@ -34,8 +34,8 @@ const model = ref([
                 to: '',
                 items: [
                     {
-                        label: '주문',
-                        to: ''
+                        label: '작업지시서관리',
+                        to: '/production/productionPlan'
                     }
                 ]
             },

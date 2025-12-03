@@ -1,7 +1,17 @@
-export default [
+import AppLayout from '@/layout/AppLayout.vue';
+
+const productionRouter = [
     {
-        path: '/',
-        name: 'dashboard',
-        component: () => import('@/views/Dashboard.vue')
+        path: '/production',
+        component: AppLayout,
+        children: [
+            {
+                path: 'productionplan',
+                name: 'productionPlan',
+                component: () => import('@/views/production/productionPlan.vue')
+            }
+        ]
     }
 ];
+
+export default productionRouter;
