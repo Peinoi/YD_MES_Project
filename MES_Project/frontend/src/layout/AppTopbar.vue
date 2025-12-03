@@ -11,9 +11,9 @@ const { toggleMenu } = useLayout();
                 <i class="pi pi-bars"></i>
             </button>
             <router-link to="/" class="layout-topbar-logo">
-                <img src="/demo/images/일반로고.png" alt="일반로고" />
+                <img src="/demo/images/메인로고.png" alt="일반로고" />
 
-                <span>면사무소</span>
+                <h3>Noolde Tech</h3>
                 <!-- 추후에 로고 및 이름 변경 -->
             </router-link>
         </div>
@@ -21,7 +21,7 @@ const { toggleMenu } = useLayout();
 </template>
 <style scoped>
 .layout-topbar-logo img {
-    height: 62px;
+    height: 56px;
     width: auto;
 }
 </style>

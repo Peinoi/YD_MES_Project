@@ -12,9 +12,9 @@ const model = ref([
                 icon: 'pi pi-fw pi-cog',
                 to: '/',
                 items: [
-                    { label: '제품 및 BOM 등록', to: '/uikit/formlayout' },
+                    { label: '제품 및 BOM 등록', to: '/baseinfo/bom' },
                     { label: '라인 정보', to: '' },
-                    { label: '공정 흐름도 등록', to: '' }
+                    { label: '공정 흐름도 등록', to: '/process' }
                 ]
             },
             {
@@ -25,6 +25,14 @@ const model = ref([
                     {
                         label: '주문',
                         to: ''
+                    },
+                    {
+                        label: '출고관리',
+                        to: '/ForwardingManagement'
+                    },
+                    {
+                        label: '출고조회',
+                        to: '/ForwardingCheck'
                     }
                 ]
             },
@@ -41,6 +49,10 @@ const model = ref([
                         label: '작업 진행',
                         to: '/Production/work'
                     }
+                  ,{
+                        label: '작업지시서목록',
+                        to: '/production/productionPlan'
+                    }
                 ]
             },
             {
@@ -50,7 +62,15 @@ const model = ref([
                 items: [
                     {
                         label: '주문',
-                        to: ''
+                        to: '/uikit/formlayout'
+                    },
+                    {
+                        label: '품질 기준정보',
+                        to: '/quality/criteria'
+                    },
+                    {
+                        label: '품질검사 지시관리',
+                        to: '/quality/instructions-management'
                     }
                 ]
             },
@@ -62,6 +82,18 @@ const model = ref([
                     {
                         label: '주문',
                         to: ''
+                    },
+                    {
+                        label: '입고등록',
+                        to: { name: 'InboundRegistration' }
+                    },
+                    {
+                        label: '입출고내역',
+                        to: 'InOutHistory'
+                    },
+                    {
+                        label: '재고목록',
+                        to: 'StockList'
                     }
                 ]
             }

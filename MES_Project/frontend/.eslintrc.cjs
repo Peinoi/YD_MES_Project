@@ -11,6 +11,7 @@ module.exports = {
         ecmaVersion: 'latest'
     },
     rules: {
+        'prettier/prettier': ['error', { endOfLine: 'auto' }],
         'vue/multi-word-component-names': 'off',
         'vue/no-reserved-component-names': 'off',
         'vue/component-tags-order': [
