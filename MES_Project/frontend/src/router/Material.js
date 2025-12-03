@@ -1,10 +1,5 @@
 export default [
     {
-        path: '/',
-        name: 'dashboard',
-        component: () => import('@/views/Dashboard.vue')
-    },
-    {
         path: '/materials/inbound-registration',
         name: 'InboundRegistration',
         component: () => import('@/views/material/InboundRegistration.vue')
