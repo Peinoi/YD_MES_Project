@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 // 1. 분리된 컴포넌트 임포트 (경로는 실제 파일 구조에 맞게 수정 필요)
-// import SearchForm from '../../components/production/SearchForm.vue';
+import DefaultInfo from '../../components/production/DefaultInfo.vue';
 import NonStandardProcess from '../../components/production/NonStandardProcess.vue';
 
 // 검색 조건을 관리할 ref만 남김
@@ -104,7 +104,7 @@ const filteredRows = computed(() => {
 
 <template>
     <div class="forward-check-page">
-        <!-- <SearchForm @search="handleSearch" @reset="handleReset" /> -->
+        <DefaultInfo @search="handleSearch" @reset="handleReset" />
 
         <NonStandardProcess :rows="filteredRows" @download="downloadExcel" />
     </div>
