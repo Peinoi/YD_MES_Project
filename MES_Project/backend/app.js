@@ -24,13 +24,12 @@ app.use((err, req, res, next) => {
 
 // 각 모듈별 라우터 불러오기
 const sampleRouter = require("./routers/sampleRouter.js");
+const poRouter = require("./routers/poRouter.js");
 const qualityRouter = require("./routers/qualityRouter.js");
-
-// 라우터 연결
-app.use(`/api/productions`, sampleRouter);
-app.use(`/api/quality`, qualityRouter);
 const orderRouter = require("./routers/orderRouter.js");
 
 // 라우터 연결
 app.use(`/api/productions`, sampleRouter);
+app.use(`/api/quality`, qualityRouter);
+app.use(`/poder`, poRouter);
 app.use(`/order`, orderRouter);
