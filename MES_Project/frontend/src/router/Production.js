@@ -1,9 +1,6 @@
-import AppLayout from '@/layout/AppLayout.vue';
-
 const productionRouter = [
     {
         path: '/production',
-        component: AppLayout,
         children: [
             {
                 path: 'productionplan',

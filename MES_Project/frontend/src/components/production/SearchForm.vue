@@ -3,101 +3,185 @@ import { reactive, defineEmits } from 'vue';
 
 const emit = defineEmits(['search', 'reset']);
 
-// 검색 조건의 초기 상태
+// 검색 조건의 초기 상태에 'remarks' 추가
 const initialForm = {
-    startDate: '',
-    endDate: '',
-    status: '',
-    line: '',
-    productName: '',
-    worker: ''
+    startDate: '', // 기간 시작일
+    endDate: '', // 기간 종료일
+    status: '', // 상태
+    line: '', // 라인
+    productName: '', // 제품명
+    worker: '', // 작업자
+    remarks: '' // ⭐️ 비고 추가
 };
 
-const form = reactive({ ...initialForm });
+const searchForm = reactive({ ...initialForm });
 
-// '조회' 버튼 클릭 시
-const submitForm = () => {
-    // 현재 form 데이터를 부모 컴포넌트로 전달 (emit)
-    emit('search', { ...form });
+// '조회' 버튼 클릭 시: 현재 form 데이터를 부모로 전달
+const doSearch = () => {
+    emit('search', { ...searchForm });
 };
 
-// '초기화' 버튼 클릭 시
+// '초기화' 버튼 클릭 시: form 객체를 초기 상태로 재설정하고 부모에게 알림
 const resetForm = () => {
-    // form 객체를 초기 상태로 재설정
-    Object.assign(form, initialForm);
-    // 부모 컴포넌트에 초기화 알림
+    Object.assign(searchForm, initialForm);
     emit('reset');
 };
 </script>
 
 <template>
-    <!-- 기존 .search-form-container 스타일을 Tailwind로 변환 -->
-    <div class="p-4 bg-white border border-gray-200 mb-6 rounded-lg shadow-sm">
-        <!-- 검색 필드 행 1: 반응형 Grid (모바일: 1열, 태블릿: 2열, 대형: 4열) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
-            <!-- 1. 기간 (Date Range) -->
-            <label class="flex items-center gap-3">
-                <span class="font-semibold text-gray-700 whitespace-nowrap">1 기간</span>
-                <!-- p-2 -> p-3으로 변경 -->
-                <input type="date" v-model="form.startDate" class="p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 w-full" />
-                <span class="text-gray-500">~</span>
-                <!-- p-2 -> p-3으로 변경 -->
-                <input type="date" v-model="form.endDate" class="p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 w-full" />
-            </label>
+    <section class="search-card">
+        <div class="search-grid">
+            <div class="field field-range">
+                <label>기간</label>
+                <div class="range-row">
+                    <input v-model="searchForm.startDate" type="date" class="input" />
+                    <span class="range-dash">~</span>
+                    <input v-model="searchForm.endDate" type="date" class="input" />
+                </div>
+            </div>
 
-            <!-- 2. 상태 -->
-            <label class="flex items-center gap-3">
-                <span class="font-semibold text-gray-700 whitespace-nowrap">2 상태</span>
-                <!-- p-2 -> p-3으로 변경 -->
-                <select v-model="form.status" class="p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 w-full bg-white">
+            <div class="field">
+                <label>상태</label>
+                <select v-model="searchForm.status" class="input">
                     <option value="">전체</option>
                     <option value="진행중">진행중</option>
-                    <option value="대기중">대기</option>
+                    <option value="대기">대기</option>
                     <option value="완료">완료</option>
                     <option value="중단">중단</option>
                 </select>
-            </label>
+            </div>
 
-            <!-- 라인 -->
-            <label class="flex items-center gap-3">
-                <span class="font-semibold text-gray-700 whitespace-nowrap">라인</span>
-                <!-- p-2 -> p-3으로 변경 -->
-                <select v-model="form.line" class="p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 w-full bg-white">
+            <div class="field">
+                <label>라인</label>
+                <select v-model="searchForm.line" class="input">
                     <option value="">전체</option>
                     <option value="A">A라인</option>
                     <option value="B">B라인</option>
+                    <option value="C">C라인</option>
                 </select>
-            </label>
+            </div>
 
-            <!-- 3. 품목명 -->
-            <label class="flex items-center gap-3">
-                <span class="font-semibold text-gray-700 whitespace-nowrap">3 품목명</span>
-                <!-- p-2 -> p-3으로 변경 -->
-                <input type="text" v-model="form.productName" placeholder="품목명 입력" class="p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 w-full" />
-            </label>
+            <div class="field">
+                <label>제품명</label>
+                <input v-model="searchForm.productName" type="text" class="input" placeholder="제품명 입력" />
+            </div>
+
+            <div class="field">
+                <label>작업자</label>
+                <input v-model="searchForm.worker" type="text" class="input" placeholder="작업자명 입력" />
+            </div>
+
+            <div class="field-custom">
+                <label>비고</label>
+                <input v-model="searchForm.remarks" type="text" class="input" placeholder="비고 내용 입력" />
+            </div>
+
+            <div class="field"></div>
+            <div class="field"></div>
         </div>
 
-        <!-- 검색 필드 행 2: 작업자 입력 필드 -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
-            <!-- 4. 작업자 -->
-            <label class="flex items-center gap-3">
-                <span class="font-semibold text-gray-700 whitespace-nowrap">작업자</span>
-                <!-- p-2 -> p-3으로 변경 -->
-                <input type="text" v-model="form.worker" placeholder="작업자명 입력" class="p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 w-full" />
-            </label>
-
-            <!-- 나머지 열은 비워 둡니다. -->
-            <div class="hidden sm:block"></div>
-            <div class="hidden sm:block"></div>
-            <div class="hidden sm:block"></div>
+        <div class="search-actions">
+            <button class="btn btn-black" @click="resetForm">초기화</button>
+            <button class="btn btn-yellow" @click="doSearch">조회</button>
         </div>
-
-        <!-- 버튼 그룹 행: 전체 너비를 사용하고 중앙에 배치 -->
-        <div class="flex justify-center gap-3 pt-2 border-t border-gray-100">
-            <!-- 버튼 크기 조정: px-4 py-2 -> px-5 py-2.5 -->
-            <button @click="resetForm" class="px-5 py-2.5 rounded-md font-semibold cursor-pointer transition duration-150 bg-gray-300 text-gray-800 hover:bg-gray-400">초기화</button>
-            <!-- 버튼 크기 조정: px-4 py-2 -> px-5 py-2.5 -->
-            <button @click="submitForm" class="px-5 py-2.5 rounded-md font-semibold cursor-pointer transition duration-150 bg-blue-500 text-white hover:bg-blue-600 shadow-md">조회</button>
-        </div>
-    </div>
+    </section>
 </template>
+
+<style scoped>
+/*
+    스타일은 기존과 동일하게 유지됩니다.
+*/
+/* 검색 카드 */
+.search-card {
+    background: #ffffff;
+    border-radius: 6px;
+    padding: 1.25rem 1.5rem 1rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    margin-bottom: 1.25rem;
+}
+
+.search-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem 1.25rem;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.85rem;
+}
+
+.field-range .range-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.field label {
+    margin-bottom: 0.2rem;
+    color: #333;
+}
+
+.input {
+    border: 1px solid #d0d7e2;
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+    outline: none;
+    width: 100%;
+}
+
+.input:focus {
+    border-color: #f2b300;
+}
+
+.range-dash {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.search-actions {
+    margin-top: 0.8rem;
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* 버튼 공통 */
+.btn {
+    border: none;
+    border-radius: 4px;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-black {
+    background: #000;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 6px;
+}
+
+.btn-yellow {
+    background: #ffc94a;
+    color: #333;
+    padding: 8px 14px;
+    border-radius: 6px;
+}
+
+/* 반응형 */
+@media (max-width: 1024px) {
+    .search-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .search-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
