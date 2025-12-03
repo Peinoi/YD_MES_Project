@@ -59,14 +59,17 @@ onMounted(() => {
 <template>
     <div class="p-6">
         <!-- 검색 조건 UI -->
-        <div class="p-4 mb-4 bg-gray-100 rounded-lg grid grid-cols-3 gap-4">
-            <input v-model="filters.ord_code" class="input" placeholder="주문번호" />
-            <input v-model="filters.ord_name" class="input" placeholder="주문명" />
-            <input v-model="filters.client_name" class="input" placeholder="거래처" />
-            <input v-model="filters.ord_amount" class="input" placeholder="수량" />
+        <div>
+            <label>주문번호</label>
+            <input v-model="filters.ord_code" type="text" class="input" placeholder="주문번호" />
+            <label>주문명</label>
+            <input v-model="filters.ord_name" type="text" class="input" placeholder="주문명" />
+            <label>거래처</label>
+            <input v-model="filters.client_name" type="text" class="input" placeholder="거래처" />
+            <input v-model="filters.ord_amount" type="number" class="input" placeholder="수량" />
             <input v-model="filters.ord_date" type="date" class="input" placeholder="주문일자" />
             <input v-model="filters.delivery_date" type="date" class="input" placeholder="납기일" />
-            <input v-model="filters.ord_stat_name" class="input" placeholder="상태" />
+            <input v-model="filters.ord_stat_name" type="text" class="input" placeholder="상태" />
 
             <div class="flex gap-2 col-span-3 justify-end">
                 <button class="px-4 py-2 bg-gray-400 rounded text-white" @click="resetSearch">초기화</button>

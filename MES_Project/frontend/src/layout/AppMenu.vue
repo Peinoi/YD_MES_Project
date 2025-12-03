@@ -23,8 +23,12 @@ const model = ref([
                 to: '',
                 items: [
                     {
-                        label: '주문',
-                        to: ''
+                        label: '주문조회',
+                        to: '/order/list'
+                    },
+                    {
+                        label: '주문관리',
+                        to: '/order/management'
                     },
                     {
                         label: '출고관리',
@@ -48,8 +52,8 @@ const model = ref([
                     {
                         label: '작업 진행',
                         to: '/Production/work'
-                    }
-                  ,{
+                    },
+                    {
                         label: '작업지시서목록',
                         to: '/production/productionPlan'
                     }
@@ -91,7 +95,7 @@ const model = ref([
                         label: '발주서 목록',
                         to: '/poList'
                     },
-                  {
+                    {
                         label: '입고등록',
                         to: { name: 'InboundRegistration' }
                     },
