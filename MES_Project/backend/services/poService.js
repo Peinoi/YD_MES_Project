@@ -35,7 +35,8 @@ async function savePo(poDto) {
     await conn.beginTransaction();
 
     const { header, items } = poDto;
-    let { purchase_code, stat, regdate, note, mcode } = header;
+    let { purchase_code, purchase_req_date, stat, regdate, note, mcode } =
+      header;
 
     stat = stat || "요청완료";
     regdate = regdate || new Date().toISOString().split("T")[0];
@@ -51,6 +52,7 @@ async function savePo(poDto) {
       // 헤더 INSERT
       await conn.query(sqlList.insertPoHeader, [
         purchase_code,
+        purchase_req_date,
         stat,
         regdate,
         note || null,
@@ -90,6 +92,7 @@ async function savePo(poDto) {
           item.dueDate || today, // deadline
           purchase_code, // fk
           item.vendor || "CLIENT-001", // client_code
+          item.code || "MAT-0001", // mat_code
         ]);
       }
     }

@@ -29,11 +29,12 @@ module.exports = {
   insertPoHeader: `
   INSERT INTO mpo_tbl (
     purchase_code,
+    purchase_req_date,
     stat,
     regdate,
     note,
     mcode
-  ) VALUES (?, ?, ?, ?, ?)
+  ) VALUES (?, ?,?, ?, ?, ?)
 `,
 
   // 발주 헤더 UPDATE
@@ -60,7 +61,8 @@ module.exports = {
     req_qtt,
     deadline,
     purchase_code,
-    client_code
-  ) VALUES (?, ?, ?, ?, ?, ?)
+    client_code,
+    mat_code
+  ) VALUES (?, ?, ?, ?, ?, ?,?)
 `,
 };

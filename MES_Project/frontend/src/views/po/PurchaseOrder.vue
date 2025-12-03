@@ -2,41 +2,32 @@
 import { ref } from 'vue';
 import axios from 'axios';
 
-const orderDate = ref(getToday());
+function getToday() {
+    return new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+}
 
-const writerCode = ref('A관리자');
+// 날짜
+const orderDate = ref(getToday()); // regdate
+const purchaseDate = ref(getToday()); // purchase_req_date
+
+// 헤더 필드
+const writerCode = ref('EMP-10003');
 const note = ref('');
 const status = ref('요청완료');
 
+// 자재 리스트
 const materials = ref([createRow(), createRow(), createRow()]);
 
-const savePo = async () => {
-    const header = {
-        purchase_code: null, // 발주서번호 (수정일 때만 세팅)
-        stat: status.value,
-        regdate: orderDate.value, // 위에서 v-model 한 orderDate
-        note: note.value, // 비고 인풋 v-model
-        mcode: writerCode.value // 작성자 (코드/이름 중 너 설계에 맞게)
-    };
+const allChecked = ref(false);
 
-    const items = materials.value.map((row) => ({
-        unit: row.unit,
-        needQty: row.needQty,
-        dueDate: row.dueDate,
-        vendor: row.vendor // 공급업체 코드 or 이름
-    }));
-
-    const res = await axios.post('/api/poder', { header, items });
-    console.log(res.data);
-};
-
+// 자재 행 생성
 function createRow() {
     return {
         id: Date.now() + Math.random(), // 고유 ID
         checked: false,
         name: '',
         type: '',
-        code: '',
+        code: '', // mat_code
         unit: '',
         needQty: '',
         stock: '',
@@ -45,10 +36,6 @@ function createRow() {
         dueDate: '',
         vendor: ''
     };
-}
-
-function getToday() {
-    return new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
 }
 
 function addRow() {
@@ -60,8 +47,6 @@ function deleteSelected() {
     allChecked.value = false;
 }
 
-const allChecked = ref(false);
-
 function toggleAll() {
     materials.value.forEach((r) => {
         r.checked = allChecked.value;
@@ -72,6 +57,40 @@ function loadRequest() {
     // 추후 연동할 때 구현
     console.log('구매요청서 불러오기');
 }
+
+const savePo = async () => {
+    const today = getToday();
+
+    const header = {
+        purchase_code: null, // 신규 등록
+        purchase_req_date: purchaseDate.value || today, // 발주제안일
+        stat: status.value,
+        regdate: orderDate.value || today, // 시스템 등록일
+        note: note.value,
+        mcode: writerCode.value
+    };
+
+    const items = materials.value
+        .map((row) => ({
+            unit: row.unit,
+            needQty: row.needQty,
+            dueDate: row.dueDate,
+            vendor: row.vendor,
+            code: row.code
+        }))
+        .filter((item) => {
+            return item.unit || item.needQty || item.dueDate || item.vendor || item.code;
+        });
+
+    try {
+        const res = await axios.post('/api/poder', { header, items });
+        console.log(res.data);
+        alert('발주 정보가 저장되었습니다.');
+    } catch (err) {
+        console.error(err);
+        alert('저장 중 오류가 발생했습니다.\n콘솔 로그를 확인해 주세요.');
+    }
+};
 </script>
 
 <template>
@@ -97,15 +116,15 @@ function loadRequest() {
 
                 <div class="form-item">
                     <label>발주제안일</label>
-                    <input type="date" class="input" v-model="orderDate" disabled />
+                    <input type="date" class="input" v-model="purchaseDate" />
                 </div>
 
                 <div class="form-item">
                     <label>작성자</label>
                     <select class="input" v-model="writerCode">
-                        <option>A관리자</option>
-                        <option>B관리자</option>
-                        <option>C관리자</option>
+                        <option>EMP-10003</option>
+                        <option>EMP-10004</option>
+                        <option>EMP-10001</option>
                     </select>
                 </div>
 
@@ -162,7 +181,13 @@ function loadRequest() {
 
                         <td><input class="cell-input" v-model="row.name" /></td>
                         <td><input class="cell-input" v-model="row.type" /></td>
-                        <td><input class="cell-input" v-model="row.code" /></td>
+                        <td>
+                            <select class="cell-input" v-model="row.code">
+                                <option>MAT-1001</option>
+                                <option>MAT-1002</option>
+                                <option>MAT-1003</option>
+                            </select>
+                        </td>
 
                         <td>
                             <select class="cell-input" v-model="row.unit">
