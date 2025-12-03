@@ -13,7 +13,6 @@ export default [
         path: '/ForwardingCheck',
         name: 'ForwardingCheck',
         component: () => import('@/views/release/ForwardingCheck.vue')
-        component: () => import('@/views/Dashboard.vue')
     },
     {
         path: '/order/list',
