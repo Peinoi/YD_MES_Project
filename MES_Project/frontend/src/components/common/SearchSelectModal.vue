@@ -25,12 +25,16 @@ const onSelectRow = (row) => {
 };
 
 const onCancel = () => {
+    selectedKey.value = null;
+    keyword.value = '';
     emit('cancel');
     close();
 };
 
 const onConfirm = () => {
     emit('confirm', selectedRow.value);
+    selectedKey.value = null;
+    keyword.value = '';
     close();
 };
 </script>

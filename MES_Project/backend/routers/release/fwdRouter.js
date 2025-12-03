@@ -7,7 +7,10 @@ const fwdService = require("../../services/release/fwdService.js");
  *  주문 관련
  * =========================== */
 
-// 주문 리스트 조회 (모달용)
+/**
+ * 주문 리스트 조회 (모달용)
+ * GET /api/release/fwd/orders
+ */
 router.get("/orders", async (req, res) => {
   try {
     const {
@@ -18,19 +21,18 @@ router.get("/orders", async (req, res) => {
       status = "",
     } = req.query;
 
+    // ✅ 페이징 없이 단순 리스트만
     const result = await fwdService.getOrderList({
       keyword,
       fromDate,
       toDate,
       client,
       status,
-      page,
-      size,
     });
 
     return res.json({
       status: "success",
-      data: result, // { rows, totalCount, page, size } 형태 추천
+      data: result, // 배열 rows 그대로
     });
   } catch (err) {
     console.error("[fwdRouter] GET /orders error:", err);
@@ -83,8 +85,8 @@ router.get("/orders/:orderNo", async (req, res) => {
 
 /**
  * 출고전표 리스트 조회 (모달용)
- * GET /
- * query: keyword, fromDate, toDate, client, status, page, size
+ * GET /api/release/fwd
+ * query: keyword, fromDate, toDate, client, status
  */
 router.get("/", async (req, res) => {
   try {
@@ -96,19 +98,18 @@ router.get("/", async (req, res) => {
       status = "",
     } = req.query;
 
+    // ✅ 페이징 없이 단순 리스트만
     const result = await fwdService.getReleaseList({
       keyword,
       fromDate,
       toDate,
       client,
       status,
-      page,
-      size,
     });
 
     return res.json({
       status: "success",
-      data: result, // { rows, totalCount, page, size }
+      data: result, // 배열 rows 그대로
     });
   } catch (err) {
     console.error("[fwdRouter] GET / (release list) error:", err);
@@ -121,7 +122,7 @@ router.get("/", async (req, res) => {
 
 /**
  * 출고전표 단건 조회 (헤더 + 라인)
- * GET /:releaseCode
+ * GET /api/release/fwd/:releaseCode
  */
 router.get("/:releaseCode", async (req, res) => {
   try {
@@ -157,7 +158,7 @@ router.get("/:releaseCode", async (req, res) => {
 
 /**
  * 출고전표 등록
- * POST /
+ * POST /api/release/fwd
  * body: { header: {...}, lines: [...] }
  */
 router.post("/", async (req, res) => {
@@ -175,7 +176,7 @@ router.post("/", async (req, res) => {
 
     return res.status(201).json({
       status: "success",
-      data: created, // { releaseCode, ... } 형태 추천
+      data: created, // { releaseCode, ... }
     });
   } catch (err) {
     console.error("[fwdRouter] POST / (create release) error:", err);
@@ -188,7 +189,7 @@ router.post("/", async (req, res) => {
 
 /**
  * 출고전표 수정
- * PUT /:releaseCode
+ * PUT /api/release/fwd/:releaseCode
  * body: { header: {...}, lines: [...] }
  */
 router.put("/:releaseCode", async (req, res) => {
@@ -230,7 +231,7 @@ router.put("/:releaseCode", async (req, res) => {
 
 /**
  * 출고전표 삭제(또는 취소 플래그 업데이트)
- * DELETE /:releaseCode
+ * DELETE /api/release/fwd/:releaseCode
  */
 router.delete("/:releaseCode", async (req, res) => {
   try {
@@ -247,7 +248,7 @@ router.delete("/:releaseCode", async (req, res) => {
 
     return res.json({
       status: "success",
-      data: result, // { affectedRows } 정도
+      data: result, // { affectedRows }
     });
   } catch (err) {
     console.error("[fwdRouter] DELETE /:releaseCode error:", err);
