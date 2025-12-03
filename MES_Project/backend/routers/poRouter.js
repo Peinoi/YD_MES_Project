@@ -2,6 +2,21 @@ const express = require("express");
 const router = express.Router();
 const poService = require("../services/poService.js");
 
+// 자재 모달 조회
+router.get("/mate", async (req, res, next) => {
+  try {
+    const { keyword } = req.query;
+    const list = await poService.getMateList(keyword);
+
+    res.json({
+      code: "S200",
+      data: list,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // 발주 단건 조회
 router.get("/:purchaseCode", async (req, res, next) => {
   try {
@@ -18,6 +33,28 @@ router.get("/:purchaseCode", async (req, res, next) => {
     res.json({
       code: "S200",
       data,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/:purchaseCode", async (req, res, next) => {
+  try {
+    const { purchaseCode } = req.params;
+
+    if (!purchaseCode) {
+      return res.status(400).json({
+        code: "E400",
+        message: "purchaseCode가 필요합니다.",
+      });
+    }
+
+    await poService.deletePo(purchaseCode);
+
+    res.json({
+      code: "S200",
+      message: "발주서가 삭제되었습니다.",
     });
   } catch (err) {
     next(err);

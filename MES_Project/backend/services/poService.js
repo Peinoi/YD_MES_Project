@@ -129,8 +129,50 @@ async function getPoList(purchaseCode) {
   }
 }
 
+// 자재 목록 조회 / 모달
+async function getMateList(keyword) {
+  let conn;
+  try {
+    conn = await getConnection();
+
+    const k = keyword && String(keyword).trim() ? String(keyword).trim() : null;
+
+    const rows = await conn.query(sqlList.selectMateList, [k, k, k]);
+    return rows;
+  } catch (err) {
+    console.error("getMateList error:", err);
+    throw err;
+  } finally {
+    if (conn) conn.release();
+  }
+}
+
+async function deletePo(purchaseCode) {
+  const conn = await getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // 1. 상세 먼저 삭제
+    await conn.query(sqlList.deletePoDetailsByCode, [purchaseCode]);
+
+    // 2. 헤더 삭제
+    await conn.query(sqlList.deletePoHeaderByCode, [purchaseCode]);
+
+    await conn.commit();
+
+    return { purchase_code: purchaseCode };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
 module.exports = {
   getPoByCode,
   savePo,
   getPoList,
+  getMateList,
+  deletePo,
 };
