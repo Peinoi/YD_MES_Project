@@ -117,6 +117,7 @@ const downloadExcel = () => {
     <div class="forward-check-page">
         <!-- 🔍 검색 조건 영역 -->
         <section class="search-card">
+            <h3>출고조회</h3>
             <div class="search-grid">
                 <!-- 출고번호 -->
                 <div class="field">
@@ -224,18 +225,30 @@ const downloadExcel = () => {
 </template>
 
 <style scoped>
-.forward-check-page {
-    padding: 1.5rem;
-    background: #f5f6fa;
+* {
+    font-size: 14px;
 }
 
-/* 검색 카드 */
+/* 🔹 ForwardingManagement 의 .forward-page 랑 동일 구조 */
+.forward-check-page {
+    padding: 2rem;
+    background: #f5f6fa;
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* ✅ 부모 높이만 따라감 (100vh 강제 X) */
+    box-sizing: border-box;
+    overflow: hidden; /* ✅ 페이지 자체 스크롤 막기 */
+}
+
+/* 🔍 검색 카드 */
 .search-card {
     background: #ffffff;
     border-radius: 6px;
     padding: 1.25rem 1.5rem 1rem;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
     margin-bottom: 1.25rem;
+
+    flex-shrink: 0; /* ✅ 높이 줄어들지 않게 고정 */
 }
 
 .search-grid {
@@ -285,7 +298,7 @@ const downloadExcel = () => {
     gap: 0.5rem;
 }
 
-/* 버튼 공통 */
+/* 버튼 */
 .btn {
     border: none;
     border-radius: 4px;
@@ -317,12 +330,17 @@ const downloadExcel = () => {
     cursor: pointer;
 }
 
-/* 결과 카드 */
+/* 📋 결과 카드 – ForwardingManagement 의 forward-card-products 같은 역할 */
 .result-card {
     background: #ffffff;
     border-radius: 6px;
     padding: 1rem 1.5rem 1.25rem;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+
+    flex: 1; /* ✅ 남은 높이 전부 차지 */
+    min-height: 0; /* ✅ 내부 스크롤 가능하게 */
+    display: flex;
+    flex-direction: column;
 }
 
 .result-header {
@@ -337,12 +355,15 @@ const downloadExcel = () => {
     font-weight: 600;
 }
 
-/* 테이블 */
+/* 📌 테이블 래퍼 – 여기만 스크롤 */
 .table-wrap {
     width: 100%;
+    flex: 1; /* ✅ result-card 안에서 남은 높이 채움 */
+    overflow-y: auto; /* ✅ 테이블만 세로 스크롤 */
     overflow-x: auto;
 }
 
+/* 테이블 */
 .result-table {
     width: 100%;
     border-collapse: collapse;
@@ -351,6 +372,9 @@ const downloadExcel = () => {
 
 .result-table thead {
     background: #f9f9fb;
+    position: sticky; /* ✅ 스크롤 시 헤더 고정 (원하면 유지, 싫으면 지워도 됨) */
+    top: 0;
+    z-index: 10;
 }
 
 .result-table th,

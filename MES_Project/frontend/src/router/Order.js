@@ -2,7 +2,7 @@ export default [
     {
         path: '/',
         name: 'dashboard',
-        component: () => import('@/views/Dashboard.vue')
+        component: () => import('@/views/3.vue')
     },
     {
         path: '/ForwardingManagement',
@@ -13,5 +13,15 @@ export default [
         path: '/ForwardingCheck',
         name: 'ForwardingCheck',
         component: () => import('@/views/release/ForwardingCheck.vue')
+    },
+    {
+        path: '/order/list',
+        name: 'OrderList',
+        component: () => import('@/views/order/OrderList.vue')
+    },
+    {
+        path: '/order/management',
+        name: 'OrderManagement',
+        component: () => import('@/views/order/OrderManagement.vue')
     }
 ];

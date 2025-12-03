@@ -31,7 +31,7 @@ const query = async (alias, values) => {
   let conn = null;
   try {
     // ConnectionPool에서 Connection 객체를 가져옴
-    conn = await pool.getConnection();
+    conn = await connectionPool.getConnection();
     // SQL문 선택
     let executeSql = sqlList[alias];
     // SQL문을 실행할 결과를 처리
@@ -47,7 +47,24 @@ const getConnection = async () => {
   return conn;
 };
 
+//생산 진행 조회
+const production_work_running = async () => {
+  let conn = null;
+  try {
+    // ConnectionPool에서 Connection 객체를 가져옴
+    conn = await connectionPool.getConnection();
+    // SQL문 선택
+    let executeSql = sqlList[work];
+    // SQL문을 실행할 결과를 처리
+    let result = await conn.query(executeSql);
+    return result;
+  } finally {
+    if (conn) conn.release(); // Release to pool
+  }
+};
+
 module.exports = {
   query,
   getConnection,
+  production_work_running,
 };
