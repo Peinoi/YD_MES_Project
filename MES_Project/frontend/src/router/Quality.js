@@ -1,7 +1,12 @@
 export default [
     {
-        path: '/',
-        name: 'dashboard',
-        component: () => import('@/views/Dashboard.vue')
+        path: '/quality/criteria',
+        name: 'criteria',
+        component: () => import('@/views/pages/quality/QualityCriteria.vue')
+    },
+    {
+        path: '/quality/instructions-management',
+        name: 'qim',
+        component: () => import('@/views/pages/quality/QualityInstructionsManagement.vue')
     }
 ];

@@ -46,7 +46,15 @@ const model = ref([
                 items: [
                     {
                         label: '주문',
-                        to: ''
+                        to: '/uikit/formlayout'
+                    },
+                    {
+                        label: '품질 기준정보',
+                        to: '/quality/criteria'
+                    },
+                    {
+                        label: '품질검사 지시관리',
+                        to: '/quality/instructions-management'
                     }
                 ]
             },
