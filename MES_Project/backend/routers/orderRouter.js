@@ -25,7 +25,7 @@ router.get("/list", async (req, res, next) => {
 });
 
 // GET /order/client/list - 거래처 목록 전체 조회
-router.get("/list", async (req, res, next) => {
+router.get("/client/list", async (req, res, next) => {
   try {
     // 쿼리스트링에서 검색 조건 받기
     const filters = {
