@@ -58,6 +58,18 @@ const model = ref([
                     {
                         label: '주문',
                         to: ''
+                    },
+                    {
+                        label: '입고등록',
+                        to: { name: 'InboundRegistration' }
+                    },
+                    {
+                        label: '입출고내역',
+                        to: 'InOutHistory'
+                    },
+                    {
+                        label: '재고목록',
+                        to: 'StockList'
                     }
                 ]
             }
