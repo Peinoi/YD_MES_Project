@@ -4,9 +4,9 @@ import { reactive, ref } from 'vue';
 import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
 
 const showOrderModal = ref(false);
-const showReleaseModal = ref(false); // 🔹 출고 모달
+const showReleaseModal = ref(false); // 출고 모달
 
-// 테이블 헤더 정의 (주문)
+// 🔹 주문 검색 모달 컬럼
 const orderColumns = [
     { field: 'orderNo', label: '주문번호' },
     { field: 'orderDate', label: '주문일자' },
@@ -16,270 +16,57 @@ const orderColumns = [
     { field: 'priority', label: '우선순위' }
 ];
 
-// 🔹 예시 데이터(주문)
-const allOrderRows = [
-    {
-        orderNo: 'O2025-0001',
-        orderDate: '2025-12-01',
-        orderName: '라면 정기발주 1차',
-        client: '이마트',
-        dueDate: '2025-12-10',
-        priority: '1'
-    },
-    {
-        orderNo: 'O2025-0002',
-        orderDate: '2025-12-02',
-        orderName: '컵라면 프로모션',
-        client: '홈플러스',
-        dueDate: '2025-12-12',
-        priority: '2'
-    },
-    {
-        orderNo: 'O2025-0003',
-        orderDate: '2025-12-03',
-        orderName: '수출용 라면 발주',
-        client: '코스트코',
-        dueDate: '2025-12-20',
-        priority: '3'
-    },
-    {
-        orderNo: 'O2025-0001',
-        orderDate: '2025-12-01',
-        orderName: '라면 정기발주 1차',
-        client: '이마트',
-        dueDate: '2025-12-10',
-        priority: '1'
-    },
-    {
-        orderNo: 'O2025-0002',
-        orderDate: '2025-12-02',
-        orderName: '컵라면 프로모션',
-        client: '홈플러스',
-        dueDate: '2025-12-12',
-        priority: '2'
-    },
-    {
-        orderNo: 'O2025-0003',
-        orderDate: '2025-12-03',
-        orderName: '수출용 라면 발주',
-        client: '코스트코',
-        dueDate: '2025-12-20',
-        priority: '3'
-    },
-    {
-        orderNo: 'O2025-0001',
-        orderDate: '2025-12-01',
-        orderName: '라면 정기발주 1차',
-        client: '이마트',
-        dueDate: '2025-12-10',
-        priority: '1'
-    },
-    {
-        orderNo: 'O2025-0002',
-        orderDate: '2025-12-02',
-        orderName: '컵라면 프로모션',
-        client: '홈플러스',
-        dueDate: '2025-12-12',
-        priority: '2'
-    },
-    {
-        orderNo: 'O2025-0003',
-        orderDate: '2025-12-03',
-        orderName: '수출용 라면 발주',
-        client: '코스트코',
-        dueDate: '2025-12-20',
-        priority: '3'
-    },
-    {
-        orderNo: 'O2025-0001',
-        orderDate: '2025-12-01',
-        orderName: '라면 정기발주 1차',
-        client: '이마트',
-        dueDate: '2025-12-10',
-        priority: '1'
-    },
-    {
-        orderNo: 'O2025-0002',
-        orderDate: '2025-12-02',
-        orderName: '컵라면 프로모션',
-        client: '홈플러스',
-        dueDate: '2025-12-12',
-        priority: '2'
-    },
-    {
-        orderNo: 'O2025-0003',
-        orderDate: '2025-12-03',
-        orderName: '수출용 라면 발주',
-        client: '코스트코',
-        dueDate: '2025-12-20',
-        priority: '3'
-    },
-    {
-        orderNo: 'O2025-0002',
-        orderDate: '2025-12-02',
-        orderName: '컵라면 프로모션',
-        client: '홈플러스',
-        dueDate: '2025-12-12',
-        priority: '2'
-    },
-    {
-        orderNo: 'O2025-0003',
-        orderDate: '2025-12-03',
-        orderName: '수출용 라면 발주',
-        client: '코스트코',
-        dueDate: '2025-12-20',
-        priority: '3'
-    },
-    {
-        orderNo: 'O2025-0001',
-        orderDate: '2025-12-01',
-        orderName: '라면 정기발주 1차',
-        client: '이마트',
-        dueDate: '2025-12-10',
-        priority: '1'
-    },
-    {
-        orderNo: 'O2025-0002',
-        orderDate: '2025-12-02',
-        orderName: '컵라면 프로모션',
-        client: '홈플러스',
-        dueDate: '2025-12-12',
-        priority: '2'
-    },
-    {
-        orderNo: 'O2025-0003',
-        orderDate: '2025-12-03',
-        orderName: '수출용 라면 발주',
-        client: '코스트코',
-        dueDate: '2025-12-20',
-        priority: '3'
-    },
-    {
-        orderNo: 'O2025-0001',
-        orderDate: '2025-12-01',
-        orderName: '라면 정기발주 1차',
-        client: '이마트',
-        dueDate: '2025-12-10',
-        priority: '1'
-    },
-    {
-        orderNo: 'O2025-0002',
-        orderDate: '2025-12-02',
-        orderName: '컵라면 프로모션',
-        client: '홈플러스',
-        dueDate: '2025-12-12',
-        priority: '2'
-    },
-    {
-        orderNo: 'O2025-0003',
-        orderDate: '2025-12-03',
-        orderName: '수출용 라면 발주',
-        client: '코스트코',
-        dueDate: '2025-12-20',
-        priority: '3'
-    },
-    {
-        orderNo: 'O2025-0001',
-        orderDate: '2025-12-01',
-        orderName: '라면 정기발주 1차',
-        client: '이마트',
-        dueDate: '2025-12-10',
-        priority: '1'
-    },
-    {
-        orderNo: 'O2025-0002',
-        orderDate: '2025-12-02',
-        orderName: '컵라면 프로모션',
-        client: '홈플러스',
-        dueDate: '2025-12-12',
-        priority: '2'
-    },
-    {
-        orderNo: 'O2025-0003',
-        orderDate: '2025-12-03',
-        orderName: '수출용 라면 발주',
-        client: '코스트코',
-        dueDate: '2025-12-20',
-        priority: '3'
-    }
-];
-
-// 실제로 모달에 보여줄 데이터 (검색 시 이 값이 바뀜)
-const orderRows = ref([...allOrderRows]);
+// 백엔드에서 채워질 주문 리스트
+const orderRows = ref([]);
 const orderKeyword = ref('');
 
+// 주문 모달 열기
 const openOrderModal = () => {
     showOrderModal.value = true;
+    // TODO: 주문 초기 목록 로딩 API 호출 (옵션)
+    // e.g. fetchOrderList('');
 };
 
+// 주문 검색
 const handleSearchOrder = (keyword) => {
     orderKeyword.value = keyword;
-    const k = keyword.trim().toLowerCase();
+    console.log('[Forwarding] 주문 검색 키워드:', keyword);
 
-    if (!k) {
-        orderRows.value = [...allOrderRows];
-        return;
-    }
-
-    orderRows.value = allOrderRows.filter((row) => {
-        return row.orderNo.toLowerCase().includes(k) || row.orderName.toLowerCase().includes(k) || row.client.toLowerCase().includes(k);
-    });
+    // TODO: 백엔드 연동
+    // api.get('/orders', { params: { keyword } }).then(res => {
+    //   orderRows.value = res.data;
+    // });
 };
 
-// 🔹 출고 정보 모달용 컬럼 / 데이터
+// 🔹 출고 검색 모달 컬럼 (헤더 중심)
 const releaseColumns = [
     { field: 'releaseCode', label: '출고번호' },
-    { field: 'releaseProduct', label: '출고제품' },
-    { field: 'releaseQuantity', label: '출고수량' },
     { field: 'releaseDate', label: '출고일자' },
-    { field: 'releaseManager', label: '출고 담당자' },
+    { field: 'orderCode', label: '주문번호' },
     { field: 'client', label: '거래처' },
-    { field: 'status', label: '상태' }
+    { field: 'status', label: '상태' },
+    { field: 'totalQty', label: '총 출고수량' }
 ];
 
-// 예시 데이터 (나중에 API 연동하면 이 부분만 교체)
-const allReleaseRows = [
-    {
-        releaseCode: 'R2025-0001',
-        orderCode: 'O2025-0001',
-        client: '이마트',
-        releaseDate: '2025-12-05'
-    },
-    {
-        releaseCode: 'R2025-0002',
-        orderCode: 'O2025-0002',
-        client: '홈플러스',
-        releaseDate: '2025-12-06'
-    },
-    {
-        releaseCode: 'R2025-0003',
-        orderCode: 'O2025-0003',
-        client: '코스트코',
-        releaseDate: '2025-12-07'
-    }
-];
-
-const releaseRows = ref([...allReleaseRows]);
+// 백엔드에서 채워질 출고 리스트
+const releaseRows = ref([]);
 const releaseKeyword = ref('');
 
 // 출고 모달 열기
 const openReleaseModal = () => {
     showReleaseModal.value = true;
+    // TODO: 출고 초기 목록 로딩 API 호출 (옵션)
 };
 
 // 출고 검색
 const handleSearchRelease = (keyword) => {
     releaseKeyword.value = keyword;
-    const k = keyword.trim().toLowerCase();
+    console.log('[Forwarding] 출고 검색 키워드:', keyword);
 
-    if (!k) {
-        releaseRows.value = [...allReleaseRows];
-        return;
-    }
-
-    releaseRows.value = allReleaseRows.filter((row) => {
-        return row.releaseCode.toLowerCase().includes(k) || row.orderCode.toLowerCase().includes(k) || row.client.toLowerCase().includes(k);
-    });
+    // TODO: 백엔드 연동
+    // api.get('/releases', { params: { keyword } }).then(res => {
+    //   releaseRows.value = res.data;
+    // });
 };
 
 // 🔹 기본정보
@@ -297,19 +84,61 @@ const basicInfo = reactive({
 const handleConfirmOrder = (row) => {
     if (!row) return;
 
+    console.log('[Forwarding] 주문 선택:', row);
+
     basicInfo.orderCode = row.orderNo;
     basicInfo.orderDate = row.orderDate;
     basicInfo.client = row.client;
+
+    // TODO: 여기서 주문 상세(제품 목록) 조회 API 호출 후 products 채우기
+    // api.get(`/orders/${row.orderNo}`).then(res => {
+    //   products.value = res.data.items.map(item => ({
+    //     productCode: item.productCode,
+    //     name: item.productName,
+    //     type: item.type,
+    //     spec: item.spec,
+    //     unit: item.unit,
+    //     orderQty: item.orderQty,
+    //     releaseQty: 0,                       // 최초 출고수량은 0
+    //     stockQty: item.currentStock,
+    //     dueDate: item.dueDate
+    //   }));
+    // });
 };
 
-// 출고 선택 시 (출고코드 쪽에 꽂기)
+// 출고 선택 시 (기존 출고 불러오기)
 const handleConfirmRelease = (row) => {
     if (!row) return;
+
+    console.log('[Forwarding] 출고 선택:', row);
 
     basicInfo.releaseCode = row.releaseCode;
     basicInfo.releaseDate = row.releaseDate;
     basicInfo.orderCode = row.orderCode;
     basicInfo.client = row.client;
+
+    // TODO: 여기서 출고 상세(제품별 출고수량) 조회 API 호출 후 products 채우기
+    // api.get(`/releases/${row.releaseCode}`).then(res => {
+    //   const header = res.data.header;
+    //   const lines = res.data.lines;
+    //
+    //   basicInfo.releaseDate = header.releaseDate;
+    //   basicInfo.orderCode = header.orderCode;
+    //   basicInfo.client = header.client;
+    //   basicInfo.remark = header.remark;
+    //
+    //   products.value = lines.map(item => ({
+    //     productCode: item.productCode,
+    //     name: item.productName,
+    //     type: item.type,
+    //     spec: item.spec,
+    //     unit: item.unit,
+    //     orderQty: item.orderQty,
+    //     releaseQty: item.releaseQty,
+    //     stockQty: item.currentStock,
+    //     dueDate: item.dueDate
+    //   }));
+    // });
 };
 
 const handleCancelOrder = () => {
@@ -320,11 +149,32 @@ const handleCancelRelease = () => {
     console.log('출고 선택 모달 취소');
 };
 
-// 제품 리스트 (지금은 비워두고, 나중에 API 연동 예정)
+// 🔹 제품 리스트 (주문/출고 선택 시 API 결과로 채움)
 const products = ref([]);
 
+// 출고수량 보정 (음수/과다 방지)
+const clampReleaseQty = (item) => {
+    if (item.releaseQty == null || isNaN(item.releaseQty)) {
+        item.releaseQty = 0;
+    }
+
+    if (item.releaseQty < 0) {
+        item.releaseQty = 0;
+    }
+
+    // 주문수량 이상 입력 방지
+    if (item.orderQty != null && item.releaseQty > item.orderQty) {
+        item.releaseQty = item.orderQty;
+    }
+
+    // 재고보다 많이 출고하려고 하면 재고까지로 보정 (필요 없으면 주석처리)
+    if (item.stockQty != null && item.releaseQty > item.stockQty) {
+        item.releaseQty = item.stockQty;
+    }
+};
+
 const onDelete = () => {
-    console.log('삭제 클릭');
+    console.log('삭제 클릭 (TODO: 출고전표 삭제 API)');
 };
 
 const onReset = () => {
@@ -334,11 +184,22 @@ const onReset = () => {
     basicInfo.orderDate = '';
     basicInfo.client = '';
     basicInfo.remark = '';
+    products.value = [];
     console.log('초기화 클릭');
 };
 
 const onSave = () => {
-    console.log('저장 클릭', { basicInfo, products: products.value });
+    console.log('저장 클릭 payload:', {
+        basicInfo: { ...basicInfo },
+        products: products.value
+    });
+
+    // TODO: 신규/수정 분기 처리
+    // if (!basicInfo.releaseCode) {
+    //   api.post('/releases', { header: basicInfo, lines: products.value });
+    // } else {
+    //   api.put(`/releases/${basicInfo.releaseCode}`, { header: basicInfo, lines: products.value });
+    // }
 };
 </script>
 
@@ -358,25 +219,25 @@ const onSave = () => {
                 </div>
             </div>
 
-            <!-- 공통 모달 사용 -->
+            <!-- 주문 정보 모달 -->
             <SearchSelectModal
                 v-model="showOrderModal"
                 :columns="orderColumns"
                 :rows="orderRows"
                 row-key="orderNo"
-                search-placeholder="주문번호 또는 주문명 또는 거래처를 입력해주세요."
+                search-placeholder="주문번호 / 주문명 / 거래처를 입력해주세요."
                 @search="handleSearchOrder"
                 @confirm="handleConfirmOrder"
                 @cancel="handleCancelOrder"
             />
 
-            <!-- ✅ 출고 정보 모달 (같은 컴포넌트, 다른 설정) -->
+            <!-- 출고 정보 모달 -->
             <SearchSelectModal
                 v-model="showReleaseModal"
                 :columns="releaseColumns"
                 :rows="releaseRows"
                 row-key="releaseCode"
-                search-placeholder="출고번호 또는 거래처를 입력해주세요."
+                search-placeholder="출고번호 / 주문번호 / 거래처를 입력해주세요."
                 @search="handleSearchRelease"
                 @confirm="handleConfirmRelease"
                 @cancel="handleCancelRelease"
@@ -449,7 +310,7 @@ const onSave = () => {
                     <tbody>
                         <!-- 아직 데이터 없음 -->
                         <tr v-if="!products.length">
-                            <td colspan="9" class="empty-row">제품을 선택하면 이곳에 목록이 표시됩니다.</td>
+                            <td colspan="9" class="empty-row">주문을 선택하면 제품 목록이 표시됩니다.</td>
                         </tr>
 
                         <tr v-for="(item, idx) in products" :key="idx">
@@ -457,10 +318,23 @@ const onSave = () => {
                             <td>{{ item.type }}</td>
                             <td>{{ item.spec }}</td>
                             <td>{{ item.unit }}</td>
+
+                            <!-- 주문수량 -->
                             <td class="num">{{ item.orderQty }}</td>
-                            <td class="num">{{ item.releaseQty }}</td>
-                            <td class="num">{{ item.remainQty }}</td>
+
+                            <!-- 출고수량 입력 -->
+                            <td class="num">
+                                <input type="number" v-model.number="item.releaseQty" min="0" :max="item.orderQty" class="qty-input" @blur="clampReleaseQty(item)" />
+                            </td>
+
+                            <!-- 남은수량: 주문수량 - 출고수량 -->
+                            <td class="num">
+                                {{ (item.orderQty || 0) - (item.releaseQty || 0) }}
+                            </td>
+
+                            <!-- 현재 재고 -->
                             <td class="num">{{ item.stockQty }}</td>
+
                             <td>{{ item.dueDate }}</td>
                         </tr>
                     </tbody>
@@ -649,6 +523,21 @@ const onSave = () => {
 .empty-row {
     text-align: center;
     color: #888;
+}
+
+/* 출고수량 입력 */
+.qty-input {
+    width: 80px;
+    padding: 4px 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    text-align: right;
+    font-size: 0.8rem;
+}
+
+.qty-input:focus {
+    outline: none;
+    border-color: #1976d2;
 }
 
 /* 반응형 - 좁은 화면에서 여백/레이아웃 조정 */
