@@ -1,5 +1,5 @@
-const mariadb = require("mariadb");
-const sqlList = require("./sqlList.js");
+const mariadb = require('mariadb');
+const sqlList = require('./sqlList.js');
 
 const pool = mariadb.createPool({
   port: process.env.PORT,
@@ -31,7 +31,7 @@ const query = async (alias, values) => {
   let conn = null;
   try {
     // ConnectionPool에서 Connection 객체를 가져옴
-    conn = await connectionPool.getConnection();
+    conn = await pool.getConnection();
     // SQL문 선택
     let executeSql = sqlList[alias];
     // SQL문을 실행할 결과를 처리
