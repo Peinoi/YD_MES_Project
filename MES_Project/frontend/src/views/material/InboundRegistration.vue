@@ -1,8 +1,8 @@
 <script setup>
 import { ref } from 'vue';
 import { useToast } from 'primevue/usetoast';
-import inboundApi from '@/api/inbound'; // 생성한 API 모듈 import
-
+import inboundApi from '@/api/inbound';
+import CommonSearchModal from '@/components/common/CommonSearchModal.vue';
 const toast = useToast();
 
 // [상태] 입력 폼 데이터
@@ -11,37 +11,77 @@ const form = ref({
     matName: '',
     category: '',
     unit: '',
-    client: '',
-    manager: '',
+    client: '', // 업체명 (표시용)
+    clientCode: '', // 업체코드 (저장용)
+    manager: '', // 담당자명 (표시용)
+    managerCode: '', // 담당자코드 (저장용)
     inQty: null, // 숫자형으로 초기화
     inboundDate: null
+});
+// [추가] 모달 제어용 상태 변수
+const isModalVisible = ref(false);
+const modalConfig = ref({
+    title: '',
+    api: null,
+    columns: [],
+    targetType: ''
 });
 
 // [상태] 입고 대기 목록 데이터
 // 실제 운영 시에는 빈 배열 []로 시작하는 것이 일반적입니다.
-const inboundList = ref([
-    {
-        matCode: 'MAT-003',
-        matName: '예담라면포장지',
-        category: '부자재',
-        unit: 'BOX',
-        client: '대한포장',
-        manager: '이담당',
-        inQty: 500,
-        inboundDate: '2025-05-29'
-    },
-    {
-        matCode: 'RM-001',
-        matName: '밀가루 1등급',
-        category: '원자재',
-        unit: '포',
-        client: '예담제분',
-        manager: '김자재',
-        inQty: 400,
-        inboundDate: '2025-05-29'
-    }
-]);
+const inboundList = ref([]);
+// 검색 버튼 클릭 시 모달 설정 및 열기
+const openSearch = (type) => {
+    modalConfig.value.targetType = type;
 
+    if (type === 'MAT') {
+        modalConfig.value.title = '자재 검색';
+        modalConfig.value.api = () => inboundApi.getMaterialList();
+        modalConfig.value.columns = [
+            { field: 'matCode', header: '자재코드' },
+            { field: 'matName', header: '자재명' },
+            { field: 'category', header: '분류' },
+            { field: 'unit', header: '단위' }
+        ];
+    } else if (type === 'CLIENT') {
+        modalConfig.value.title = '공급업체 검색';
+        modalConfig.value.api = () => inboundApi.getClientList();
+        modalConfig.value.columns = [
+            { field: 'clientCode', header: '업체코드' },
+            { field: 'clientName', header: '업체명' },
+            { field: 'type', header: '구분' }
+        ];
+    } else if (type === 'EMP') {
+        modalConfig.value.title = '담당자 검색';
+        modalConfig.value.api = () => inboundApi.getEmpList();
+        modalConfig.value.columns = [
+            { field: 'empCode', header: '사번' },
+            { field: 'empName', header: '성명' },
+            { field: 'deptName', header: '부서' }
+        ];
+    }
+    isModalVisible.value = true;
+};
+
+// 모달에서 데이터 선택 시 폼에 반영
+const handleSelect = (data) => {
+    console.log('test:', data);
+
+    const type = modalConfig.value.targetType;
+
+    if (type === 'MAT') {
+        form.value.matCode = data.matCode;
+        form.value.matName = data.matName;
+        form.value.category = data.category;
+        form.value.unit = data.unit;
+    } else if (type === 'CLIENT') {
+        form.value.clientCode = data.clientCode;
+        form.value.client = data.clientName;
+    } else if (type === 'EMP') {
+        form.value.managerCode = data.empCode;
+        form.value.manager = data.empName;
+    }
+};
 // [기능] 목록에 추가
 const addToList = () => {
     if (!form.value.matCode || !form.value.inQty) {
@@ -51,6 +91,10 @@ const addToList = () => {
     inboundList.value.push({
         ...form.value,
         // Date 객체를 YYYY-MM-DD 문자열로 변환
+        clientName: form.value.client, // 테이블 표시용
+        client: form.value.clientCode, // DB 전송용 (백엔드 필드명에 맞춤)
+        managerName: form.value.manager, // 테이블 표시용
+        manager: form.value.managerCode, // DB 전송용
         inboundDate: form.value.inboundDate ? new Date(form.value.inboundDate).toISOString().split('T')[0] : ''
     });
     resetForm();
@@ -64,7 +108,9 @@ const resetForm = () => {
         category: '',
         unit: '',
         client: '',
+        clientCode: '', // [수정] 초기화 대상 추가
         manager: '',
+        managerCode: '', // [수정] 초기화 대상 추가
         inQty: null,
         inboundDate: null
     };
@@ -138,8 +184,8 @@ const cancelRegistration = () => {
                 <div class="field-group">
                     <label class="field-label">자재코드 <span class="required">*</span></label>
                     <div class="flex w-full">
-                        <InputText v-model="form.matCode" placeholder="코드 검색" class="flex-1 border-r-0 rounded-r-none" />
-                        <Button icon="pi pi-search" severity="secondary" text class="rounded-l-none border-l-0" />
+                        <InputText v-model="form.matCode" placeholder="자재코드를 검색하세요" class="flex-1 border-r-0 rounded-r-none cursor-pointer" readonly @click="openSearch('MAT')" />
+                        <Button icon="pi pi-search" severity="secondary" text class="rounded-l-none border-l-0" @click="openSearch('MAT')" />
                     </div>
                 </div>
 
@@ -163,16 +209,16 @@ const cancelRegistration = () => {
                 <div class="field-group">
                     <label class="field-label">공급업체 <span class="required">*</span></label>
                     <div class="flex w-full">
-                        <InputText v-model="form.client" placeholder="업체 검색" class="flex-1 border-r-0 rounded-r-none" />
-                        <Button icon="pi pi-search" severity="secondary" text class="rounded-l-none border-l-0" />
+                        <InputText v-model="form.client" placeholder="공급업체를 검색하세요" class="flex-1 border-r-0 rounded-r-none cursor-pointer" readonly @click="openSearch('CLIENT')" />
+                        <Button icon="pi pi-search" severity="secondary" text class="rounded-l-none border-l-0" @click="openSearch('CLIENT')" />
                     </div>
                 </div>
 
                 <div class="field-group">
                     <label class="field-label">담당자</label>
                     <div class="flex w-full">
-                        <InputText v-model="form.manager" placeholder="담당자 검색" class="flex-1 border-r-0 rounded-r-none" />
-                        <Button icon="pi pi-search" severity="secondary" text class="rounded-l-none border-l-0" />
+                        <InputText v-model="form.manager" placeholder="담당자를 검색하세요" class="flex-1 border-r-0 rounded-r-none cursor-pointer" readonly @click="openSearch('EMP')" />
+                        <Button icon="pi pi-search" severity="secondary" text class="rounded-l-none border-l-0" @click="openSearch('EMP')" />
                     </div>
                 </div>
 
@@ -216,9 +262,8 @@ const cancelRegistration = () => {
                 <Column field="matName" header="자재명" sortable headerClass="center-header" bodyClass="text-center" style="min-width: 150px"></Column>
                 <Column field="category" header="분류" sortable headerClass="center-header" bodyClass="text-center"></Column>
                 <Column field="unit" header="단위" sortable headerClass="center-header" bodyClass="text-center"></Column>
-                <Column field="client" header="공급업체" sortable headerClass="center-header" bodyClass="text-center"></Column>
-                <Column field="manager" header="담당자" sortable headerClass="center-header" bodyClass="text-center"></Column>
-                <Column field="inQty" header="입고수량" sortable headerClass="center-header" bodyClass="text-center"></Column>
+                <Column field="clientName" header="공급업체" sortable headerClass="center-header" bodyClass="text-center"></Column>
+                <Column field="managerName" header="담당자" sortable headerClass="center-header" bodyClass="text-center"></Column><Column field="inQty" header="입고수량" sortable headerClass="center-header" bodyClass="text-center"></Column>
                 <Column field="inboundDate" header="입고일자" sortable headerClass="center-header" bodyClass="text-center"></Column>
 
                 <Column header="삭제" headerClass="center-header" bodyClass="text-center" style="width: 6rem">
@@ -233,6 +278,7 @@ const cancelRegistration = () => {
                 <Button label="취소" icon="pi pi-times" severity="secondary" class="px-5" @click="cancelRegistration" />
             </div>
         </div>
+        <CommonSearchModal v-if="isModalVisible" v-model:visible="isModalVisible" :title="modalConfig.title" :columns="modalConfig.columns" :search-api="modalConfig.api" @select="handleSelect" />
     </div>
 </template>
 

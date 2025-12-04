@@ -1,28 +1,30 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 
-// Props 정의
+// FilterMatchMode 직접 정의
+const FilterMatchMode = { CONTAINS: 'contains' };
+
 const props = defineProps({
-    visible: { type: Boolean, required: true }, // 모달 표시 여부
-    title: { type: String, default: '검색' }, // 모달 제목
-    columns: { type: Array, required: true }, // 테이블 컬럼 정의 [{field, header}]
-    searchApi: { type: Function, required: true } // ★ 실행할 API 함수
+    visible: { type: Boolean, required: true },
+    title: { type: String, default: '검색' },
+    columns: { type: Array, required: true },
+    searchApi: { type: Function, required: true }
 });
 
-// Emits 정의
 const emit = defineEmits(['update:visible', 'select']);
 
-// 상태
 const listData = ref([]);
 const loading = ref(false);
+const filters = ref({
+    global: { value: null, matchMode: FilterMatchMode.CONTAINS }
+});
 
-// 데이터 로드 함수
+const searchFields = computed(() => props.columns.map((col) => col.field));
+
 const loadData = async () => {
     loading.value = true;
     try {
-        // 부모가 넘겨준 API 함수 실행
         const response = await props.searchApi();
-        // 백엔드 응답 구조에 따라 data.data 혹은 data 등을 참조
         listData.value = response.data || [];
     } catch (error) {
         console.error('데이터 로드 실패:', error);
@@ -32,20 +34,14 @@ const loadData = async () => {
     }
 };
 
-// 모달이 열릴 때마다 데이터 로드
-watch(
-    () => props.visible,
-    (newVal) => {
-        if (newVal) {
-            listData.value = []; // 초기화
-            loadData();
-        }
-    }
-);
+onMounted(() => {
+    listData.value = [];
+    filters.value.global.value = null;
+    loadData();
+});
 
-// 행 선택 시 부모에게 이벤트 전달 후 닫기
 const onRowSelect = (event) => {
-    emit('select', event.data); // 선택된 행 데이터 전달
+    emit('select', event.data);
     close();
 };
 
@@ -55,16 +51,53 @@ const close = () => {
 </script>
 
 <template>
-    <Dialog :visible="visible" @update:visible="(val) => emit('update:visible', val)" :header="title" modal :style="{ width: '50vw' }" :draggable="false">
+    <Dialog :visible="visible" @update:visible="(val) => emit('update:visible', val)" :header="title" modal :style="{ width: '50vw' }" :draggable="false" dismissableMask>
         <div class="p-2">
-            <DataTable :value="listData" :loading="loading" selectionMode="single" @rowSelect="onRowSelect" :paginator="true" :rows="5" class="text-sm" stripedRows showGridlines>
-                <template #empty>데이터가 없습니다.</template>
-                <Column v-for="col in columns" :key="col.field" :field="col.field" :header="col.header" sortable headerClass="text-center bg-gray-100 font-bold" bodyClass="text-center"></Column>
+            <DataTable :value="listData" :loading="loading" selectionMode="single" @rowSelect="onRowSelect" :paginator="true" :rows="5" class="text-sm" stripedRows showGridlines v-model:filters="filters" :globalFilterFields="searchFields">
+                <template #empty>
+                    <div class="text-center p-4">데이터가 없습니다.</div>
+                </template>
+
+                <template #header>
+                    <div class="p-input-icon-left w-full">
+                        <InputText v-model="filters['global'].value" placeholder="검색어를 입력하세요" class="w-full" />
+                        <i class="pi pi-search" />
+                    </div>
+                </template>
+
+                <Column v-for="col in columns" :key="col.field" :field="col.field" :header="col.header" sortable headerClass="center-header bg-gray-100 font-bold" bodyClass="text-center"></Column>
             </DataTable>
         </div>
-
-        <template #footer>
-            <Button label="닫기" icon="pi pi-times" text @click="close" />
-        </template>
     </Dialog>
 </template>
+
+<style scoped>
+/* 아이콘 래퍼 스타일 수정됨 */
+.p-input-icon-left {
+    position: relative;
+    display: block; /* inline-block -> block 변경 */
+    width: 100%; /* 너비 100% 강제 */
+}
+.p-input-icon-left > i {
+    position: absolute;
+    top: 50%;
+    left: 0.75rem;
+    /* margin-top: -0.5rem; */
+    transform: translateY(-50%); /* 중앙 정렬 보정 */
+    color: #6c757d;
+    z-index: 2;
+}
+.p-input-icon-left > .p-inputtext {
+    padding-left: 2.5rem;
+    width: 100%; /* 입력창 너비 100% */
+}
+/* [추가] 테이블 데이터 셀 중앙 정렬 */
+:deep(.text-center) {
+    text-align: center !important;
+}
+
+/* [추가] 테이블 헤더 중앙 정렬 (PrimeVue Flex 구조 대응) */
+:deep(.center-header .p-column-header-content) {
+    justify-content: center !important;
+}
+</style>
