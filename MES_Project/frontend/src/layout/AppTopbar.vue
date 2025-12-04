@@ -13,7 +13,7 @@ const { toggleMenu } = useLayout();
             <router-link to="/" class="layout-topbar-logo">
                 <img src="/demo/images/메인로고.png" alt="일반로고" />
 
-                <h3>Noolde Tech</h3>
+                <h3>Noodle Tech</h3>
                 <!-- 추후에 로고 및 이름 변경 -->
             </router-link>
         </div>

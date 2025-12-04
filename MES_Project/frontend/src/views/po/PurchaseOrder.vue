@@ -1,42 +1,153 @@
 <script setup>
 import { ref } from 'vue';
 import axios from 'axios';
+import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
 
-const orderDate = ref(getToday());
+const purchaseCode = ref('');
+const showPOModal = ref(false);
+const showMateModal = ref(false);
+const showReqModal = ref(false);
 
-const writerCode = ref('A관리자');
+// 선택 행 기억
+const activeMateRow = ref(null);
+
+// 발주 불러오기 모달 컬럼
+const orderColumns = [
+    { field: 'purchaseCode', label: '발주서 번호' },
+    { field: 'purchaseDate', label: '발주제안일' },
+    { field: 'matName', label: '자재명' }
+];
+
+// 자재 선택 모달 컬럼
+const mateColumns = [
+    { field: 'matCode', label: '자재코드' },
+    { field: 'matName', label: '자재명' },
+    { field: 'curInven', label: '현재고' },
+    { field: 'insInven', label: '부족수량' },
+    { field: 'clientName', label: '공급업체' }
+];
+
+// 요청 불러오기 모달 컬럼
+const ReqColumns = [
+    { field: 'mprCode', label: '요청서 번호' },
+    { field: 'reqDate', label: '요청일' },
+    { field: 'mCode', label: '요청자' },
+    { field: 'matName', label: '자재명' }
+];
+
+const typeOptions = {
+    i1: '완제품',
+    i2: '반제품',
+    i3: '부자재',
+    i4: '원자재'
+};
+
+const unitOptions = {
+    h1: 'kg',
+    h2: 't',
+    h3: 'L',
+    h4: 'ea',
+    h5: 'box',
+    h6: 'g',
+    h7: 'mm',
+    h8: '%',
+    h9: 'cm',
+    ha: 'N'
+};
+
+const orderRows = ref([]);
+const mateRows = ref([]);
+const reqRows = ref([]);
+
+//발주정보 모달 목록 불러오기
+const fetchOrderList = async (keyword = '') => {
+    const res = await axios.get('/api/poder', {
+        params: {
+            purchaseCode: keyword || null
+        }
+    });
+
+    const rows = res.data.data || [];
+
+    orderRows.value = rows.map((row) => ({
+        ...row,
+        purchaseDate: row.purchaseDate ? String(row.purchaseDate).slice(0, 10) : ''
+    }));
+};
+// 자재 모달 목록 불러오기
+const fetchMateList = async (keyword = '') => {
+    const res = await axios.get('/api/poder/mate', {
+        params: {
+            keyword: keyword || null
+        }
+    });
+
+    mateRows.value = res.data.data || [];
+};
+
+//요청 모달 목록 불러오기
+const fetchReqList = async (keyword = '') => {
+    const res = await axios.get('/api/poder/mpr/list', {
+        params: {
+            mprCode: keyword || null // 검색어(요청서 번호) 있으면 전달
+        }
+    });
+
+    const rows = res.data.data || [];
+
+    reqRows.value = rows.map((row) => ({
+        ...row,
+        // 날짜 문자열 잘라서 YYYY-MM-DD 형태로
+        reqDate: row.reqDate ? String(row.reqDate).slice(0, 10) : ''
+    }));
+};
+
+//발주정보 모달 열기
+const openOrderModal = async () => {
+    await fetchOrderList();
+    showPOModal.value = true;
+};
+
+//자재 모달 열기
+const openMateModal = async (row) => {
+    activeMateRow.value = row;
+    await fetchMateList();
+    showMateModal.value = true;
+};
+
+//요청 모달 열기
+const openReqModal = async () => {
+    await fetchReqList();
+    showReqModal.value = true;
+};
+
+// 오늘날짜, 형식변환
+function getToday() {
+    return new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+}
+
+// 날짜
+const orderDate = ref(getToday()); // regdate
+const purchaseDate = ref(getToday()); // purchase_req_date
+
+// 헤더 필드
+const writerCode = ref('EMP-10003');
 const note = ref('');
 const status = ref('요청완료');
 
+// 자재 리스트
 const materials = ref([createRow(), createRow(), createRow()]);
 
-const savePo = async () => {
-    const header = {
-        purchase_code: null, // 발주서번호 (수정일 때만 세팅)
-        stat: status.value,
-        regdate: orderDate.value, // 위에서 v-model 한 orderDate
-        note: note.value, // 비고 인풋 v-model
-        mcode: writerCode.value // 작성자 (코드/이름 중 너 설계에 맞게)
-    };
+const allChecked = ref(false);
 
-    const items = materials.value.map((row) => ({
-        unit: row.unit,
-        needQty: row.needQty,
-        dueDate: row.dueDate,
-        vendor: row.vendor // 공급업체 코드 or 이름
-    }));
-
-    const res = await axios.post('/api/poder', { header, items });
-    console.log(res.data);
-};
-
+// 자재 행 생성
 function createRow() {
     return {
         id: Date.now() + Math.random(), // 고유 ID
         checked: false,
         name: '',
         type: '',
-        code: '',
+        code: '', // mat_code
         unit: '',
         needQty: '',
         stock: '',
@@ -45,10 +156,6 @@ function createRow() {
         dueDate: '',
         vendor: ''
     };
-}
-
-function getToday() {
-    return new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
 }
 
 function addRow() {
@@ -60,18 +167,254 @@ function deleteSelected() {
     allChecked.value = false;
 }
 
-const allChecked = ref(false);
-
 function toggleAll() {
     materials.value.forEach((r) => {
         r.checked = allChecked.value;
     });
 }
 
-function loadRequest() {
-    // 추후 연동할 때 구현
-    console.log('구매요청서 불러오기');
+function getTypeLabel(code) {
+    return typeOptions[code] || code;
 }
+
+function getUnitLabel(code) {
+    return unitOptions[code] || code;
+}
+//발주서 저장
+const savePo = async () => {
+    const today = getToday();
+
+    const header = {
+        purchase_code: null, // 신규 등록
+        purchase_req_date: purchaseDate.value || today, // 발주제안일
+        stat: status.value,
+        regdate: orderDate.value || today, // 시스템 등록일
+        note: note.value,
+        mcode: writerCode.value
+    };
+
+    const items = materials.value
+        .map((row) => ({
+            unit: row.unit,
+            needQty: row.needQty,
+            dueDate: row.dueDate,
+            vendor: row.vendor,
+            code: row.code
+        }))
+        .filter((item) => {
+            return item.unit || item.needQty || item.dueDate || item.vendor || item.code;
+        });
+
+    try {
+        const res = await axios.post('/api/poder', { header, items });
+        console.log(res.data);
+        alert('발주 정보가 저장되었습니다.');
+    } catch (err) {
+        console.error(err);
+        alert('저장 중 오류가 발생했습니다.\n콘솔 로그를 확인해 주세요.');
+    }
+};
+
+// 발주서 삭제
+const deletePo = async () => {
+    if (!purchaseCode.value) {
+        alert('삭제할 발주서가 없습니다.\n발주정보를 먼저 불러오세요.');
+        return;
+    }
+
+    if (!confirm(`발주서번호 ${purchaseCode.value} 를 삭제하시겠습니까?`)) {
+        return;
+    }
+
+    try {
+        const res = await axios.delete(`/api/poder/${purchaseCode.value}`);
+        console.log(res.data);
+
+        alert('발주서가 삭제되었습니다.');
+
+        // 폼 초기화
+        purchaseCode.value = '';
+        purchaseDate.value = getToday();
+        orderDate.value = getToday();
+        status.value = '요청완료';
+        note.value = '';
+        writerCode.value = 'EMP-10003';
+        materials.value = [createRow(), createRow(), createRow()];
+        allChecked.value = false;
+    } catch (err) {
+        console.error(err);
+        alert('삭제 중 오류가 발생했습니다.\n콘솔 로그를 확인해 주세요.');
+    }
+};
+
+//초기화 버튼
+const resetForm = () => {
+    if (!confirm('화면을 초기화하시겠습니까?')) return;
+
+    purchaseCode.value = '';
+    purchaseDate.value = getToday();
+    orderDate.value = getToday();
+    status.value = '요청완료';
+    note.value = '';
+    writerCode.value = 'EMP-10003';
+
+    // 자재 테이블 초기화
+    materials.value = [createRow(), createRow(), createRow()];
+
+    allChecked.value = false;
+};
+
+// 발주서 선택
+const handleConfirmOrder = async (selectedRow) => {
+    // 선택 안 하고 확인 눌렀을 때 방어
+    if (!selectedRow || !selectedRow.purchaseCode) {
+        alert('발주서를 선택해 주세요.');
+        return;
+    }
+
+    try {
+        // 1) 단건 발주 조회 호출
+        const res = await axios.get(`/api/poder/${selectedRow.purchaseCode}`);
+        const data = res.data.data;
+
+        // 2) 헤더 세팅 (날짜는 YYYY-MM-DD만 사용)
+        purchaseCode.value = data.header.purchase_code;
+        purchaseDate.value = data.header.purchase_req_date ? String(data.header.purchase_req_date).slice(0, 10) : getToday();
+
+        orderDate.value = data.header.regdate ? String(data.header.regdate).slice(0, 10) : getToday();
+
+        status.value = data.header.stat || '요청완료';
+        note.value = data.header.note || '';
+        writerCode.value = data.header.mcode || 'EMP-10003';
+
+        // 3) 상세(자재 목록) 매핑
+        const items = data.items || [];
+
+        console.log('상세 아이템 목록:', items);
+
+        if (items.length) {
+            materials.value = items.map((item) => ({
+                id: item.mpo_d_code, // 고유키로 사용
+                checked: false,
+                name: item.matName || '', // 자재명
+                type: item.matType || '', // 자재유형
+                code: item.mat_code || '', // 자재코드
+                unit: item.unit || item.matUnit || '',
+                needQty: item.req_qtt ?? '', // 필요수량
+                stock: item.curInven ?? '', // 현재고
+                lackQty: item.insInven ?? '', // 부족수량
+                dueDate: item.deadline ? String(item.deadline).slice(0, 10) : '',
+                vendor: item.clientName || item.client_code || ''
+            }));
+        } else {
+            // 상세가 0건이면 빈 행 1~3개 만들어서 보여주기
+            materials.value = [createRow(), createRow(), createRow()];
+        }
+
+        allChecked.value = false;
+    } catch (err) {
+        console.error(err);
+        alert('발주 정보를 불러오는 중 오류가 발생했습니다.');
+    } finally {
+        showPOModal.value = false;
+    }
+};
+
+// 발주 닫기
+const handleCancelOrder = () => {
+    showPOModal.value = false;
+};
+
+//자재 선택
+const handleConfirmMate = (selectedRow) => {
+    if (!selectedRow || !activeMateRow.value) {
+        alert('자재를 선택해 주세요.');
+        return;
+    }
+
+    const row = activeMateRow.value;
+
+    // 자재 기본 정보
+    row.name = selectedRow.matName || '';
+    row.code = selectedRow.matCode || '';
+
+    row.type = selectedRow.matType || '';
+    row.unit = selectedRow.unit || '';
+
+    // 수량/재고/부족수량/공급업체
+    if (selectedRow.curInven !== undefined) row.stock = selectedRow.curInven;
+    if (selectedRow.insInven !== undefined) row.lackQty = selectedRow.insInven;
+    if (selectedRow.clientName) row.vendor = selectedRow.clientName;
+
+    showMateModal.value = false;
+    activeMateRow.value = null;
+};
+
+//자재 닫기
+const handleCancelMate = () => {
+    showMateModal.value = false;
+    activeMateRow.value = null;
+};
+
+// 요청 선택
+const handleConfirmReq = async (selectedRow) => {
+    if (!selectedRow || !selectedRow.mprCode) {
+        alert('요청서를 선택해 주세요.');
+        return;
+    }
+
+    try {
+        const res = await axios.get(`/api/poder/mpr/${selectedRow.mprCode}`);
+        const data = res.data.data;
+
+        const items = data.items || [];
+
+        if (items.length) {
+            // 요청 자재들을 발주 자재 테이블로 매핑
+            materials.value = items.map((item) => ({
+                id: item.mpr_d_code || Date.now() + Math.random(),
+                checked: false,
+                name: item.matName || '',
+                type: item.matType || '',
+                code: item.mat_code || '',
+                unit: item.unit || '',
+                needQty: item.req_qtt ?? '', // 요청수량 -> 발주 필요수량
+                stock: item.curInven ?? '',
+                lackQty: item.insInven ?? '',
+                dueDate: item.deadline ? String(item.deadline).slice(0, 10) : '',
+                vendor: item.clientName || item.mat_sup || ''
+            }));
+        } else {
+            materials.value = [createRow(), createRow(), createRow()];
+        }
+
+        allChecked.value = false;
+    } catch (err) {
+        console.error(err);
+        alert('자재 구매 요청서를 불러오는 중 오류가 발생했습니다.');
+    } finally {
+        showReqModal.value = false;
+    }
+};
+// 요청 닫기
+const handleCancelReq = () => {
+    showReqModal.value = false;
+};
+
+//  발주 모달 검색
+const handleOrderSearch = async (keyword) => {
+    await fetchOrderList(keyword);
+};
+
+//  자재 모달 검색
+const handleMateSearch = async (keyword) => {
+    await fetchMateList(keyword);
+};
+
+//  요청 모달 검색
+const handleReqSearch = async (keyword) => {
+    await fetchReqList(keyword);
+};
 </script>
 
 <template>
@@ -82,30 +425,30 @@ function loadRequest() {
                 <h3 class="section-title">발주 기본정보</h3>
 
                 <div class="btn-row">
-                    <button class="btn-red">삭제</button>
-                    <button class="btn-black">초기화</button>
-                    <button class="btn-blue" @click="savePo()">저장</button>
-                    <button class="btn-green">발주정보 불러오기</button>
+                    <button class="btn-red" @click="deletePo">삭제</button>
+                    <button class="btn-black" @click="resetForm">초기화</button>
+                    <button class="btn-blue" @click="savePo">저장</button>
+                    <button class="btn-green" @click="openOrderModal">발주정보 불러오기</button>
                 </div>
             </div>
 
             <div class="form-grid">
                 <div class="form-item">
                     <label>발주서번호</label>
-                    <input type="text" class="input" disabled />
+                    <input type="text" class="input" v-model="purchaseCode" disabled />
                 </div>
 
                 <div class="form-item">
                     <label>발주제안일</label>
-                    <input type="date" class="input" v-model="orderDate" disabled />
+                    <input type="date" class="input" v-model="purchaseDate" />
                 </div>
 
                 <div class="form-item">
                     <label>작성자</label>
                     <select class="input" v-model="writerCode">
-                        <option>A관리자</option>
-                        <option>B관리자</option>
-                        <option>C관리자</option>
+                        <option>EMP-10003</option>
+                        <option>EMP-10004</option>
+                        <option>EMP-10001</option>
                     </select>
                 </div>
 
@@ -134,7 +477,7 @@ function loadRequest() {
                 <div class="btn-row">
                     <button class="btn-blue" @click="addRow">자재추가</button>
                     <button class="btn-red" @click="deleteSelected">자재삭제</button>
-                    <button class="btn-green" @click="loadRequest">자재구매요청서 불러오기</button>
+                    <button class="btn-green" @click="openReqModal">자재구매요청서 불러오기</button>
                 </div>
             </div>
 
@@ -143,7 +486,7 @@ function loadRequest() {
                     <tr>
                         <th><input type="checkbox" v-model="allChecked" @change="toggleAll" /></th>
                         <th>자재명</th>
-                        <th>자재구분</th>
+                        <th>자재유형</th>
                         <th>자재코드</th>
                         <th>단위</th>
                         <th>필요수량</th>
@@ -160,29 +503,32 @@ function loadRequest() {
                             <input type="checkbox" v-model="row.checked" />
                         </td>
 
-                        <td><input class="cell-input" v-model="row.name" /></td>
-                        <td><input class="cell-input" v-model="row.type" /></td>
-                        <td><input class="cell-input" v-model="row.code" /></td>
+                        <td>
+                            <input class="cell-input" v-model="row.name" @click="openMateModal(row)" readonly placeholder="자재 선택" />
+                        </td>
+                        <td><input class="cell-input" :value="getTypeLabel(row.type)" disabled /></td>
+                        <td>
+                            <input class="cell-input" v-model="row.code" disabled />
+                        </td>
 
                         <td>
-                            <select class="cell-input" v-model="row.unit">
-                                <option></option>
-                                <option>KG</option>
-                                <option>EA</option>
-                            </select>
+                            <input class="cell-input" :value="getUnitLabel(row.unit)" disabled />
                         </td>
 
                         <td><input class="cell-input" type="number" v-model="row.needQty" /></td>
-                        <td><input class="cell-input" type="number" v-model="row.stock" /></td>
-                        <td><input class="cell-input" type="number" v-model="row.lackQty" /></td>
+                        <td><input class="cell-input" type="number" v-model="row.stock" disabled /></td>
+                        <td><input class="cell-input" type="number" v-model="row.lackQty" disabled /></td>
 
                         <td><input class="cell-input" type="date" v-model="row.dueDate" /></td>
-                        <td><input class="cell-input" v-model="row.vendor" /></td>
+                        <td><input class="cell-input" v-model="row.vendor" disabled /></td>
                     </tr>
                 </tbody>
             </table>
         </div>
     </section>
+    <SearchSelectModal v-model="showPOModal" :columns="orderColumns" :rows="orderRows" row-key="purchaseCode" search-placeholder="발주서번호를 입력해주세요." @confirm="handleConfirmOrder" @cancel="handleCancelOrder" @search="handleOrderSearch" />
+    <SearchSelectModal v-model="showMateModal" :columns="mateColumns" :rows="mateRows" row-key="matCode" search-placeholder="자재명을 입력해주세요." @confirm="handleConfirmMate" @cancel="handleCancelMate" @search="handleMateSearch" />
+    <SearchSelectModal v-model="showReqModal" :columns="ReqColumns" :rows="reqRows" row-key="mprCode" search-placeholder="자재구매요청번호를 입력해주세요." @confirm="handleConfirmReq" @cancel="handleCancelReq" @search="handleReqSearch" />
 </template>
 
 <style scoped>

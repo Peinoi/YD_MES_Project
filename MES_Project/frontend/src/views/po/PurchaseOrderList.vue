@@ -1,5 +1,10 @@
 <script setup>
 import { ref } from 'vue';
+import axios from 'axios';
+import * as XLSX from 'xlsx';
+import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
+
+const showClientModal = ref(false);
 
 const filters = ref({
     orderNo: '',
@@ -14,86 +19,95 @@ const filters = ref({
     status: ''
 });
 
-// 전체 목록 (샘플 데이터)
-const allList = ref([
-    {
-        id: 1,
-        checked: false,
-        orderNo: 'BJ00123',
-        requestDate: '2025.05.26',
-        materialType: '원자재',
-        materialName: '양파',
-        vendor: '예담',
-        qty: 2000,
-        dueDate: '2025.05.26',
-        status: '요청완료',
-        writer: '한주연',
-        regDate: '2025.05.26'
-    },
-    {
-        id: 2,
-        checked: false,
-        orderNo: 'BJ00123',
-        requestDate: '2025.05.26',
-        materialType: '부자재',
-        materialName: '라면봉지',
-        vendor: '예담',
-        qty: 3000,
-        dueDate: '2025.05.26',
-        status: '입고완료',
-        writer: '홍길동',
-        regDate: '2025.05.26'
-    },
-    {
-        id: 3,
-        checked: false,
-        orderNo: 'BJ00123',
-        requestDate: '2025.05.26',
-        materialType: '반제품',
-        materialName: '스프용',
-        vendor: '라면이 조아',
-        qty: 5000,
-        dueDate: '2025.05.26',
-        status: '요청완료',
-        writer: '한주연',
-        regDate: '2025.05.26'
-    }
-]);
+const typeOptions = {
+    i1: '완제품',
+    i2: '반제품',
+    i3: '부자재',
+    i4: '원자재'
+};
+
+// 클라이언트 불러오기 모달 컬럼
+const clientColumns = [
+    { field: 'clientCode', label: '공급업체 번호' },
+    { field: 'clientName', label: '공급업체명' },
+    { field: 'clientTypeLabel', label: '거래처유형' }
+];
+
+const clientTypeOptions = {
+    l1: '납품업체',
+    l2: '공급업체'
+};
+
+// 전체 발주 목록
+const allList = ref([]);
+// 공급업체 모달 데이터
+const clientRows = ref([]);
 
 // 실제 테이블에 보여줄 데이터
 const tableRows = ref([...allList.value]);
 
 const allChecked = ref(false);
 
-// 필터 적용 함수 (조회 버튼에서 호출)
+//공급업체 목록 불러오기
+const fetchClientList = async () => {
+    const res = await axios.get('/api/poder/client');
+
+    const rows = res.data.data || [];
+
+    clientRows.value = rows.map((row) => ({
+        ...row,
+        clientTypeLabel: clientTypeOptions[row.clientType] || row.clientType
+    }));
+};
+
+//발주목록 불러오기
+const fetchOrderList = async (keyword = '') => {
+    const res = await axios.get('/api/poder/list', {
+        params: {
+            purchaseCode: keyword || null
+        }
+    });
+
+    const rows = res.data.data || [];
+
+    allList.value = rows.map((row) => ({
+        ...row,
+        purchaseDate: row.purchaseDate ? String(row.purchaseDate).slice(0, 10) : '',
+        deadLine: row.deadLine ? String(row.deadLine).slice(0, 10) : '',
+        regDate: row.regDate ? String(row.regDate).slice(0, 10) : ''
+    }));
+};
+
+// 필터 적용 함수 / 조회 눌러 적용
 function applyFilter() {
     const f = filters.value;
 
     tableRows.value = allList.value.filter((row) => {
-        if (f.orderNo && !row.orderNo.includes(f.orderNo)) return false;
+        if (f.orderNo && !row.purchaseCode.includes(f.orderNo)) return false;
 
-        if (f.materialType && row.materialType !== f.materialType) return false;
+        if (f.materialType && row.type !== f.materialType) return false;
 
-        if (f.vendor && !row.vendor.includes(f.vendor.trim())) return false;
+        if (f.vendor && !row.clientName.includes(f.vendor.trim())) return false;
 
-        if (f.status && row.status !== f.status) return false;
+        if (f.status && row.stat !== f.status) return false;
 
-        if (f.qtyFrom != null && f.qtyFrom !== '' && row.qty < f.qtyFrom) return false;
+        if (f.qtyFrom != null && f.qtyFrom !== '' && row.req_qtt < f.qtyFrom) return false;
+        if (f.qtyTo != null && f.qtyTo !== '' && row.req_qtt > f.qtyTo) return false;
 
-        if (f.qtyTo != null && f.qtyTo !== '' && row.qty > f.qtyTo) return false;
+        if (f.reqDateFrom && row.purchaseDate && row.purchaseDate < f.reqDateFrom) return false;
+        if (f.reqDateTo && row.purchaseDate && row.purchaseDate > f.reqDateTo) return false;
 
-        // 날짜 필터 필요하면 여기서 Date로 변환해서 비교
+        if (f.dueDateFrom && row.deadLine && row.deadLine < f.dueDateFrom) return false;
+        if (f.dueDateTo && row.deadLine && row.deadLine > f.dueDateTo) return false;
 
         return true;
     });
 
-    // 전체선택 체크 상태 재조정
     allChecked.value = tableRows.value.length > 0 && tableRows.value.every((r) => r.checked);
 }
 
 // 조회 버튼
 function onSearch() {
-    console.log('검색 조건:', filters.value);
     applyFilter();
 }
 
@@ -128,12 +142,82 @@ function formatNumber(v) {
     if (v == null || v === '') return '';
     return v.toLocaleString();
 }
+
+function getTypeLabel(code) {
+    return typeOptions[code] || code;
+}
+
+function downloadExcel() {
+    // 체크된 행만
+    const selected = tableRows.value.filter((row) => row.checked);
+
+    if (!selected.length) {
+        alert('다운로드할 행을 선택해 주세요.');
+        return;
+    }
+
+    const data = selected.map((row) => ({
+        발주서번호: row.purchaseCode,
+        발주제안일: row.purchaseDate,
+        자재유형: getTypeLabel(row.type),
+        자재명: row.matName,
+        공급업체: row.clientName,
+        필요수량: row.req_qtt,
+        입고납기일: row.deadLine,
+        발주상태: row.stat,
+        작성자: row.mcode,
+        등록일자: row.regDate
+    }));
+
+    // 워크시트/워크북 생성
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '발주목록');
+
+    // 파일 다운로드
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    XLSX.writeFile(wb, `발주목록_${today}.xlsx`);
+}
+
+// 공급업체 모달 열기
+const openClientModal = async () => {
+    await fetchClientList();
+    showClientModal.value = true;
+};
+
+// 공급업체 모달 검색
+const handleClientSearch = async (keyword) => {
+    await fetchClientList(keyword);
+};
+
+// 공급업체 모달 선택
+const handleConfirmClient = (row) => {
+    if (!row) {
+        alert('공급업체를 선택해 주세요.');
+        return;
+    }
+
+    filters.value.vendor = row.clientName || '';
+
+    showClientModal.value = false;
+};
+
+// 공급업체 모달 닫기
+const handleCancelClient = () => {
+    showClientModal.value = false;
+};
+
+// 초기 데이터 로드
+fetchOrderList().then(() => {
+    tableRows.value = [...allList.value];
+});
 </script>
 
 <template>
     <section class="p-2 mx-auto filter-section">
         <!--  검색 영역 -->
         <div class="card-block filter-block">
+            <h3 class="section-title">발주 검색</h3>
             <div class="filter-grid">
                 <!-- 1행 -->
                 <div class="form-item">
@@ -145,9 +229,10 @@ function formatNumber(v) {
                     <label>자재유형</label>
                     <select class="input" v-model="filters.materialType">
                         <option value="">전체</option>
-                        <option value="원자재">원자재</option>
-                        <option value="부자재">부자재</option>
-                        <option value="반제품">반제품</option>
+                        <option value="i1">완제품</option>
+                        <option value="i2">반제품</option>
+                        <option value="i3">부자재</option>
+                        <option value="i4">원자재</option>
                     </select>
                 </div>
 
@@ -163,7 +248,7 @@ function formatNumber(v) {
                 <!-- 2행 -->
                 <div class="form-item">
                     <label>공급업체</label>
-                    <input class="input" v-model="filters.vendor" />
+                    <input class="input" v-model="filters.vendor" readonly placeholder="공급업체 선택" @click="openClientModal" />
                 </div>
 
                 <div class="form-item form-range">
@@ -204,11 +289,13 @@ function formatNumber(v) {
         <!--  검색 결과 + 엑셀 다운로드 -->
         <div class="result-block mt-6">
             <div class="result-header">
+                <h3 class="section-title">발주 목록</h3>
+
                 <div class="result-info">
                     검색 결과 <span class="highlight">{{ tableRows.length }}</span
                     >건
                 </div>
-                <button class="btn-excel">엑셀 다운로드</button>
+                <button class="btn-excel" @click="downloadExcel">엑셀 다운로드</button>
             </div>
 
             <table class="nice-table">
@@ -235,17 +322,17 @@ function formatNumber(v) {
                         <td>
                             <input type="checkbox" v-model="row.checked" />
                         </td>
-                        <td>{{ row.orderNo }}</td>
-                        <td>{{ row.requestDate }}</td>
-                        <td>{{ row.materialType }}</td>
-                        <td>{{ row.materialName }}</td>
-                        <td>{{ row.vendor }}</td>
+                        <td>{{ row.purchaseCode }}</td>
+                        <td>{{ row.purchaseDate }}</td>
+                        <td>{{ getTypeLabel(row.type) }}</td>
+                        <td>{{ row.matName }}</td>
+                        <td>{{ row.clientName }}</td>
                         <td class="text-right">
-                            {{ formatNumber(row.qty) }}
+                            {{ formatNumber(row.req_qtt) }}
                         </td>
-                        <td>{{ row.dueDate }}</td>
-                        <td>{{ row.status }}</td>
-                        <td>{{ row.writer }}</td>
+                        <td>{{ row.deadLine }}</td>
+                        <td>{{ row.stat }}</td>
+                        <td>{{ row.mcode }}</td>
                         <td>{{ row.regDate }}</td>
                     </tr>
 
@@ -256,6 +343,17 @@ function formatNumber(v) {
             </table>
         </div>
     </section>
+
+    <SearchSelectModal
+        v-model="showClientModal"
+        :columns="clientColumns"
+        :rows="clientRows"
+        row-key="clientCode"
+        search-placeholder="공급업체명을 입력하세요."
+        @search="handleClientSearch"
+        @confirm="handleConfirmClient"
+        @cancel="handleCancelClient"
+    />
 </template>
 
 <style scoped>
@@ -271,6 +369,14 @@ function formatNumber(v) {
     border-radius: 8px;
     width: 100%;
     box-sizing: border-box;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 18px;
+    color: #444;
+    display: inline-block;
 }
 
 .filter-block {
@@ -352,7 +458,7 @@ function formatNumber(v) {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
 .result-info {

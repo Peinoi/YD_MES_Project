@@ -14,7 +14,7 @@ const model = ref([
                 items: [
                     { label: '제품 및 BOM 등록', to: '/baseinfo/bom' },
                     { label: '라인 정보', to: '' },
-                    { label: '공정 흐름도 등록', to: '/process' }
+                    { label: '공정 흐름도 등록', to: '/baseinfo/process' }
                 ]
             },
             {
@@ -55,6 +55,10 @@ const model = ref([
                     },
                     {
                         label: '작업 진행',
+                        to: '/Production/work'
+                    },
+                    {
+                        label: '작업지시서목록',
                         to: '/Production/productionwork'
                     },
                     {
@@ -100,8 +104,12 @@ const model = ref([
                 to: '',
                 items: [
                     {
-                        label: '자재 재고',
-                        to: ''
+                        label: '자재 구매 요청',
+                        to: '/purchaseReq'
+                    },
+                    {
+                        label: '자재 구매 요청 목록',
+                        to: '/purchaseReqList'
                     },
                     {
                         label: '발주서 관리',
@@ -117,11 +125,11 @@ const model = ref([
                     },
                     {
                         label: '입출고내역',
-                        to: 'InOutHistory'
+                        to: { name: 'InOutHistory' }
                     },
                     {
                         label: '재고목록',
-                        to: 'StockList'
+                        to: { name: 'StockList' }
                     }
                 ]
             }
