@@ -3,9 +3,9 @@ const router = express.Router();
 const qcService = require('../services/qcService');
 
 // 004 목록 조회
-router.get('/list', async (req, res) => {
+router.post('/list', async (req, res) => {
   try {
-    const result = await qcService.qcFindAllService();
+    const result = await qcService.qcFindAllService(req.body);
     res.json(result);
   } catch (err) {
     res.status(500).json({ ok: false, message: 'list Route Error' });

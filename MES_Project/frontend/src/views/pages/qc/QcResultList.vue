@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { apiTest } from '../../../api/qc/qcApi';
+import { findQcList } from '../../../api/qc/qcApi';
 
 // QC용 컴포넌트
 import QcResultSearch from '@/components/qc/QcResultSearch.vue';
@@ -9,13 +9,11 @@ import QcResultTable from '@/components/qc/QcResultTable.vue';
 // 검색조건
 const searchCriteria = ref({});
 
-// 더미 또는 API 데이터
 const allRows = ref([]);
 
-const qcListSearch = async () => {
-    const result = await apiTest();
+const qcListSearch = async (criteria) => {
+    const result = await findQcList(criteria);
     allRows.value = result;
-    console.log(allRows.value);
 };
 
 const searchReset = () => {
@@ -25,11 +23,19 @@ const searchReset = () => {
 // 검색 필터링 (필요 시 확장)
 const filteredRows = computed(() => {
     const f = searchCriteria.value;
-    if (!f || Object.keys(f).length === 0) return allRows.value;
+    if (!f || Object.keys(f).length === 0) {
+        return allRows.value;
+    }
     return allRows.value.filter((r) => {
-        if (f.line && r.line !== f.line) return false;
-        if (f.inspectorName && !r.inspectorName.includes(f.inspectorName)) return false;
-        if (f.type && r.type !== f.type) return false;
+        if (f.line && r.line !== f.line) {
+            return false;
+        }
+        if (f.inspectorName && !r.inspectorName.includes(f.inspectorName)) {
+            return false;
+        }
+        if (f.type && r.type !== f.type) {
+            return false;
+        }
         return true;
     });
 });

@@ -1,9 +1,23 @@
 const { query } = require('../database/mapper.js');
 
 // 004 목록 조회
-async function qcFindAllService() {
+async function qcFindAllService(params) {
   try {
-    return await query('QC_FIND_ALL');
+    const { qcrCore, prodCode, prodName, qcrCode, result, startDate } = params;
+    return await query('QC_SEARCH', [
+      qcrCore,
+      qcrCore,
+      prodCode,
+      prodCode,
+      prodName,
+      prodName,
+      qcrCode,
+      qcrCode,
+      result,
+      result,
+      startDate,
+      startDate,
+    ]);
   } catch (err) {
     throw err;
   }
