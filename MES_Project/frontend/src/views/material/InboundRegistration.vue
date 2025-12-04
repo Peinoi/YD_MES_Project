@@ -129,7 +129,7 @@ const cancelRegistration = () => {
                     <InputText v-model="form.unit" placeholder="Unit" readonly class="bg-gray-50 w-full" />
                 </div>
 
-                <div class="col-span-full divider my-2"></div>
+                <div class="col-span-full divider"></div>
 
                 <div class="field-group">
                     <label class="field-label">공급업체 <span class="required">*</span></label>
@@ -172,7 +172,7 @@ const cancelRegistration = () => {
                 </h3>
             </div>
 
-            <DataTable :value="inboundList" showGridlines stripedRows responsiveLayout="scroll" class="text-sm" removableSort>
+            <DataTable :value="inboundList" showGridlines stripedRows responsiveLayout="scroll" class="text-sm" removableSort scrollable scrollHeight="100px">
                 <template #empty>
                     <div class="text-center p-4 text-gray-500">추가된 입고 품목이 없습니다.</div>
                 </template>
@@ -210,12 +210,12 @@ const cancelRegistration = () => {
 <style scoped>
 /* 기본 레이아웃 스타일 */
 .inbound-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
     font-family: 'Pretendard', 'Inter', sans-serif;
     background-color: #f8f9fa;
-    min-height: 100vh;
+    padding: 1.5rem;
+    border-radius: 12px;
+    height: calc(100vh - 8rem);
+    overflow-y: auto;
 }
 
 .header-section {
@@ -268,7 +268,8 @@ const cancelRegistration = () => {
 .form-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 1.5rem;
+    row-gap: 0.75rem;
+    column-gap: 1.5rem;
 }
 
 @media (min-width: 1024px) {
@@ -339,6 +340,11 @@ const cancelRegistration = () => {
 /* 테이블 내용 중앙 정렬 */
 :deep(.text-center) {
     text-align: center !important;
+}
+
+:deep(.p-datatable-tbody > tr > td) {
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
 }
 </style>
 

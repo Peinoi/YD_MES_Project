@@ -178,7 +178,7 @@ const getStatusSeverity = (status) => {
 <template>
     <div class="inbound-container">
         <div class="header-section">
-            <h2 class="page-title">자재 입출고 내역 조회</h2>
+            <h3 class="page-title">자재 입출고 내역 조회</h3>
             <div class="breadcrumb">자재 관리 > 입출고 내역</div>
         </div>
 
@@ -218,7 +218,7 @@ const getStatusSeverity = (status) => {
 
             <div class="form-actions center-actions">
                 <Button label="초기화" icon="pi pi-refresh" severity="secondary" @click="onReset" class="mr-2" />
-                <Button label="조회" icon="pi pi-search" severity="primary" @click="onSearch" />
+                <Button label="검색" icon="pi pi-search" severity="primary" @click="onSearch" />
             </div>
         </div>
 
@@ -304,12 +304,12 @@ const getStatusSeverity = (status) => {
 /* 스타일 정의 */
 /* -------------------------------------- */
 .inbound-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
     font-family: 'Pretendard', 'Inter', sans-serif;
     background-color: #f8f9fa;
-    min-height: 100vh;
+    padding: 1.5rem;
+    border-radius: 12px;
+    height: calc(100vh - 8rem);
+    overflow-y: auto;
 }
 
 .header-section {
@@ -325,7 +325,6 @@ const getStatusSeverity = (status) => {
     color: #111827;
     margin: 0;
 }
-
 .breadcrumb {
     color: #6b7280;
     font-size: 0.9rem;
@@ -345,7 +344,7 @@ const getStatusSeverity = (status) => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     padding-bottom: 0.75rem;
     border-bottom: 1px solid #f3f4f6;
 }
@@ -424,6 +423,12 @@ const getStatusSeverity = (status) => {
 :deep(.text-center) {
     text-align: center !important;
 }
+
+:deep(.p-datatable-tbody > tr > td) {
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+}
+
 /* 처리상태 점 + 텍스트 스타일 */
 .status-chip {
     display: inline-flex;
