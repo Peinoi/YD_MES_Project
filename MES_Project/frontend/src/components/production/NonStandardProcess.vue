@@ -4,8 +4,9 @@ import Column from 'primevue/column';
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
 import { defineProps, defineEmits, ref } from 'vue';
+import ProcessModal from './ProcessModal.vue'; // ⭐ 모달 import
 
-// props 정의 (컴포넌트의 rows 데이터는 부모에서 받아옴)
+// props 정의
 const props = defineProps({
     rows: {
         type: Array,
@@ -13,9 +14,7 @@ const props = defineProps({
     }
 });
 
-// 🚀 테스트를 위한 더미 데이터 정의 (선택 사항: 실제로 부모에서 props를 통해 전달)
-// 이 데이터를 props.rows 대신 사용하려면, 아래 rows를 rows_data로 변경하고 v-bind:value="rows_data"로 연결해야 합니다.
-// 여기서는 props.rows가 이미 데이터라고 가정하고, props의 기본값으로 사용하거나 예시로 보여줍니다.
+// 더미 데이터 (props.rows가 없을 때 사용)
 const dummyRows = ref([
     { processName: '열처리 1차', equipmentCode: 'E-101', processType: '정형', status: '진행 중', checked: false },
     { processName: '프레스 성형', equipmentCode: 'E-205', processType: '비정형', status: '대기', checked: false },
@@ -23,41 +22,51 @@ const dummyRows = ref([
     { processName: '도장/코팅', equipmentCode: 'E-412', processType: '비정형', status: '에러', checked: false },
     { processName: '최종 검사', equipmentCode: 'E-500', processType: '정형', status: '대기', checked: false }
 ]);
-// 💡 참고: 만약 props를 사용하지 않고 이 컴포넌트 내에서 테스트하려면
-// DataTable의 :value를 props.rows 대신 dummyRows.value로 변경하세요.
 
-// 1. 컬럼 정의 (설비코드로 최종 확정)
+// 컬럼 정의
 const columns = ref([
     { field: 'processName', header: '공정명' },
-    { field: 'equipmentCode', header: '설비코드' }, // ⭐ 설비코드로 유지
+    { field: 'equipmentCode', header: '설비코드' },
     { field: 'processType', header: '공정유형' },
     { field: 'status', header: '상태' }
 ]);
 
-// 2. 셀 편집 완료 핸들러 (유지)
+// 셀 편집
 const onCellEditComplete = (event) => {
     let { data, newValue, field } = event;
-
     if (typeof newValue === 'string' && newValue.trim().length > 0) {
         data[field] = newValue;
-        console.log(`데이터 업데이트: ${field}가 ${data[field]}로 변경됨`);
-    } else if (typeof newValue !== 'string') {
+    } else {
         data[field] = newValue;
     }
 };
 
-// 3. 버튼 클릭 핸들러 (유지)
+// 선택된 행
+const selectedRows = ref([]);
+
+// ⭐ 모달 표시 여부
+const isProcessModalVisible = ref(false);
+
+// ⭐ 공정 조회 버튼 → 모달 열기
 const handleProcessInquiry = () => {
     console.log('공정 조회 버튼 클릭');
+    isProcessModalVisible.value = true;
 };
 
-// 삭제 기능 (유지)
+// ⭐ 모달에서 공정 선택 후 결과 받기
+const handleProcessSelect = (process) => {
+    console.log('모달에서 선택된 공정:', process);
+
+    // 필요 시 선택된 공정을 rows 데이터에 바로 반영할 수도 있음
+    // 예: 첫 번째 행에 적용 → selectedRows.value[0] 등등
+
+    isProcessModalVisible.value = false;
+};
+
+// 삭제 버튼
 const handleSubmit = () => {
     console.log('삭제 버튼 클릭 - 선택된 항목: ', selectedRows.value);
 };
-
-// 선택된 행을 저장할 ref (유지)
-const selectedRows = ref([]);
 </script>
 
 <template>
@@ -70,6 +79,7 @@ const selectedRows = ref([]);
                     비정형일때만 사용
                 </span>
             </div>
+
             <div class="right-section">
                 <Button label="공정 조회" icon="pi pi-search" severity="success" @click="handleProcessInquiry" class="p-button-sm btn-inquiry-prime" />
                 <Button label="삭제" icon="pi pi-trash" severity="danger" @click="handleSubmit" :disabled="selectedRows.length === 0" class="p-button-sm btn-delete-prime" />
@@ -78,7 +88,7 @@ const selectedRows = ref([]);
 
         <div class="table-wrap">
             <DataTable
-                :value="props.rows.length > 0 ? props.rows : dummyRows.value"
+                :value="props.rows.length > 0 ? props.rows : dummyRows"
                 v-model:selection="selectedRows"
                 editMode="cell"
                 @cell-edit-complete="onCellEditComplete"
@@ -105,7 +115,11 @@ const selectedRows = ref([]);
                 </Column>
             </DataTable>
         </div>
+
         <div class="selection-footer p-2 text-right text-xs" v-if="selectedRows.length > 0">선택된 항목: **{{ selectedRows.length }}개**</div>
+
+        <!-- ⭐ 공정 조회 모달 연결 -->
+        <ProcessModal :show="isProcessModalVisible" @close="isProcessModalVisible = false" @select="handleProcessSelect" />
     </section>
 </template>
 

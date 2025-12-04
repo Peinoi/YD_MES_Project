@@ -1,18 +1,20 @@
 <script setup>
-import { onBeforeMount, ref, computed } from 'vue';
-
-const processes = ref([
-    { id: 1, name: '반죽', progress: 100, equipment: 'EQ001 - 배합기', startTime: '25.05.30 -12:00', endTime: '25.05.30 -18:00', instructed: 10000, defect: 100, produced: 9900, statusColor: 'green' },
-    { id: 2, name: '숙성', progress: 80, equipment: 'EQ003 - 숙성기', startTime: '14:00', endTime: '19:00', instructed: 9900, defect: 200, produced: 7800, statusColor: 'green' },
-    { id: 1, name: '반죽', progress: 100, equipment: 'EQ001 - 배합기', startTime: '25.05.30 -12:00', endTime: '25.05.30 -18:00', instructed: 10000, defect: 100, produced: 9900, statusColor: 'green' }
-]);
+import { onBeforeMount, ref } from 'vue';
+import axios from 'axios';
+let workList = ref([]);
+const getWorkList = async () => {
+    let result = await axios.get(`/api/work/list`).catch((err) => console.log('작업진행도 리스트' + err));
+    const res = result.data.data.result;
+    workList.value = JSON.parse(JSON.stringify(res));
+    console.log(workList.value);
+};
 
 /**
  * 진행률 텍스트 (e.g., '100%' 또는 '대기중')를 계산하는 함수
  */
-const getProgressText = (process) => {
-    return process.progress === 0 && process.displayStatus ? process.displayStatus : `${process.progress}%`;
-};
+// const getProgressText = (process) => {
+//     return process.progress === 0 && process.displayStatus ? process.displayStatus : `${process.progress}%`;
+// };
 
 /**
  * 데이터 포맷팅 (숫자 + '개')
@@ -20,6 +22,10 @@ const getProgressText = (process) => {
 const formatQuantity = (value) => {
     return value ? `${value}(개)` : '';
 };
+
+onBeforeMount(() => {
+    getWorkList();
+});
 </script>
 
 <template>
@@ -42,72 +48,32 @@ const formatQuantity = (value) => {
                 </div>
             </div>
         </div>
-
-        <!-- 생산 공정 진행 상태 리스트 (이미지 기반 재구성) -->
-        <div class="process-list-container shadow-xl rounded-lg overflow-hidden border border-gray-200">
-            <!-- 헤더 (Grid Layout) -->
-            <div class="process-header bg-gray-800 text-white font-bold p-3">
-                <div class="header-item">공정명</div>
-                <div class="header-item">진행률</div>
-                <div class="header-item">설비</div>
-                <div class="header-item text-center">시작일시</div>
-                <div class="header-item text-center">종료일시</div>
-                <div class="header-item text-right">지시량</div>
-                <div class="header-item text-right">불량</div>
-                <div class="header-item text-right">생산량</div>
-            </div>
-
-            <!-- 프로세스 카드 (v-for 루프) -->
-            <div v-for="process in processes" :key="process.id" :class="['process-card', { 'bg-gray-50': process.progress < 100, 'bg-green-50': process.progress === 100 }]">
-                <!-- 1. 공정명 (Name) -->
-                <div class="process-name font-bold" :class="`text-${process.statusColor}-700`">
-                    {{ process.name }}
-                </div>
-
-                <!-- 2. 진행률 (Progress Bar) -->
-                <div class="progress-cell">
-                    <div class="progress-wrap" :class="`track-${process.statusColor}`">
-                        <div class="progress-bar" :style="{ width: `${process.progress}%` }" :class="`bg-${process.statusColor}-500`"></div>
-                        <span class="progress-text font-semibold" :class="`text-${process.statusColor}-700`">
-                            {{ getProgressText(process) }}
-                        </span>
-                    </div>
-                </div>
-
-                <!-- 3. 설비 (Equipment) -->
-                <div class="process-equipment">
-                    <button class="equipment-btn" v-if="process.equipment">{{ process.equipment }}</button>
-                    <span v-else>-</span>
-                </div>
-
-                <!-- 4. 시작일시 (Start Time) -->
-                <div class="process-detail text-center text-sm">
-                    <span class="block">{{ process.startTime.split(' ')[0] }}</span>
-                    <span class="block text-gray-500">{{ process.startTime.split(' ')[1] }}</span>
-                </div>
-
-                <!-- 5. 종료일시 (End Time) -->
-                <div class="process-detail text-center text-sm">
-                    <span class="block">{{ process.endTime.split(' ')[0] }}</span>
-                    <span class="block text-gray-500">{{ process.endTime.split(' ')[1] }}</span>
-                </div>
-
-                <!-- 6. 지시량 (Instructed) -->
-                <div class="process-detail text-right text-gray-600 font-medium">
-                    {{ formatQuantity(process.instructed) }}
-                </div>
-
-                <!-- 7. 불량 (Defect) -->
-                <div class="process-detail text-right text-red-500 font-medium">
-                    {{ formatQuantity(process.defect) }}
-                </div>
-
-                <!-- 8. 생산량 (Produced) -->
-                <div class="process-detail text-right text-blue-600 font-bold">
-                    {{ formatQuantity(process.produced) }}
-                </div>
-            </div>
-        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>공정명</th>
+                    <th>진행률</th>
+                    <th>설비</th>
+                    <th>시작일시</th>
+                    <th>종료일시</th>
+                    <th>지시량</th>
+                    <th>불량</th>
+                    <th>생산량</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="process in workList" :key="process.prdr_d_code">
+                    <td>{{ process['공정명'] }}</td>
+                    <td>{{ process['진행률'] }}</td>
+                    <td>{{ process['설비코드'] }} - {{ process['설비'] }}</td>
+                    <td>{{ process['시작일시'] }}</td>
+                    <td>{{ process['종료일시'] }}</td>
+                    <td>{{ formatQuantity(process['지시량']) }}</td>
+                    <td>{{ formatQuantity(process['불량']) }}</td>
+                    <td>{{ formatQuantity(process['생산량']) }}</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 </template>
 

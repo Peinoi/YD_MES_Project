@@ -42,16 +42,24 @@ const model = ref([
                 to: '',
                 items: [
                     {
-                        label: '주문',
-                        to: '/uikit/table'
+                        label: '작업지시서목록',
+                        to: '/Production/productionPlan'
+                    },
+                    {
+                        label: '작업지시서관리',
+                        to: '/Production/productionPlanDetail'
                     },
                     {
                         label: '작업 진행',
-                        to: '/Production/work'
+                        to: '/Production/productionwork'
                     },
                     {
-                        label: '작업지시서목록',
-                        to: '/production/productionPlan'
+                        label: '작업 진행 목록',
+                        to: '/Production/TaskProgressList'
+                    },
+                    {
+                        label: '생산 실적',
+                        to: '/Production/WorkPerformance'
                     }
                 ]
             },

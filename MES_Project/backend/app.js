@@ -22,16 +22,18 @@ app.use((err, req, res, next) => {
   });
 });
 
+// 각 모듈별 라우터 불러오기
 // 라우터 연결
 const sampleRouter = require('./routers/sampleRouter.js');
 const poRouter = require('./routers/poRouter.js');
 const qualityRouter = require('./routers/qualityRouter.js');
 const orderRouter = require('./routers/orderRouter.js');
 const qcRouter = require('./routers/qcRouter.js');
-
+const production_workRouter = require("./routers/production_workRouter.js");
 // 라우터 연결
 app.use(`/api/productions`, sampleRouter);
 app.use(`/api/quality`, qualityRouter);
 app.use(`/poder`, poRouter);
 app.use(`/order`, orderRouter);
+app.use(`/`, production_workRouter);
 app.use('/qc', qcRouter);
