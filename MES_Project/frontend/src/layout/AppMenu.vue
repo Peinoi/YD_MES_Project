@@ -23,8 +23,12 @@ const model = ref([
                 to: '',
                 items: [
                     {
-                        label: '주문',
-                        to: ''
+                        label: '주문조회',
+                        to: '/order/list'
+                    },
+                    {
+                        label: '주문관리',
+                        to: '/order/management'
                     },
                     {
                         label: '출고관리',

@@ -1,29 +1,23 @@
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import axios from 'axios';
-import SearchSelectModal from '@/views/order/SearchSelectModal.vue';
+import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
 
 // 모달 ON/OFF
 const showOrderModal = ref(false);
 
 // 모달 검색 결과
-const orderSearchList = ref([]);
+const orderRows = ref([]);
 
 // 모달 검색 이벤트
-const fetchOrderSearch = async (keyword = '') => {
+const searchOrders = async (keyword) => {
     try {
         const res = await axios.get('/api/order/search', { params: { keyword } });
         if (res.data && res.data.code === 'S200') {
-            const fullList = res.data.data || [];
-
-            if (keyword && fullList.length) {
-                orderSearchList.value = fullList.filter((row) => row.ord_code?.includes(keyword) || row.ord_name?.includes(keyword) || row.client_name?.includes(keyword));
-            } else {
-                orderSearchList.value = fullList;
-            }
+            orderRows.value = res.data.data || [];
         }
     } catch (e) {
-        console.error('fetchOrderSearch', e);
+        console.error('searchOrders', e);
     }
 };
 
@@ -33,8 +27,6 @@ const onOrderSelect = (row) => {
     order.ord_code = row.ord_code || '';
     order.ord_name = row.ord_name || '';
     order.client_name = row.client_name || '';
-    order.client_contact = row.emp_name || '';
-    order.note = row.note || '';
     order.readonly = true;
     // 필요 시 서버에서 단건 조회하여 제품목록 등 채워오기
 };
@@ -93,12 +85,6 @@ const fetchManagerList = async () => {
         console.error('fetchManagerList', e);
     }
 };
-
-watch(showOrderModal, (val) => {
-    if (val) {
-        fetchOrderSearch(''); // 빈 문자열 전달하면 전체 목록
-    }
-});
 
 onMounted(() => {
     fetchClientList();
@@ -297,16 +283,13 @@ function formatCurrency(v) {
             v-model="showOrderModal"
             searchPlaceholder="주문번호 또는 주문명 또는 거래처를 입력해주세요."
             :columns="[
-                { field: 'ord_code', label: '주문번호' },
-                { field: 'ord_date', label: '주문일자' },
+                { field: 'ord_code', label: '주문코드' },
                 { field: 'ord_name', label: '주문명' },
-                { field: 'client_name', label: '거래처' },
-                { field: 'delivery_date', label: '납기일' },
-                { field: 'ord_priority', label: '우선순위' }
+                { field: 'client_name', label: '거래처' }
             ]"
-            :rows="orderSearchList"
+            :rows="orderRows"
             rowKey="ord_code"
-            @search="fetchOrderSearch"
+            @search="searchOrders"
             @confirm="onOrderSelect"
         />
     </div>
