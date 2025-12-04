@@ -19,6 +19,8 @@ const production_workRouter = require("./routers/production_workRouter.js");
 const qcRouter = require("./routers/qcRouter.js");
 const inboundRouter = require("./routers/inboundRouter.js");
 const bomRouter = require("./routers/bomRouter.js");
+const productionRouter = require("./routers/productionRouter.js");
+
 // 라우터 연결
 app.use(`/api/productions`, sampleRouter);
 app.use(`/poder`, poRouter);
@@ -29,6 +31,7 @@ app.use(`/`, production_workRouter);
 app.use("/qc", qcRouter);
 app.use(`/inbound`, inboundRouter);
 app.use(`/baseinfo/bom`, bomRouter);
+app.use(`/production`, productionRouter);
 
 // 전역 오류 처리 미들웨어
 app.use((err, req, res, next) => {
