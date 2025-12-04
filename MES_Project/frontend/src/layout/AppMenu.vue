@@ -55,6 +55,10 @@ const model = ref([
                     },
                     {
                         label: '작업 진행',
+                        to: '/Production/work'
+                    },
+                    {
+                        label: '작업지시서목록',
                         to: '/Production/productionwork'
                     },
                     {
