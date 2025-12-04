@@ -1,3 +1,6 @@
+const dotenv = require('dotenv');
+dotenv.config();
+
 const testService = require('./services/qcService');
 
 async function nodeTestService() {

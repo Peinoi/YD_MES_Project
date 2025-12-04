@@ -31,10 +31,8 @@ async function findInstructionService(params) {
 // 005 저장
 async function saveInstructionService(data) {
   try {
-    const resultData = [];
-    for (const key in data) {
-      resultData.push(data[key]);
-    }
+    const resultData = Object.values(data);
+    console.log(resultData);
     // return await query('QC_INSTRUCTION_SAVE', resultData);
   } catch (err) {
     throw err;
