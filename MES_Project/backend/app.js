@@ -32,7 +32,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-<<<<<<< HEAD
 // 각 모듈별 라우터 불러오기
 // 라우터 연결
 const sampleRouter = require("./routers/sampleRouter.js");
@@ -51,8 +50,6 @@ app.use(`/order`, orderRouter);
 app.use(`/`, production_workRouter);
 app.use("/qc", qcRouter);
 app.use(`/inbound`, inboundRouter);
-=======
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:3000`);
 });
->>>>>>> kdw
