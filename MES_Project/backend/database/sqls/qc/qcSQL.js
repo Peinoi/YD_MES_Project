@@ -26,7 +26,7 @@ ORDER BY qir.start_date DESC
 
 const QC_PENDING_LIST = `
 SELECT qir_code FROM qir_tbl
-WHERE result IS NULL;
+WHERE result = 'g0'
 `;
 
 const QC_INSTRUCTION = `

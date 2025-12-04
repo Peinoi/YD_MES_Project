@@ -8,3 +8,12 @@ export async function findQcList(criteria) {
         console.log('에러 발생: ', err);
     }
 }
+
+export async function findResultList() {
+    try {
+        const result = await api.get('/api/qc/pending-list');
+        return result.data;
+    } catch (err) {
+        console.log('에러 발생: ', err);
+    }
+}

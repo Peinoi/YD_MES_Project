@@ -3,14 +3,25 @@ import { reactive } from 'vue';
 
 const emit = defineEmits(['search', 'reset']);
 
-const form = reactive({
+const formStatue = {
     qcrCore: null,
     prodCode: null,
     prodName: null,
     qcrCode: null,
     result: null,
     startDate: null
-});
+};
+
+const form = reactive({ ...formStatue });
+
+function onSearch() {
+    emit('search', { ...form });
+}
+
+function onReset() {
+    Object.assign(form, formStatue);
+    emit('reset');
+}
 
 const qcrCodeList = [
     { key: '전체', value: null },
@@ -23,23 +34,6 @@ const resultList = [
     { key: '합격', value: 'g2' },
     { key: '불합격', value: 'g1' }
 ];
-
-function onSearch() {
-    emit('search', { ...form });
-}
-
-function onReset() {
-    form.value = reactive({
-        qcrCore: null,
-        prodCode: null,
-        prodName: null,
-        qcrCode: null,
-        result: null,
-        startDate: null
-    });
-    console.log(form.value);
-    emit('reset');
-}
 </script>
 
 <template>

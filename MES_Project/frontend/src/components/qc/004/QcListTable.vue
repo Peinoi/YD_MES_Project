@@ -1,5 +1,5 @@
 <script setup>
-import { yymmddFormat } from './utils/dateFormat';
+import { yymmddFormat } from '../utils/dateFormat';
 
 defineProps({
     rows: Array,
