@@ -4,10 +4,12 @@ const Productionwork = require("./sqls/production/production_work.js");
 const order = require("./sqls/orderSQL.js");
 const common = require("./sqls/commonSQL.js");
 const po = require("./sqls/po.js");
+const inbound = require("./sqls/inbound.js");
 module.exports = {
   // ...sample,
   ...Productionwork,
   ...order,
   ...common,
   ...po,
+  ...inbound,
 };

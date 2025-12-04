@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useToast } from 'primevue/usetoast';
+import inboundApi from '@/api/inbound'; // 생성한 API 모듈 import
 
 const toast = useToast();
 
@@ -16,8 +17,8 @@ const form = ref({
     inboundDate: null
 });
 
-// [상태] 입고 대기 목록 데이터 (Mock Data)
-// ★ 중요: 수량(inQty)은 반드시 숫자(Number)여야 정렬이 올바르게 작동합니다.
+// [상태] 입고 대기 목록 데이터
+// 실제 운영 시에는 빈 배열 []로 시작하는 것이 일반적입니다.
 const inboundList = ref([
     {
         matCode: 'MAT-003',
@@ -26,7 +27,7 @@ const inboundList = ref([
         unit: 'BOX',
         client: '대한포장',
         manager: '이담당',
-        inQty: 500, // 문자열 '500' -> 숫자 500 변경
+        inQty: 500,
         inboundDate: '2025-05-29'
     },
     {
@@ -36,7 +37,7 @@ const inboundList = ref([
         unit: '포',
         client: '예담제분',
         manager: '김자재',
-        inQty: 400, // 문자열 '400' -> 숫자 400 변경
+        inQty: 400,
         inboundDate: '2025-05-29'
     }
 ]);
@@ -44,12 +45,13 @@ const inboundList = ref([
 // [기능] 목록에 추가
 const addToList = () => {
     if (!form.value.matCode || !form.value.inQty) {
-        alert('자재코드와 수량은 필수입니다.');
+        toast.add({ severity: 'warn', summary: '입력 확인', detail: '자재코드와 수량은 필수입니다.', life: 3000 });
         return;
     }
     inboundList.value.push({
         ...form.value,
-        inboundDate: form.value.inboundDate ? form.value.inboundDate.toISOString().split('T')[0] : ''
+        // Date 객체를 YYYY-MM-DD 문자열로 변환
+        inboundDate: form.value.inboundDate ? new Date(form.value.inboundDate).toISOString().split('T')[0] : ''
     });
     resetForm();
 };
@@ -73,27 +75,54 @@ const removeItem = (index) => {
     inboundList.value.splice(index, 1);
 };
 
-// [기능] 최종 등록
-const submitRegistration = () => {
+// [기능] 최종 등록 (API 연동 적용됨)
+const submitRegistration = async () => {
+    // 1. 데이터 검증
     if (inboundList.value.length === 0) {
-        alert('등록할 품목이 없습니다.');
+        toast.add({ severity: 'warn', summary: '확인', detail: '등록할 품목이 없습니다.', life: 3000 });
         return;
     }
-    console.log('최종 등록 데이터:', inboundList.value);
-    alert('입고 등록이 완료되었습니다.');
+
+    // 2. 사용자 확인
+    if (!confirm(`총 ${inboundList.value.length}건을 입고 등록하시겠습니까?`)) return;
+
+    try {
+        // 3. API 호출
+        // 백엔드에서 기대하는 포맷에 맞춰 데이터 전송 (여기서는 { items: [...] } 형태로 가정)
+        const response = await inboundApi.registerInbound({
+            items: inboundList.value,
+            regDate: new Date() // 필요 시 전송 시점 시간 추가
+        });
+
+        // 4. 성공 처리 (HTTP 200 or 201)
+        if (response.status === 200 || response.status === 201) {
+            toast.add({ severity: 'success', summary: '완료', detail: '입고 등록이 정상적으로 처리되었습니다.', life: 3000 });
+
+            // 데이터 초기화
+            inboundList.value = [];
+            resetForm();
+        }
+    } catch (error) {
+        // 5. 에러 처리
+        console.error('API Error:', error);
+        toast.add({ severity: 'error', summary: '오류', detail: '서버 등록 중 문제가 발생했습니다.', life: 3000 });
+    }
 };
 
 // [기능] 취소
 const cancelRegistration = () => {
-    if (confirm('작성 중인 내용이 사라집니다. 취소하시겠습니까?')) {
-        inboundList.value = [];
-        resetForm();
+    if (inboundList.value.length > 0 && !confirm('작성 중인 내용이 사라집니다. 취소하시겠습니까?')) {
+        return;
     }
+    inboundList.value = [];
+    resetForm();
 };
 </script>
 
 <template>
     <div class="inbound-container">
+        <Toast />
+
         <div class="header-section">
             <h2 class="page-title">자재 입고 등록</h2>
             <div class="breadcrumb">자재 관리 > 입고 등록</div>
