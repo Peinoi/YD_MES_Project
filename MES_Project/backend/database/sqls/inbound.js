@@ -34,6 +34,7 @@ module.exports = {
     WHERE minbnd_code LIKE CONCAT('MIN-', ?, '-%')
     ORDER BY minbnd_code DESC 
     LIMIT 1
+    FOR UPDATE
   `,
 
   getLastLotSeq: `
@@ -42,6 +43,7 @@ module.exports = {
     WHERE lot_num LIKE CONCAT('LOT-%-', ?, '-%')
     ORDER BY lot_num DESC 
     LIMIT 1
+    FOR UPDATE
   `,
 
   // 3. 등록용 INSERT 쿼리 (Bulk Insert)

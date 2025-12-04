@@ -84,8 +84,8 @@ const handleSelect = (data) => {
 };
 // [기능] 목록에 추가
 const addToList = () => {
-    if (!form.value.matCode || !form.value.inQty) {
-        toast.add({ severity: 'warn', summary: '입력 확인', detail: '자재코드와 수량은 필수입니다.', life: 3000 });
+    if (!form.value.matCode || !form.value.inQty || !form.value.clientCode || !form.value.inboundDate) {
+        toast.add({ severity: 'warn', summary: '입력 확인', detail: '필수 입력 항목(*)을 모두 채워주세요.', life: 3000 });
         return;
     }
     inboundList.value.push({
