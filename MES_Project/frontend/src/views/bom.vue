@@ -1,10 +1,13 @@
 <script setup>
 import { ref } from 'vue';
 import BomProductModal from './BomProductModal.vue';
+import SubMaterialModal from './BomMatModal.vue';
 import axios from 'axios';
 // import BomProductModal from '@/views/BomProductModal.vue';
 // PrimeVue 컴포넌트는 전역 등록되어 있다고 가정 (Sakai 템플릿 기본 구조)
+
 const isModalVisible = ref(false);
+const isSubMaterialModal = ref(false);
 const searchForm = ref({
     itemCode: '',
     itemName: '',
@@ -22,10 +25,41 @@ const useYnMap = {
     f2: '사용중',
     f1: '미사용'
 };
+const unitMap = {
+    h1: 'kg',
+    h2: 't',
+    h3: 'L',
+    h4: 'ea',
+    h5: 'box',
+    h6: 'g',
+    h7: 'mm',
+    h8: '%',
+    h9: 'cm',
+    ha: 'N',
+    hb: 'mg',
+    hc: 'ml',
+    hd: 'mg/g'
+};
 
 const openProductModal = () => {
     isModalVisible.value = true;
 };
+const onSelectSubMaterial = (materials) => {
+    const nextId = subMaterialList.value.length + 1;
+
+    materials.forEach((m, index) => {
+        subMaterialList.value.push({
+            id: nextId + index,
+            materialCode: m.prod_code,
+            materialName: m.prod_name,
+            materialType: m.prod_type, // i1~i4
+            qty: 0,
+            unit: '',
+            lossRate: ''
+        });
+    });
+};
+
 const onProductSelect = (selectedProduct) => {
     (searchForm.value.itemCode = selectedProduct.prod_code), (searchForm.value.itemName = selectedProduct.prod_name);
 };
@@ -125,7 +159,7 @@ const onSelectBom = async (e) => {
     detailForm.value = {
         bomCode: row.prod_code,
         itemName: row.prod_name,
-        itemType: row.com_value?.trim() || null,
+        itemType: row.prod_type?.trim() || null,
         spec: row.spec,
         useYn: row.is_used,
         shelfLife: row.edate ? new Date(row.edate) : null,
@@ -276,18 +310,27 @@ const onUpdate = () => {
                     <div class="sub-material-header">
                         <span>하위 자재 구성 영역</span>
                         <div class="sub-material-buttons">
-                            <Button label="하위 자재 추가" class="p-button-outlined p-button-sm" @click="onAddSubMaterial" />
+                            <Button label="하위 자재 추가" class="p-button-outlined p-button-sm" @click="isSubMaterialModal = true" />
+
                             <Button label="삭제" class="p-button-danger p-button-sm" :disabled="!selectedSubMaterials.length" @click="onDeleteSubMaterial" />
                         </div>
                     </div>
 
-                    <DataTable :value="subMaterialList" dataKey="mat_code" v-model:selection="selectedSubMaterials" selectionMode="multiple" scrollable scrollHeight="flex" class="p-datatable-sm sub-material-table">
+                    <DataTable :value="subMaterialList" dataKey="materialCode" v-model:selection="selectedSubMaterials" selectionMode="multiple" scrollable scrollHeight="flex" class="p-datatable-sm sub-material-table">
                         <Column selectionMode="multiple" headerStyle="width:3rem"></Column>
-                        <Column field="materialCode" header="자재코드" style="width: 120px"></Column>
+                        <Column field="materialCode" header="자재코드" style="width: 120px"> </Column>
                         <Column field="materialName" header="자재명"></Column>
-                        <Column field="materialType" header="자재유형" style="width: 100px"></Column>
+                        <Column field="materialType" header="자재유형" style="width: 100px">
+                            <template #body="{ data }">
+                                {{ typeMap[data.materialType] }}
+                            </template>
+                        </Column>
                         <Column field="qty" header="소요수량" style="width: 90px"></Column>
-                        <Column field="unit" header="단위" style="width: 70px"></Column>
+                        <Column field="unit" header="단위" style="width: 70px">
+                            <template #body="{ data }">
+                                {{ unitMap[data.unit] }}
+                            </template>
+                        </Column>
                         <Column field="lossRate" header="로스율" style="width: 90px"></Column>
                     </DataTable>
                 </div>
@@ -322,7 +365,7 @@ const onUpdate = () => {
 
                             <div class="field">
                                 <label>사용여부</label>
-                                <inputText
+                                <InputText
                                     readonly="true"
                                     v-model="useYnMap[detailForm.useYn]"
                                     :options="useYnOptions"
@@ -357,6 +400,7 @@ const onUpdate = () => {
         </div>
     </div>
     <BomProductModal v-model:visible="isModalVisible" @select="onProductSelect" />
+    <SubMaterialModal v-model:visible="isSubMaterialModal" @select="onSelectSubMaterial" />
 </template>
 
 <style scoped>

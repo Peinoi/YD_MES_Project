@@ -39,6 +39,17 @@ router.get("/prodmodal", async (req, res) => {
   }
 });
 //bom_mat
+router.get("/mat", async (req, res) => {
+  try {
+    const data = await bomService.allBomMatList();
+
+    res.json(data);
+  } catch (err) {
+    console.error("전체 자재 조회 실패:", err);
+    res.status(500).json({ message: "서버 오류", error: err.message });
+  }
+});
+//product 한개당 bom_mat
 router.get("/mat/:prodCode", async (req, res) => {
   try {
     const prodCode = req.params.prodCode;

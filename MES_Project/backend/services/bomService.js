@@ -71,10 +71,20 @@ const searchBom = async (conditions) => {
     conn.release();
   }
 };
+const allBomMatList = async () => {
+  try {
+    const rows = await query("select_bom_mat", []);
+    return rows;
+  } catch (err) {
+    console.error("[bomService] allBomMatList Error:", err);
+    throw err;
+  }
+};
 
 module.exports = {
   getBomList,
   getBomMatList,
   prodSelect,
   searchBom,
+  allBomMatList,
 };

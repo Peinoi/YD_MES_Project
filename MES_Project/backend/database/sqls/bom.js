@@ -11,7 +11,8 @@ module.exports = {
         DATE_FORMAT(regdate, '%Y-%m-%d') AS regdate,
         note, 
         com_value, 
-        reg 
+        reg,
+        prod_type
     FROM prod_tbl
 `,
   prodSelect: `
@@ -28,7 +29,8 @@ From prod_tbl;`,
         DATE_FORMAT(regdate, '%Y-%m-%d') AS regdate,
         note, 
         com_value, 
-        reg 
+        reg,
+        prod_type
     FROM prod_tbl
        WHERE 1=1
 `,
@@ -43,4 +45,15 @@ FROM bom_mat bm
 JOIN bom_tbl bt ON bm.bom_code = bt.bom_code
 JOIN prod_tbl pt ON bt.prod_code = pt.prod_code
 WHERE pt.prod_code = ?;`,
+  select_bom_mat: `(
+    SELECT mat_code, mat_name, material_type_code AS prod_type, unit
+    FROM mat_tbl
+    WHERE material_type_code IN ('t1', 't2')
+)
+UNION ALL
+(
+    SELECT prod_code AS mat_code, prod_name AS mat_name, prod_type, unit
+    FROM prod_tbl
+    WHERE prod_type = 'i2'
+)`,
 };
