@@ -28,10 +28,12 @@ const poRouter = require("./routers/poRouter.js");
 const qualityRouter = require("./routers/qualityRouter.js");
 const orderRouter = require("./routers/orderRouter.js");
 const production_workRouter = require("./routers/production_workRouter.js");
+const productionRouter = require("./routers/productionRouter.js");
 
 // 라우터 연결
 app.use(`/api/productions`, sampleRouter);
 app.use(`/api/quality`, qualityRouter);
+app.use(`/production`, productionRouter);
 app.use(`/poder`, poRouter);
 app.use(`/order`, orderRouter);
 app.use(`/`, production_workRouter);

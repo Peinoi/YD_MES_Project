@@ -1,110 +1,121 @@
 <script setup>
-import { ref } from 'vue';
-import PlanModal from './PlanModal.vue'; // 1. PlanModal 컴포넌트 불러오기
+import { ref, defineProps, computed } from 'vue';
+import PlanModal from './PlanModal.vue';
 
-// 스크립트 로직은 변화 없으므로 유지
-const formData = ref({
-    workOrderNo: 'JSS0001',
-    productionPlanNo: '',
-    planDate: '2025.06.19'
+const props = defineProps({
+    planData: {
+        type: Array,
+        default: () => []
+    }
 });
 
-// ⭐ 2. 모달 표시 상태 관리 변수 추가
+// 📌 formData 초기 상태
+const formData = ref({
+    productionPlanNo: '', // prdp_code
+    workOrderNo: '', // wko_code
+    planDate: '', // prdp_date
+    dueDate: '',
+    planName: '',
+    status: ''
+});
+
+// 모달 상태
 const showPlanModal = ref(false);
 
-const handleDelete = () => {
-    console.log('삭제 버튼 클릭');
-};
-
+// 버튼 이벤트
+const handleDelete = () => console.log('삭제');
 const handleReset = () => {
-    console.log('초기화 버튼 클릭');
-    formData.value.productionPlanNo = '';
+    Object.keys(formData.value).forEach((key) => (formData.value[key] = ''));
 };
+const handleSave = () => console.log('저장', formData.value);
+const handleLoadPlan = () => (showPlanModal.value = true);
 
-const handleSave = () => {
-    console.log('저장 버튼 클릭', formData.value);
-};
+// 📌 날짜만 표시하는 computed
+const formattedPlanDate = computed(() => {
+    if (!formData.value.planDate) return '';
+    const date = new Date(formData.value.planDate);
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+});
 
-// ⭐ 모달을 띄우도록 수정
-const handleLoadPlan = () => {
-    console.log('생산계획 불러오기 버튼 클릭');
-    showPlanModal.value = true; // 모달을 열기
-};
-
-// ⭐ 모달에서 계획을 선택하고 확인 버튼을 눌렀을 때 실행될 함수
-const handlePlanSelected = (selectedPlan) => {
-    console.log('선택된 계획:', selectedPlan);
-    if (selectedPlan) {
-        // 선택된 계획 정보로 formData 업데이트 (예시)
-        formData.value.productionPlanNo = selectedPlan.계획번호;
-        formData.value.planDate = selectedPlan.계획일자;
+// PlanModal에서 선택된 데이터 처리
+const handlePlanSelected = (d) => {
+    if (d) {
+        console.log('📌 선택된 계획:', d);
+        formData.value.productionPlanNo = d.prdp_code;
+        formData.value.workOrderNo = d.wko_code;
+        formData.value.planDate = d.prdp_date; // 원본은 그대로 저장
+        formData.value.dueDate = d.due_date || '';
+        formData.value.planName = d.prdp_name || '';
+        formData.value.status = d.stat || '';
     }
-    showPlanModal.value = false; // 모달 닫기
+    showPlanModal.value = false;
 };
 </script>
 
 <template>
     <div class="basic-info-card p-5">
+        <!-- 헤더 & 버튼 -->
         <div class="header-section flex justify-between items-center mb-5 pb-2 border-b-2 border-b-gray-300">
             <h5 class="text-xl font-bold text-gray-800">기본 정보</h5>
             <div class="button-group flex space-x-2">
-                <button class="btn-action bg-red-600 hover:bg-red-700 text-white" @click="handleDelete">삭제</button>
-                <button class="btn-action bg-gray-600 hover:bg-gray-700 text-white" @click="handleReset">초기화</button>
-                <button class="btn-action bg-blue-500 hover:bg-blue-600 text-white" @click="handleSave">저장</button>
-                <button class="btn-action bg-green-500 hover:bg-green-600 text-white" @click="handleLoadPlan">생산계획 불러오기</button>
+                <button class="btn-action bg-red-600 text-white" @click="handleDelete">삭제</button>
+                <button class="btn-action bg-gray-600 text-white" @click="handleReset">초기화</button>
+                <button class="btn-action bg-blue-500 text-white" @click="handleSave">저장</button>
+                <button class="btn-action bg-green-500 text-white" @click="handleLoadPlan">생산계획 불러오기</button>
             </div>
         </div>
 
+        <!-- 폼 -->
         <div class="form-grid grid grid-cols-2 bg-white border-t-4 border-yellow-500">
-            <div class="grid-row contents-center border-b border-r border-gray-200">
+            <div class="grid-row border-b border-r">
                 <label class="label-col">작업지시번호</label>
-                <div class="input-col bg-gray-100 text-gray-500">
-                    <input type="text" :value="formData.workOrderNo" readonly class="w-full text-base bg-transparent border-none focus:outline-none" />
+                <div class="input-col">
+                    <input type="text" v-model="formData.workOrderNo" readonly class="input-readonly" />
                 </div>
             </div>
-            <div class="grid-row contents-center border-b border-gray-200">
+
+            <div class="grid-row border-b">
                 <label class="label-col">생산계획번호</label>
-                <div class="input-col bg-gray-100 text-gray-500">
-                    <input type="text" :value="formData.productionPlanNo" readonly class="w-full text-base bg-transparent border-none focus:outline-none" />
+                <div class="input-col">
+                    <input type="text" v-model="formData.productionPlanNo" readonly class="input-readonly" />
                 </div>
             </div>
-            <div class="grid-row border-r border-gray-200">
+
+            <div class="grid-row border-r">
                 <label class="label-col">계획일자</label>
                 <div class="input-col">
-                    <input type="text" v-model="formData.planDate" class="input-field-style-compact" />
+                    <!-- formattedPlanDate 사용 -->
+                    <input type="text" :value="formattedPlanDate" readonly class="input-readonly" />
                 </div>
             </div>
-            <div class="grid-row border-gray-200">
-                <label class="label-col bg-white"></label>
-                <div class="input-col bg-white"></div>
-            </div>
+
+            <div class="grid-row"></div>
         </div>
     </div>
 
-    <PlanModal :show="showPlanModal" @close="showPlanModal = false" @select="handlePlanSelected" />
+    <!-- PlanModal 연결 -->
+    <PlanModal :show="showPlanModal" :plan-list="props.planData" @close="showPlanModal = false" @select="handlePlanSelected" />
 </template>
 
 <style scoped>
-/* 기존 스타일 유지 */
 .basic-info-card {
     background-color: #ffffff;
     border-radius: 7px;
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    margin-bottom: 24px;
 }
 .btn-action {
     padding: 6px 16px;
     border-radius: 4px;
     font-size: 14px;
     font-weight: 600;
-    transition: background-color 0.2s;
     min-width: 75px;
 }
 .form-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    border-collapse: collapse;
 }
 .grid-row {
     display: grid;
@@ -116,31 +127,24 @@ const handlePlanSelected = (selectedPlan) => {
     align-items: center;
     justify-content: center;
     background-color: #f0f0f0;
-    font-size: 14px;
     font-weight: 600;
-    color: #333;
-    padding: 0 12px;
 }
 .input-col {
     display: flex;
     align-items: center;
     padding: 6px 12px;
 }
-.input-field-style-compact {
+.input-readonly {
     width: 100%;
-    font-size: 15px;
     border: 1px solid #d1d5db;
     padding: 4px 8px;
     border-radius: 4px;
-    box-sizing: border-box;
-    transition: border-color 0.2s;
+    background-color: #f9f9f9;
 }
-.input-field-style-compact:focus {
-    outline: none;
-    border-color: #3b82f6;
-}
-.input-col input[readonly] {
-    padding: 0;
-    color: #4b5563;
+.basic-info-card {
+    background-color: #ffffff;
+    border-radius: 7px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px; /* 밑쪽 여백 추가 */
 }
 </style>
