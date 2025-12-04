@@ -22,7 +22,7 @@ const inboundRouter = require("./routers/inboundRouter.js");
 // 라우터 연결
 app.use(`/api/productions`, sampleRouter);
 app.use(`/poder`, poRouter);
-app.use(`/api/quality`, qualityRouter);
+app.use(`/quality`, qualityRouter);
 app.use(`/order`, orderRouter);
 app.use(`/process`, processRouter);
 app.use(`/`, production_workRouter);
