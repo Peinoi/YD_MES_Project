@@ -1,19 +1,20 @@
 const QC_FIND_ALL = `
 SELECT
-  qir.qir_code,
-  p.prod_code,
-  p.prod_name,
-  qcr.qcr_code,
-  qcr.check_method,
-  qcr.note,
-  qcr.unit,
-  qir.result,
-  qir.start_date
+    qir.qir_code,
+	p.prod_code,
+    p.prod_name,
+    qcr.qcr_code,
+    qcr.check_method,
+    qcr.note,
+    c.note AS unit,
+    qir.result,
+    qir.start_date
 FROM qir_tbl qir
 JOIN qcr_tbl qcr ON qir.qcr_code = qcr.qcr_code
 JOIN qio_tbl qio ON qir.qio_code = qio.qio_code
 JOIN prdr_tbl prdr ON qio.prdr_code = prdr.prdr_code
-JOIN prod_tbl p ON prdr.prod_code = p.prod_code;
+JOIN prod_tbl p ON prdr.prod_code = p.prod_code
+JOIN common_code c ON c.com_value = qcr.unit;
 `;
 
 const QC_PENDING_LIST = `
