@@ -37,6 +37,31 @@ module.exports = {
   AND ( ? IS NULL OR ? = '' OR cc.note LIKE CONCAT('%', ?, '%') )
 `,
 
+  // 주문 모달창 조회
+  selectOrderSearch: `
+  SELECT o.ord_code -- 주문번호
+        ,o.ord_date -- 주문일자
+        ,o.ord_name -- 주문명
+        ,c.client_name -- 거래처
+        ,od.delivery_date -- 납기일
+        ,od.ord_priority -- 우선순위
+        ,e.emp_name -- 거래처 담당자명
+        ,o.note -- 비고
+        ,p.prod_name -- 제품명
+  FROM ord_tbl o
+  JOIN ord_d_tbl od ON o.ord_code = od.ord_code
+  JOIN client_tbl c ON c.client_code = o.client_code
+  JOIN emp_tbl e ON e.emp_code = o.mcode
+  JOIN prod_tbl p ON p.prod_code = od.prod_code
+  WHERE 1 = 1
+  /* 주문번호 */
+  AND ( ? IS NULL OR ? = '' OR o.ord_code LIKE CONCAT('%', ?, '%') )
+  /* 주문명 */
+  AND ( ? IS NULL OR ? = '' OR o.ord_name LIKE CONCAT('%', ?, '%') )
+  /* 거래처 */
+  AND ( ? IS NULL OR ? = '' OR c.client_name LIKE CONCAT('%', ?, '%') )
+  `,
+
   // 거래처 목록 전체 조회
   selectClientList: `
   SELECT client_code

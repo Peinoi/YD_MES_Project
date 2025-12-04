@@ -41,6 +41,31 @@ exports.getOrderList = async (filters) => {
   }
 };
 
+// 주문 모달창 조회
+exports.getOrderSearch = async (filters) => {
+  try {
+    const params = [
+      filters.ord_code,
+      filters.ord_code,
+      filters.ord_code,
+      filters.ord_name,
+      filters.ord_name,
+      filters.ord_name,
+      filters.client_name,
+      filters.client_name,
+      filters.client_name,
+    ];
+
+    const rows = await query("selectOrderSearch", params);
+    if (!rows || !rows.length) return [];
+
+    return rows;
+  } catch (err) {
+    console.error("[orderService.js || 주문 모달창 조회 실패]", err.message);
+    throw err;
+  }
+};
+
 // 거래처 목록 전체 조회
 exports.getClientList = async () => {
   try {

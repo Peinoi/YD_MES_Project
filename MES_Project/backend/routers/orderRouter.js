@@ -27,6 +27,24 @@ router.get("/list", async (req, res, next) => {
   }
 });
 
+// GET /order/search - 주문 모달창 조회
+router.get("/search", async (req, res, next) => {
+  try {
+    // 쿼리스트링에서 검색 조건 받기
+    const filters = {
+      ord_code: req.query.ord_code || null,
+      ord_name: req.query.ord_name || null,
+      client_name: req.query.client_name || null,
+    };
+
+    const searchs = await orderService.getOrderSearch(filters);
+
+    res.json({ code: "S200", data: searchs });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
 // GET /order/client/list - 거래처 목록 전체 조회
 router.get("/client/list", async (req, res, next) => {
   try {
