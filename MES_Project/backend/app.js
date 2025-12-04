@@ -30,6 +30,6 @@ const orderRouter = require("./routers/orderRouter.js");
 
 // 라우터 연결
 app.use(`/api/productions`, sampleRouter);
-app.use(`/api/quality`, qualityRouter);
+app.use(`/quality`, qualityRouter);
 app.use(`/poder`, poRouter);
 app.use(`/order`, orderRouter);

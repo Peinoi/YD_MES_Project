@@ -12,6 +12,26 @@ router.get("/inspection-orders", async (req, res, next) => {
   }
 });
 
+// GET /api/quality/qcrs - qcr목록 전체 조회
+router.get("/qcrs", async (req, res, next) => {
+  try {
+    const orders = await qualityService.getQCRList();
+    res.json({ code: "Q200", data: orders });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
+// GET /api/quality/qio - qio목록 전체 조회
+router.get("/qio", async (req, res, next) => {
+  try {
+    const orders = await qualityService.getQIOList();
+    res.json({ code: "Q200", data: orders });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
 // POST /api/productions/:planId/mrp - 특정 생산 계획으로 MRP 계산
 // router.post("/:planId/mrp", async (req, res, next) => {
 //   try {

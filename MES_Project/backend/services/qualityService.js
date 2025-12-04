@@ -1,6 +1,6 @@
 const { getConnection, query } = require("../database/mapper.js");
 
-// 1. MRP 계산 로직 (트랜잭션 적용)
+// sample. MRP 계산 로직 (트랜잭션 적용)
 exports.calculateMRP = async (planId) => {
   let conn;
   try {
@@ -39,7 +39,7 @@ exports.calculateMRP = async (planId) => {
   }
 };
 
-// 2. 생산 계획 조회 로직 (트랜잭션 구조 유지, 현재는 더미 데이터 반환)
+// sample. 생산 계획 조회 로직 (트랜잭션 구조 유지, 현재는 더미 데이터 반환)
 exports.getProductionPlans = async () => {
   // 실제 DB 연결 대신 더미 데이터 반환
   // 트랜잭션 구조는 유지하되, 현재는 DB 쿼리 없음
@@ -61,6 +61,24 @@ exports.getProductionPlans = async () => {
   }
 };
 
+// 0. 품질검사 지시 조회 페이지에서 등록된 품질검사기준 목록들을 전체 조회
+exports.getQCRList = async () => {
+  try {
+    const result = await query("findAllQCR", []);
+    return result;
+  } catch (err) {
+    throw err;
+  }
+};
+exports.getQIOList = async () => {
+  try {
+    const result = await query("findAllQIO", []);
+    return result;
+  } catch (err) {
+    throw err;
+  }
+};
+
 // 1. 품질검사 지시 조회 로직 - qio_tbl
 exports.getInspectionOrders = async () => {
   // 기존 품질검사 지시 내역을 조회하는 모달창에서 사용.
@@ -69,9 +87,6 @@ exports.getInspectionOrders = async () => {
 
     return result;
   } catch (err) {
-    if (conn) await conn.rollback(); // 오류 발생 시 롤백
     throw err;
-  } finally {
-    if (conn) conn.release(); // 커넥션 풀에 반환
   }
 };
