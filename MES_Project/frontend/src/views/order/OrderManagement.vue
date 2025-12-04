@@ -30,13 +30,32 @@ const fetchOrderSearch = async (keyword = '') => {
 // 모달에서 선택한 결과 받기
 const onOrderSelect = (row) => {
     if (!row) return;
+
+    // 주문 기본 정보
     order.ord_code = row.ord_code || '';
     order.ord_name = row.ord_name || '';
     order.client_name = row.client_name || '';
     order.client_contact = row.emp_name || '';
     order.note = row.note || '';
     order.readonly = true;
-    // 필요 시 서버에서 단건 조회하여 제품목록 등 채워오기
+
+    // 제품 정보
+    const selectedOrderProducts = orderSearchList.value.filter((p) => p.ord_code === row.ord_code);
+    products.value = selectedOrderProducts.map((p) => ({
+        id: nextProductId++,
+        prod_name: p.prod_name || '',
+        type: p.com_value_name || '',
+        spec: p.spec_name || '',
+        unit: p.unit_name || '',
+        amount: p.ord_amount || 0,
+        unit_price: p.prod_price || 0,
+        delivery_date: p.delivery_date ? p.delivery_date.slice(0, 10) : '',
+        priority: p.ord_priority || '',
+        _selected: false,
+        get total() {
+            return (Number(this.amount) || 0) * (Number(this.unit_price) || 0);
+        }
+    }));
 };
 
 // 주문 기본 정보
@@ -62,6 +81,8 @@ function createEmptyProduct(id) {
         id,
         prod_name: '',
         type: '',
+        spec: 0,
+        unit: '',
         amount: 0,
         unit_price: 0,
         delivery_date: '',
@@ -242,6 +263,8 @@ function formatCurrency(v) {
                         <th style="width: 10px"><input type="checkbox" @change="toggleSelectAll($event)" :checked="allSelected" /></th>
                         <th style="width: 40px">제품명</th>
                         <th style="width: 30px">유형</th>
+                        <th style="width: 30px">규격</th>
+                        <th style="width: 30px">단위</th>
                         <th style="width: 40px">수량</th>
                         <th style="width: 40px">단가</th>
                         <th style="width: 40px">납기일</th>
@@ -254,11 +277,13 @@ function formatCurrency(v) {
                         <td class="center"><input type="checkbox" v-model="p._selected" /></td>
                         <td>
                             <div class="prod-name">
-                                <input v-model="p.prod_name" type="text" />
+                                <input type="text" :value="p.prod_name.slice(0, 3)" @input="p.prod_name = $event.target.value" />
                                 <button class="icon" @click="openProductSearch(idx)" title="제품 검색">🔍</button>
                             </div>
                         </td>
                         <td><input v-model="p.type" type="text" placeholder="분류명" /></td>
+                        <td><input v-model="p.spec" type="number" placeholder="규격" /></td>
+                        <td><input v-model="p.unit" type="text" placeholder="단위" /></td>
                         <td class="num-cell">
                             <div class="num-wrap">
                                 <input v-model.number="p.amount" type="number" min="0" @input="recalcRow(idx)" />

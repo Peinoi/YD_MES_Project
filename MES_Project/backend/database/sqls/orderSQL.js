@@ -43,11 +43,16 @@ module.exports = {
         ,o.ord_date -- 주문일자
         ,o.ord_name -- 주문명
         ,c.client_name -- 거래처
-        ,od.delivery_date -- 납기일
-        ,od.ord_priority -- 우선순위
         ,e.emp_name -- 거래처 담당자명
         ,o.note -- 비고
         ,p.prod_name -- 제품명
+        ,p.com_value -- 유형: 봉지라면 or 컵라면
+		    ,p.spec -- 규격
+		    ,p.unit -- 단위
+		    ,od.ord_amount -- 수량
+        ,od.prod_price -- 단가
+        ,od.delivery_date -- 납기일
+        ,od.ord_priority -- 우선순위
   FROM ord_tbl o
   JOIN ord_d_tbl od ON o.ord_code = od.ord_code
   JOIN client_tbl c ON c.client_code = o.client_code
