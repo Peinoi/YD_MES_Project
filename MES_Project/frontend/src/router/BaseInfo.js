@@ -9,7 +9,8 @@ export default [
         path: '/example',
         name: 'example',
         component: () => import('@/views/sam.vue')
-    },{
+    },
+    {
         path: '/baseinfo/bom',
         name: 'bom',
         component: BomVue
