@@ -7,8 +7,6 @@ const getWorkList = async () => {
     const res = result.data.data.result;
     workList.value = JSON.parse(JSON.stringify(res));
     console.log(workList.value);
-    console.log(result.data.data);
-    console.log(res);
 };
 
 /**

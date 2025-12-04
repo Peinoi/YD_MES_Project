@@ -13,3 +13,15 @@ exports.production_work = async () => {
     conn.release();
   }
 };
+exports.production_task = async () => {
+  const conn = await getConnection();
+  try {
+    const result = await conn.query(sqlList.task_all, []);
+    console.log(result);
+    return {
+      result,
+    };
+  } finally {
+    conn.release();
+  }
+};

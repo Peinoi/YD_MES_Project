@@ -25,4 +25,15 @@ WHERE
 ORDER BY 
     ppd.no, pd.start_date;
 `,
+  task_all: `
+    select 
+	wk.wko_code as code,
+    prod_name as name,
+    wk.line_code as line,
+    wk.start_date as start,
+    wk.end_date as end,
+    wk.stat as stat
+from
+    wko_tbl wk INNER JOIN prod_tbl prod on wk.prod_code = prod.prod_code;
+    `,
 };
