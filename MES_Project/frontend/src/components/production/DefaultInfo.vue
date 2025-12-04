@@ -1,132 +1,150 @@
-<template>
-    <div class="basic-info-card p-4">
-        <div class="header-section flex justify-between items-center mb-4 pb-2 border-b-2 border-b-gray-300">
-            <h2 class="text-xl font-semibold text-gray-800">기본 정보</h2>
-            <div class="button-group flex space-x-2">
-                <button class="btn-action bg-red-600 hover:bg-red-700 text-white" @click="handleDelete">삭제</button>
-                <button class="btn-action bg-gray-600 hover:bg-gray-700 text-white" @click="handleReset">초기화</button>
-                <button class="btn-action bg-green-500 hover:bg-green-600 text-white" @click="handleSave">샐진작업</button>
-            </div>
-        </div>
-
-        <div class="form-grid grid grid-cols-2 bg-white border-t-4 border-yellow-500 shadow-md">
-            <div class="grid-row contents-center border-b border-r border-gray-200">
-                <label class="label-col">작업지시번호</label>
-                <div class="input-col bg-gray-100 text-gray-500">
-                    <input type="text" :value="formData.workOrderNo" readonly class="w-full bg-transparent border-none focus:outline-none" />
-                    <span class="text-xs text-gray-500 ml-2">(자동생성)</span>
-                </div>
-            </div>
-
-            <div class="grid-row contents-center border-b border-gray-200">
-                <label class="label-col">생산계획번호</label>
-                <div class="input-col">
-                    <input type="text" v-model="formData.productionPlanNo" class="w-full border border-gray-300 p-1 rounded focus:border-blue-500" />
-                </div>
-            </div>
-
-            <div class="grid-row border-r border-gray-200">
-                <label class="label-col">계획일자</label>
-                <div class="input-col">
-                    <input type="text" v-model="formData.planDate" class="w-full border border-gray-300 p-1 rounded focus:border-blue-500" />
-                </div>
-            </div>
-
-            <div class="grid-row border-gray-200">
-                <label class="label-col bg-white"></label>
-                <div class="input-col bg-white"></div>
-            </div>
-        </div>
-    </div>
-</template>
-
 <script setup>
-import { ref } from 'vue';
+import { ref, defineProps, computed } from 'vue';
+import PlanModal from './PlanModal.vue';
 
-// 폼 데이터 상태 관리
-const formData = ref({
-    workOrderNo: 'JSS0001', // 이미지에서 자동생성된 값
-    productionPlanNo: '',
-    planDate: '2025.06.19' // 이미지의 예시 날짜
+const props = defineProps({
+    planData: {
+        type: Array,
+        default: () => []
+    }
 });
 
-// 버튼 핸들러 (실제 로직은 여기에 구현)
-const handleDelete = () => {
-    console.log('삭제 버튼 클릭');
-    // 여기에 삭제 API 호출 로직 추가
-};
+// 📌 formData 초기 상태
+const formData = ref({
+    productionPlanNo: '', // prdp_code
+    workOrderNo: '', // wko_code
+    planDate: '', // prdp_date
+    dueDate: '',
+    planName: '',
+    status: ''
+});
 
+// 모달 상태
+const showPlanModal = ref(false);
+
+// 버튼 이벤트
+const handleDelete = () => console.log('삭제');
 const handleReset = () => {
-    console.log('초기화 버튼 클릭');
-    // 폼 초기화 로직 추가
-    formData.value.productionPlanNo = '';
+    Object.keys(formData.value).forEach((key) => (formData.value[key] = ''));
 };
+const handleSave = () => console.log('저장', formData.value);
+const handleLoadPlan = () => (showPlanModal.value = true);
 
-const handleSave = () => {
-    console.log('샐진작업 버튼 클릭', formData.value);
-    // 여기에 저장/전송 API 호출 로직 추가
+// 📌 날짜만 표시하는 computed
+const formattedPlanDate = computed(() => {
+    if (!formData.value.planDate) return '';
+    const date = new Date(formData.value.planDate);
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+});
+
+// PlanModal에서 선택된 데이터 처리
+const handlePlanSelected = (d) => {
+    if (d) {
+        console.log('📌 선택된 계획:', d);
+        formData.value.productionPlanNo = d.prdp_code;
+        formData.value.workOrderNo = d.wko_code;
+        formData.value.planDate = d.prdp_date; // 원본은 그대로 저장
+        formData.value.dueDate = d.due_date || '';
+        formData.value.planName = d.prdp_name || '';
+        formData.value.status = d.stat || '';
+    }
+    showPlanModal.value = false;
 };
 </script>
 
+<template>
+    <div class="basic-info-card p-5">
+        <!-- 헤더 & 버튼 -->
+        <div class="header-section flex justify-between items-center mb-5 pb-2 border-b-2 border-b-gray-300">
+            <h5 class="text-xl font-bold text-gray-800">기본 정보</h5>
+            <div class="button-group flex space-x-2">
+                <button class="btn-action bg-red-600 text-white" @click="handleDelete">삭제</button>
+                <button class="btn-action bg-gray-600 text-white" @click="handleReset">초기화</button>
+                <button class="btn-action bg-blue-500 text-white" @click="handleSave">저장</button>
+                <button class="btn-action bg-green-500 text-white" @click="handleLoadPlan">생산계획 불러오기</button>
+            </div>
+        </div>
+
+        <!-- 폼 -->
+        <div class="form-grid grid grid-cols-2 bg-white border-t-4 border-yellow-500">
+            <div class="grid-row border-b border-r">
+                <label class="label-col">작업지시번호</label>
+                <div class="input-col">
+                    <input type="text" v-model="formData.workOrderNo" readonly class="input-readonly" />
+                </div>
+            </div>
+
+            <div class="grid-row border-b">
+                <label class="label-col">생산계획번호</label>
+                <div class="input-col">
+                    <input type="text" v-model="formData.productionPlanNo" readonly class="input-readonly" />
+                </div>
+            </div>
+
+            <div class="grid-row border-r">
+                <label class="label-col">계획일자</label>
+                <div class="input-col">
+                    <!-- formattedPlanDate 사용 -->
+                    <input type="text" :value="formattedPlanDate" readonly class="input-readonly" />
+                </div>
+            </div>
+
+            <div class="grid-row"></div>
+        </div>
+    </div>
+
+    <!-- PlanModal 연결 -->
+    <PlanModal :show="showPlanModal" :plan-list="props.planData" @close="showPlanModal = false" @select="handlePlanSelected" />
+</template>
+
 <style scoped>
-/* Tailwind CSS utility classes를 주로 사용하지만, 구조적인 CSS는 여기에 정의 */
-
 .basic-info-card {
-    /* 카드 배경 및 그림자 */
     background-color: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    max-width: 800px; /* 적당한 최대 너비 설정 */
-    margin: 0 auto; /* 중앙 정렬 */
+    border-radius: 7px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
 }
-
-/* 버튼 공통 스타일 */
 .btn-action {
-    padding: 8px 16px;
+    padding: 6px 16px;
     border-radius: 4px;
     font-size: 14px;
     font-weight: 600;
-    transition: background-color 0.2s;
-    min-width: 80px;
+    min-width: 75px;
 }
-
-/* 폼 그리드 레이아웃 */
 .form-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 2개의 섹션 */
-    border-collapse: collapse; /* 셀 경계 통합 */
+    grid-template-columns: repeat(2, 1fr);
 }
-
-/* 각 행 스타일 (2열로 나누어짐) */
 .grid-row {
     display: grid;
-    grid-template-columns: 120px 1fr; /* 레이블: 120px, 입력 필드: 나머지 */
-    min-height: 40px; /* 최소 높이 */
+    grid-template-columns: 130px 1fr;
+    min-height: 45px;
 }
-
-/* 레이블 컬럼 스타일 */
 .label-col {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #f0f0f0; /* 레이블 배경색 */
-    font-size: 14px;
-    font-weight: 500;
-    color: #333;
-    padding: 0 10px;
+    background-color: #f0f0f0;
+    font-weight: 600;
 }
-
-/* 입력 필드 컬럼 스타일 */
 .input-col {
     display: flex;
     align-items: center;
-    padding: 5px 10px;
+    padding: 6px 12px;
 }
-
-/* 첫 번째 행의 작업지시번호 (자동생성) 필드 스타일 */
-.input-col input[readonly] {
-    padding: 0;
-    /* 읽기 전용 필드의 텍스트 색상을 약간 연하게 조정 */
-    color: #4b5563;
+.input-readonly {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+}
+.basic-info-card {
+    background-color: #ffffff;
+    border-radius: 7px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px; /* 밑쪽 여백 추가 */
 }
 </style>

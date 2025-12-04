@@ -14,7 +14,7 @@ const model = ref([
                 items: [
                     { label: '제품 및 BOM 등록', to: '/baseinfo/bom' },
                     { label: '라인 정보', to: '' },
-                    { label: '공정 흐름도 등록', to: '/process' }
+                    { label: '공정 흐름도 등록', to: '/baseinfo/process' }
                 ]
             },
             {
@@ -23,8 +23,12 @@ const model = ref([
                 to: '',
                 items: [
                     {
-                        label: '주문',
-                        to: ''
+                        label: '주문조회',
+                        to: '/order/list'
+                    },
+                    {
+                        label: '주문관리',
+                        to: '/order/management'
                     },
                     {
                         label: '출고관리',
@@ -42,16 +46,24 @@ const model = ref([
                 to: '',
                 items: [
                     {
-                        label: '주문',
-                        to: '/uikit/table'
+                        label: '작업지시서목록',
+                        to: '/Production/productionPlan'
+                    },
+                    {
+                        label: '작업지시서관리',
+                        to: '/Production/productionPlanDetail'
                     },
                     {
                         label: '작업 진행',
-                        to: '/Production/work'
+                        to: '/Production/productionwork'
                     },
                     {
-                        label: '작업지시서목록',
-                        to: '/production/productionPlan'
+                        label: '작업 진행 목록',
+                        to: '/Production/TaskProgressList'
+                    },
+                    {
+                        label: '생산 실적',
+                        to: '/Production/WorkPerformance'
                     }
                 ]
             },
@@ -71,6 +83,14 @@ const model = ref([
                     {
                         label: '품질검사 지시관리',
                         to: '/quality/instructions-management'
+                    },
+                    {
+                        label: '품질검사결과 목록',
+                        to: '/qc/list'
+                    },
+                    {
+                        label: '품질검사결과 관리',
+                        to: '/qc/manage'
                     }
                 ]
             },
@@ -101,11 +121,11 @@ const model = ref([
                     },
                     {
                         label: '입출고내역',
-                        to: 'InOutHistory'
+                        to: { name: 'InOutHistory' }
                     },
                     {
                         label: '재고목록',
-                        to: 'StockList'
+                        to: { name: 'StockList' }
                     }
                 ]
             }

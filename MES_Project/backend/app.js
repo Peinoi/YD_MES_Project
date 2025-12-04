@@ -1,37 +1,47 @@
 // 환경변수 로드
-require('dotenv').config();
+require("dotenv").config();
 
-const express = require('express');
-const cors = require('cors');
+const express = require("express");
+const cors = require("cors");
 const app = express();
 const PORT = 3000;
 
 app.use(cors());
 app.use(express.json());
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:3000`);
-});
+// 각 모듈별 라우터 불러오기
+const sampleRouter = require("./routers/sampleRouter.js");
+const poRouter = require("./routers/poRouter.js");
+const qualityRouter = require("./routers/qualityRouter.js");
+const orderRouter = require("./routers/orderRouter.js");
+const processRouter = require("./routers/processRouter.js");
+const production_workRouter = require("./routers/production_workRouter.js");
+const qcRouter = require("./routers/qcRouter.js");
+const inboundRouter = require("./routers/inboundRouter.js");
+const bomRouter = require("./routers/bomRouter.js");
+const productionRouter = require("./routers/productionRouter.js");
+
+// 라우터 연결
+app.use(`/api/productions`, sampleRouter);
+app.use(`/poder`, poRouter);
+app.use(`/quality`, qualityRouter);
+app.use(`/order`, orderRouter);
+app.use(`/process`, processRouter);
+app.use(`/`, production_workRouter);
+app.use("/qc", qcRouter);
+app.use(`/inbound`, inboundRouter);
+app.use(`/baseinfo/bom`, bomRouter);
+app.use(`/production`, productionRouter);
 
 // 전역 오류 처리 미들웨어
 app.use((err, req, res, next) => {
   console.error(err.stack); // 서버 콘솔에 에러 스택 출력
   res.status(err.statusCode || 500).json({
     code: err.statusCode || 500,
-    msg: err.message || 'Internal Server Error',
+    msg: err.message || "Internal Server Error",
   });
 });
 
-// 라우터 연결
-const sampleRouter = require('./routers/sampleRouter.js');
-const poRouter = require('./routers/poRouter.js');
-const qualityRouter = require('./routers/qualityRouter.js');
-const orderRouter = require('./routers/orderRouter.js');
-const qcRouter = require('./routers/qcRouter.js');
-
-// 라우터 연결
-app.use(`/api/productions`, sampleRouter);
-app.use(`/api/quality`, qualityRouter);
-app.use(`/poder`, poRouter);
-app.use(`/order`, orderRouter);
-app.use('/qc', qcRouter);
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:3000`);
+});

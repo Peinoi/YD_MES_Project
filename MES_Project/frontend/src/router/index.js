@@ -5,6 +5,7 @@ import Material from './Material';
 import Order from './Order';
 import Production from './Production';
 import Quality from './Quality';
+import Qc from './Qc';
 
 // 분리된 경로를 모두 import 함
 // router는 개인마다 하나 씩 가진다
@@ -28,6 +29,7 @@ const router = createRouter({
                 ...Order,
                 ...Production,
                 ...Quality,
+                ...Qc,
                 ...Material,
 
                 {
@@ -128,11 +130,6 @@ const router = createRouter({
                     path: '/documentation',
                     name: 'documentation',
                     component: () => import('@/views/pages/Documentation.vue')
-                },
-                {
-                    path: '/Production/work',
-                    name: 'work',
-                    component: () => import('@/views/Production/Productionwork.vue')
                 }
             ]
         },
