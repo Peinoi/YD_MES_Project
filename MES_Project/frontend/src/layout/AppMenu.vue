@@ -117,11 +117,11 @@ const model = ref([
                     },
                     {
                         label: '입출고내역',
-                        to: 'InOutHistory'
+                        to: { name: 'InOutHistory' }
                     },
                     {
                         label: '재고목록',
-                        to: 'StockList'
+                        to: { name: 'StockList' }
                     }
                 ]
             }

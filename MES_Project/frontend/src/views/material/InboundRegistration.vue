@@ -1,7 +1,8 @@
 <script setup>
 import { ref } from 'vue';
 import { useToast } from 'primevue/usetoast';
-
+import inboundApi from '@/api/inbound';
+import CommonSearchModal from '@/components/common/CommonSearchModal.vue';
 const toast = useToast();
 
 // [상태] 입력 폼 데이터
@@ -10,46 +11,91 @@ const form = ref({
     matName: '',
     category: '',
     unit: '',
-    client: '',
-    manager: '',
+    client: '', // 업체명 (표시용)
+    clientCode: '', // 업체코드 (저장용)
+    manager: '', // 담당자명 (표시용)
+    managerCode: '', // 담당자코드 (저장용)
     inQty: null, // 숫자형으로 초기화
     inboundDate: null
 });
+// [추가] 모달 제어용 상태 변수
+const isModalVisible = ref(false);
+const modalConfig = ref({
+    title: '',
+    api: null,
+    columns: [],
+    targetType: ''
+});
 
-// [상태] 입고 대기 목록 데이터 (Mock Data)
-// ★ 중요: 수량(inQty)은 반드시 숫자(Number)여야 정렬이 올바르게 작동합니다.
-const inboundList = ref([
-    {
-        matCode: 'MAT-003',
-        matName: '예담라면포장지',
-        category: '부자재',
-        unit: 'BOX',
-        client: '대한포장',
-        manager: '이담당',
-        inQty: 500, // 문자열 '500' -> 숫자 500 변경
-        inboundDate: '2025-05-29'
-    },
-    {
-        matCode: 'RM-001',
-        matName: '밀가루 1등급',
-        category: '원자재',
-        unit: '포',
-        client: '예담제분',
-        manager: '김자재',
-        inQty: 400, // 문자열 '400' -> 숫자 400 변경
-        inboundDate: '2025-05-29'
+// [상태] 입고 대기 목록 데이터
+// 실제 운영 시에는 빈 배열 []로 시작하는 것이 일반적입니다.
+const inboundList = ref([]);
+// 검색 버튼 클릭 시 모달 설정 및 열기
+const openSearch = (type) => {
+    modalConfig.value.targetType = type;
+
+    if (type === 'MAT') {
+        modalConfig.value.title = '자재 검색';
+        modalConfig.value.api = () => inboundApi.getMaterialList();
+        modalConfig.value.columns = [
+            { field: 'matCode', header: '자재코드' },
+            { field: 'matName', header: '자재명' },
+            { field: 'category', header: '분류' },
+            { field: 'unit', header: '단위' }
+        ];
+    } else if (type === 'CLIENT') {
+        modalConfig.value.title = '공급업체 검색';
+        modalConfig.value.api = () => inboundApi.getClientList();
+        modalConfig.value.columns = [
+            { field: 'clientCode', header: '업체코드' },
+            { field: 'clientName', header: '업체명' },
+            { field: 'type', header: '구분' }
+        ];
+    } else if (type === 'EMP') {
+        modalConfig.value.title = '담당자 검색';
+        modalConfig.value.api = () => inboundApi.getEmpList();
+        modalConfig.value.columns = [
+            { field: 'empCode', header: '사번' },
+            { field: 'empName', header: '성명' },
+            { field: 'deptName', header: '부서' }
+        ];
     }
-]);
+    isModalVisible.value = true;
+};
 
+// 모달에서 데이터 선택 시 폼에 반영
+const handleSelect = (data) => {
+    console.log('test:', data);
+
+    const type = modalConfig.value.targetType;
+
+    if (type === 'MAT') {
+        form.value.matCode = data.matCode;
+        form.value.matName = data.matName;
+        form.value.category = data.category;
+        form.value.unit = data.unit;
+    } else if (type === 'CLIENT') {
+        form.value.clientCode = data.clientCode;
+        form.value.client = data.clientName;
+    } else if (type === 'EMP') {
+        form.value.managerCode = data.empCode;
+        form.value.manager = data.empName;
+    }
+};
 // [기능] 목록에 추가
 const addToList = () => {
-    if (!form.value.matCode || !form.value.inQty) {
-        alert('자재코드와 수량은 필수입니다.');
+    if (!form.value.matCode || !form.value.inQty || !form.value.clientCode || !form.value.inboundDate) {
+        toast.add({ severity: 'warn', summary: '입력 확인', detail: '필수 입력 항목(*)을 모두 채워주세요.', life: 3000 });
         return;
     }
     inboundList.value.push({
         ...form.value,
-        inboundDate: form.value.inboundDate ? form.value.inboundDate.toISOString().split('T')[0] : ''
+        // Date 객체를 YYYY-MM-DD 문자열로 변환
+        clientName: form.value.client, // 테이블 표시용
+        client: form.value.clientCode, // DB 전송용 (백엔드 필드명에 맞춤)
+        managerName: form.value.manager, // 테이블 표시용
+        manager: form.value.managerCode, // DB 전송용
+        inboundDate: form.value.inboundDate ? new Date(form.value.inboundDate).toISOString().split('T')[0] : ''
     });
     resetForm();
 };
@@ -62,7 +108,9 @@ const resetForm = () => {
         category: '',
         unit: '',
         client: '',
+        clientCode: '', // [수정] 초기화 대상 추가
         manager: '',
+        managerCode: '', // [수정] 초기화 대상 추가
         inQty: null,
         inboundDate: null
     };
@@ -73,27 +121,54 @@ const removeItem = (index) => {
     inboundList.value.splice(index, 1);
 };
 
-// [기능] 최종 등록
-const submitRegistration = () => {
+// [기능] 최종 등록 (API 연동 적용됨)
+const submitRegistration = async () => {
+    // 1. 데이터 검증
     if (inboundList.value.length === 0) {
-        alert('등록할 품목이 없습니다.');
+        toast.add({ severity: 'warn', summary: '확인', detail: '등록할 품목이 없습니다.', life: 3000 });
         return;
     }
-    console.log('최종 등록 데이터:', inboundList.value);
-    alert('입고 등록이 완료되었습니다.');
+
+    // 2. 사용자 확인
+    if (!confirm(`총 ${inboundList.value.length}건을 입고 등록하시겠습니까?`)) return;
+
+    try {
+        // 3. API 호출
+        // 백엔드에서 기대하는 포맷에 맞춰 데이터 전송 (여기서는 { items: [...] } 형태로 가정)
+        const response = await inboundApi.registerInbound({
+            items: inboundList.value,
+            regDate: new Date() // 필요 시 전송 시점 시간 추가
+        });
+
+        // 4. 성공 처리 (HTTP 200 or 201)
+        if (response.status === 200 || response.status === 201) {
+            toast.add({ severity: 'success', summary: '완료', detail: '입고 등록이 정상적으로 처리되었습니다.', life: 3000 });
+
+            // 데이터 초기화
+            inboundList.value = [];
+            resetForm();
+        }
+    } catch (error) {
+        // 5. 에러 처리
+        console.error('API Error:', error);
+        toast.add({ severity: 'error', summary: '오류', detail: '서버 등록 중 문제가 발생했습니다.', life: 3000 });
+    }
 };
 
 // [기능] 취소
 const cancelRegistration = () => {
-    if (confirm('작성 중인 내용이 사라집니다. 취소하시겠습니까?')) {
-        inboundList.value = [];
-        resetForm();
+    if (inboundList.value.length > 0 && !confirm('작성 중인 내용이 사라집니다. 취소하시겠습니까?')) {
+        return;
     }
+    inboundList.value = [];
+    resetForm();
 };
 </script>
 
 <template>
     <div class="inbound-container">
+        <Toast />
+
         <div class="header-section">
             <h2 class="page-title">자재 입고 등록</h2>
             <div class="breadcrumb">자재 관리 > 입고 등록</div>
@@ -109,8 +184,8 @@ const cancelRegistration = () => {
                 <div class="field-group">
                     <label class="field-label">자재코드 <span class="required">*</span></label>
                     <div class="flex w-full">
-                        <InputText v-model="form.matCode" placeholder="코드 검색" class="flex-1 border-r-0 rounded-r-none" />
-                        <Button icon="pi pi-search" severity="secondary" text class="rounded-l-none border-l-0" />
+                        <InputText v-model="form.matCode" placeholder="자재코드를 검색하세요" class="flex-1 border-r-0 rounded-r-none cursor-pointer" readonly @click="openSearch('MAT')" />
+                        <Button icon="pi pi-search" severity="secondary" text class="rounded-l-none border-l-0" @click="openSearch('MAT')" />
                     </div>
                 </div>
 
@@ -129,21 +204,21 @@ const cancelRegistration = () => {
                     <InputText v-model="form.unit" placeholder="Unit" readonly class="bg-gray-50 w-full" />
                 </div>
 
-                <div class="col-span-full divider my-2"></div>
+                <div class="col-span-full divider"></div>
 
                 <div class="field-group">
                     <label class="field-label">공급업체 <span class="required">*</span></label>
                     <div class="flex w-full">
-                        <InputText v-model="form.client" placeholder="업체 검색" class="flex-1 border-r-0 rounded-r-none" />
-                        <Button icon="pi pi-search" severity="secondary" text class="rounded-l-none border-l-0" />
+                        <InputText v-model="form.client" placeholder="공급업체를 검색하세요" class="flex-1 border-r-0 rounded-r-none cursor-pointer" readonly @click="openSearch('CLIENT')" />
+                        <Button icon="pi pi-search" severity="secondary" text class="rounded-l-none border-l-0" @click="openSearch('CLIENT')" />
                     </div>
                 </div>
 
                 <div class="field-group">
                     <label class="field-label">담당자</label>
                     <div class="flex w-full">
-                        <InputText v-model="form.manager" placeholder="담당자 검색" class="flex-1 border-r-0 rounded-r-none" />
-                        <Button icon="pi pi-search" severity="secondary" text class="rounded-l-none border-l-0" />
+                        <InputText v-model="form.manager" placeholder="담당자를 검색하세요" class="flex-1 border-r-0 rounded-r-none cursor-pointer" readonly @click="openSearch('EMP')" />
+                        <Button icon="pi pi-search" severity="secondary" text class="rounded-l-none border-l-0" @click="openSearch('EMP')" />
                     </div>
                 </div>
 
@@ -172,7 +247,7 @@ const cancelRegistration = () => {
                 </h3>
             </div>
 
-            <DataTable :value="inboundList" showGridlines stripedRows responsiveLayout="scroll" class="text-sm" removableSort>
+            <DataTable :value="inboundList" showGridlines stripedRows responsiveLayout="scroll" class="text-sm" removableSort scrollable scrollHeight="100px">
                 <template #empty>
                     <div class="text-center p-4 text-gray-500">추가된 입고 품목이 없습니다.</div>
                 </template>
@@ -187,9 +262,8 @@ const cancelRegistration = () => {
                 <Column field="matName" header="자재명" sortable headerClass="center-header" bodyClass="text-center" style="min-width: 150px"></Column>
                 <Column field="category" header="분류" sortable headerClass="center-header" bodyClass="text-center"></Column>
                 <Column field="unit" header="단위" sortable headerClass="center-header" bodyClass="text-center"></Column>
-                <Column field="client" header="공급업체" sortable headerClass="center-header" bodyClass="text-center"></Column>
-                <Column field="manager" header="담당자" sortable headerClass="center-header" bodyClass="text-center"></Column>
-                <Column field="inQty" header="입고수량" sortable headerClass="center-header" bodyClass="text-center"></Column>
+                <Column field="clientName" header="공급업체" sortable headerClass="center-header" bodyClass="text-center"></Column>
+                <Column field="managerName" header="담당자" sortable headerClass="center-header" bodyClass="text-center"></Column><Column field="inQty" header="입고수량" sortable headerClass="center-header" bodyClass="text-center"></Column>
                 <Column field="inboundDate" header="입고일자" sortable headerClass="center-header" bodyClass="text-center"></Column>
 
                 <Column header="삭제" headerClass="center-header" bodyClass="text-center" style="width: 6rem">
@@ -204,18 +278,19 @@ const cancelRegistration = () => {
                 <Button label="취소" icon="pi pi-times" severity="secondary" class="px-5" @click="cancelRegistration" />
             </div>
         </div>
+        <CommonSearchModal v-if="isModalVisible" v-model:visible="isModalVisible" :title="modalConfig.title" :columns="modalConfig.columns" :search-api="modalConfig.api" @select="handleSelect" />
     </div>
 </template>
 
 <style scoped>
 /* 기본 레이아웃 스타일 */
 .inbound-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
     font-family: 'Pretendard', 'Inter', sans-serif;
     background-color: #f8f9fa;
-    min-height: 100vh;
+    padding: 1.5rem;
+    border-radius: 12px;
+    height: calc(100vh - 8rem);
+    overflow-y: auto;
 }
 
 .header-section {
@@ -268,7 +343,8 @@ const cancelRegistration = () => {
 .form-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 1.5rem;
+    row-gap: 0.75rem;
+    column-gap: 1.5rem;
 }
 
 @media (min-width: 1024px) {
@@ -340,6 +416,11 @@ const cancelRegistration = () => {
 :deep(.text-center) {
     text-align: center !important;
 }
+
+:deep(.p-datatable-tbody > tr > td) {
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+}
 </style>
 
 <style>
@@ -347,5 +428,10 @@ const cancelRegistration = () => {
 .center-header .p-column-header-content,
 .center-header .p-datatable-column-header-content {
     justify-content: center !important;
+}
+html,
+body {
+    height: 100%;
+    overflow: hidden;
 }
 </style>
