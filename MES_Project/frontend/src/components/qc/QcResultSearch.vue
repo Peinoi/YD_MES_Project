@@ -94,7 +94,7 @@ function onReset() {
     display: flex;
     flex-direction: row;
     justify-content: flex-end;
-    align-items: center;
+    align-items: flex-end;
     gap: 0.5rem;
 }
 </style>
