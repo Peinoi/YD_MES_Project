@@ -1,70 +1,215 @@
 <script setup>
-import { ref, defineProps, computed } from 'vue';
+import { ref, defineProps, computed, onMounted, defineEmits, watch } from 'vue';
 import PlanModal from './PlanModal.vue';
+import axios from 'axios';
 
+// -------------------------------------
+// 📌 props 정의
+// -------------------------------------
 const props = defineProps({
     planData: {
         type: Array,
         default: () => []
+    },
+    workOrderData: {
+        type: Object,
+        default: () => ({})
     }
 });
 
-// 선택된 3가지 값
+// -------------------------------------
+// 📌 자식에게 전달할 formData
+// -------------------------------------
 const formData = ref({
     productionPlanNo: '',
     workOrderNo: '',
     planDate: '',
     dueDate: '',
     planName: '',
-    status: ''
+    status: '',
+    lineType: ''
 });
 
-// 나머지 값 잠시 저장
-const otherDataStore = ref(null);
+// PlanModal에서 가져오는 기타 정보 저장
+const otherDataStore = ref({});
 
-// 모달 상태
-const showPlanModal = ref(false);
+// -------------------------------------
+// 📌 자동 번호 생성 함수
+// -------------------------------------
+const generateWorkOrderNo = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
 
-// 버튼 이벤트
-const handleDelete = () => console.log('삭제');
-const handleReset = () => {
-    Object.keys(formData.value).forEach((key) => (formData.value[key] = ''));
-    otherDataStore.value = null;
+    const prefix = `WKO-${yyyy}${mm}${dd}-`;
+
+    const todayList = props.planData.filter((row) => row.작업지시번호 && row.작업지시번호.startsWith(prefix));
+
+    if (todayList.length === 0) return `${prefix}001`;
+
+    const lastNumber = todayList.map((row) => Number(row.작업지시번호.split('-')[2])).sort((a, b) => b - a)[0];
+
+    return `${prefix}${String(lastNumber + 1).padStart(3, '0')}`;
 };
-const handleSave = () => console.log('저장', formData.value, otherDataStore.value);
-const handleLoadPlan = () => (showPlanModal.value = true);
 
-// 날짜만 표시
-const formattedPlanDate = computed(() => {
-    if (!formData.value.planDate) return '';
-    const date = new Date(formData.value.planDate);
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
+const generateProductionPlanNo = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+
+    const prefix = `PRDP-${yyyy}${mm}${dd}-`;
+
+    const todayList = props.planData.filter((row) => row.prdp_code && row.prdp_code.startsWith(prefix));
+
+    if (todayList.length === 0) return `${prefix}001`;
+
+    const lastNumber = todayList.map((row) => Number(row.prdp_code.split('-')[2])).sort((a, b) => b - a)[0];
+
+    return `${prefix}${String(lastNumber + 1).padStart(3, '0')}`;
+};
+
+const getToday = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
+};
+
+// -------------------------------------
+// 📌 최초 로드시 자동 값 세팅
+// -------------------------------------
+onMounted(() => {
+    if (!formData.value.workOrderNo) formData.value.workOrderNo = generateWorkOrderNo();
+    if (!formData.value.productionPlanNo) formData.value.productionPlanNo = generateProductionPlanNo();
+    if (!formData.value.planDate) formData.value.planDate = getToday();
 });
+
+// -------------------------------------
+// 📌 부모 → DefaultInfo 자동 업데이트
+// -------------------------------------
+watch(
+    () => props.workOrderData,
+    (newVal) => {
+        if (!newVal) return;
+
+        console.log('부모1(DefaultInfo)에서 받은 workOrderData:', newVal);
+
+        formData.value.planName = newVal.productName || '';
+        formData.value.dueDate = newVal.expectedCompletion?.slice(0, 10) || '';
+        formData.value.status = newVal.instructionStatus || '';
+        formData.value.lineType = newVal.lineCode ? '정형' : '비정형';
+
+        // otherDataStore에 부모 데이터 저장
+        otherDataStore.value = {
+            instructionQuantity: newVal.instructionQuantity,
+            startDate: newVal.startDate || null,
+            expectedCompletion: newVal.expectedCompletion || null,
+            instructionStatus: newVal.instructionStatus,
+            lineCode: newVal.lineCode
+        };
+    },
+    { deep: true, immediate: true }
+);
+
+// -------------------------------------
+// 📌 PlanModal 연동
+// -------------------------------------
+const showPlanModal = ref(false);
 const emit = defineEmits(['updateOtherData']);
 
 const handlePlanSelected = (payload) => {
     if (!payload) return;
 
-    const selectedData = payload.selectedData;
-    formData.value.productionPlanNo = selectedData.prdp_code;
-    formData.value.workOrderNo = selectedData.wko_code;
-    formData.value.planDate = selectedData.prdp_date;
+    const selected = payload.selectedData;
+
+    formData.value.productionPlanNo = selected.prdp_code;
+    formData.value.workOrderNo = selected.wko_code;
+    formData.value.planDate = selected.prdp_date;
 
     otherDataStore.value = payload.otherData;
 
-    // 부모에게 전달
     emit('updateOtherData', otherDataStore.value);
 
     showPlanModal.value = false;
 };
+
+// -------------------------------------
+// 📌 format plan date
+// -------------------------------------
+const formattedPlanDate = computed(() => {
+    if (!formData.value.planDate) return '';
+    const date = new Date(formData.value.planDate);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+});
+
+const formatDateOnly = (date) => {
+    if (!date) return null;
+    const d = new Date(date);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
+// -------------------------------------
+// 📌 버튼
+// -------------------------------------
+const handleDelete = () => console.log('삭제');
+
+const handleReset = () => {
+    Object.keys(formData.value).forEach((key) => (formData.value[key] = ''));
+
+    formData.value.workOrderNo = generateWorkOrderNo();
+    formData.value.productionPlanNo = generateProductionPlanNo();
+    formData.value.planDate = getToday();
+};
+
+// -------------------------------------
+// 📌 저장 (서버 필드명과 정확히 매핑)
+// -------------------------------------
+const handleSave = async () => {
+    try {
+        const payload = {
+            wko_qtt: otherDataStore.value?.instructionQuantity || formData.value.quantity,
+            start_date: otherDataStore.value?.startDate || null,
+            end_date: formatDateOnly(otherDataStore.value?.expectedCompletion) || null,
+            stat: otherDataStore.value?.instructionStatus || formData.value.status,
+            line_code: otherDataStore.value?.lineCode || (formData.value.lineType === '정형' ? 'LINE-001' : 'LINE-999'),
+            wko_code: formData.value.workOrderNo,
+            prdp_code: formData.value.productionPlanNo,
+            prdp_name: formData.value.planName,
+            due_date: formatDateOnly(formData.value.dueDate)
+        };
+
+        // PK 존재 여부 조회
+        const checkResponse = await axios.get('/api/production/check', {
+            params: { workOrderNo: formData.value.workOrderNo }
+        });
+
+        const exists = checkResponse.data.exists;
+
+        if (exists) {
+            const updateResponse = await axios.put(`/api/production/update`, payload);
+            console.log('🔄 UPDATE 성공:', updateResponse.data);
+            alert('수정되었습니다!');
+        } else {
+            // INSERT 로직 필요 시 작성
+            alert('등록되었습니다!');
+        }
+    } catch (err) {
+        console.error('저장 중 오류 발생:', err);
+        alert('저장 과정에서 오류가 발생했습니다.');
+    }
+};
+
+const handleLoadPlan = () => (showPlanModal.value = true);
 </script>
 
 <template>
     <div class="basic-info-card p-5">
-        <!-- 헤더 & 버튼 -->
         <div class="header-section flex justify-between items-center mb-5 pb-2 border-b-2 border-b-gray-300">
             <h5 class="text-xl font-bold text-gray-800">기본 정보</h5>
             <div class="button-group flex space-x-2">
@@ -75,7 +220,6 @@ const handlePlanSelected = (payload) => {
             </div>
         </div>
 
-        <!-- 폼 -->
         <div class="form-grid grid grid-cols-2 bg-white border-t-4 border-yellow-500">
             <div class="grid-row border-b border-r">
                 <label class="label-col">작업지시번호</label>
@@ -100,7 +244,6 @@ const handlePlanSelected = (payload) => {
         </div>
     </div>
 
-    <!-- PlanModal 연결 -->
     <PlanModal :show="showPlanModal" :plan-list="props.planData" @close="showPlanModal = false" @select="handlePlanSelected" />
 </template>
 

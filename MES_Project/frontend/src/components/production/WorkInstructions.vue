@@ -1,5 +1,7 @@
 <script setup>
-import { reactive, watch, defineProps } from 'vue';
+import { reactive, watch, defineProps, defineEmits } from 'vue';
+
+const emit = defineEmits(['update:workOrderData']);
 
 // 🔹 부모에서 전달된 props 정의
 const props = defineProps({
@@ -43,14 +45,23 @@ const props = defineProps({
 const localWorkOrder = reactive({ ...props.workOrderData });
 
 // 🔹 부모 데이터 변경 시 localWorkOrder 자동 업데이트
+// props 변경 → localWorkOrder 갱신
 watch(
     () => props.workOrderData,
     (newVal) => {
         Object.assign(localWorkOrder, newVal);
-        console.log('props 변경됨:', newVal);
-        localWorkOrder.lineType = newVal.lineCode && newVal.lineCode.trim() !== '' ? '정형' : '비정형';
+        localWorkOrder.lineType = newVal.lineCode?.trim() ? '정형' : '비정형';
     },
     { deep: true, immediate: true }
+);
+
+// localWorkOrder 변경 → 부모에게 자동 emit
+watch(
+    () => localWorkOrder,
+    (newVal) => {
+        emit('update:workOrderData', { ...newVal });
+    },
+    { deep: true }
 );
 </script>
 

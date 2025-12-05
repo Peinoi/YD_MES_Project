@@ -81,10 +81,10 @@ const filteredRows = computed(() => allRows.value);
 <template>
     <div class="forward-check-page">
         <!-- DefaultInfo: 이벤트 바인딩 -->
-        <DefaultInfo :plan-data="filteredRows" @updateOtherData="handleOtherData" @search="handleSearch" @reset="handleReset" />
+        <DefaultInfo :plan-data="filteredRows" :work-order-data="workOrderData" @updateOtherData="handleOtherData" @search="handleSearch" @reset="handleReset" />
 
         <!-- WorkInstructions: 부모가 받은 otherDataFromChild -> workOrderData로 매핑되어 전달 -->
-        <WorkInstructions :work-order-data="workOrderData" />
+        <WorkInstructions :work-order-data="workOrderData" @update:workOrderData="(v) => (workOrderData = v)" />
 
         <div v-if="isLoading" class="p-4 text-center text-lg text-blue-500 font-semibold">데이터 로드 중...</div>
 
