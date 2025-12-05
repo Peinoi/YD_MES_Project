@@ -1,7 +1,12 @@
 <script setup>
-import axios from 'axios';
-import { onBeforeMount, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import SearchModal from './SearchModal.vue'; // SearchModal 컴포넌트 임포트
+import { useQualityStore } from '@/stores/qualityStore';
+
+const qualityStore = useQualityStore();
+
+// 1. tableData를 스토어의 qcrList를 바라보는 computed 속성으로 변경합니다.
+const tableData = computed(() => qualityStore.qcrList);
 
 // 모달 관련 상태
 const isModalVisible = ref(false);
@@ -27,8 +32,6 @@ const handleModalConfirm = (selectedItem) => {
 
 // 선택된 행들을 저장할 반응형 변수
 const selectedProducts = ref();
-const defaultQCRList = ref();
-const tableData = ref([]);
 
 // DataTable의 컬럼 정의
 const columns = [
@@ -53,16 +56,6 @@ const formatNumber = (value) => {
     return num.toLocaleString('ko-KR');
 };
 
-// 0. 페이지 최초 로드 시 한번만 호출될 품질검사 기준 목록
-const qcrList = async () => {
-    const response = await axios.get('/api/quality/qcrs');
-    // 백엔드 응답 형식 { code: 'Q200', data: [...] } 에서 실제 데이터 배열은 response.data.data 에 있습니다.
-    defaultQCRList.value = response.data.data;
-    tableData.value = defaultQCRList.value;
-    console.log('qcrList code:', response.data.code);
-    console.log('qcrList loaded:', tableData.value);
-};
-
 // 컬럼의 field에 따라 동적으로 body 스타일을 반환하는 함수
 const getBodyStyle = (field) => {
     if (field === 'inspection_item') {
@@ -75,9 +68,10 @@ const getBodyStyle = (field) => {
     return { textAlign: 'center' }; // 기본값 (예: 체크박스 컬럼)
 };
 
-// onBeforeMount 훅
-onBeforeMount(() => {
-    qcrList();
+// 2. onMounted (또는 onBeforeMount) 훅에서 데이터 로딩을 '요청'만 합니다.
+onMounted(() => {
+    // 스토어에 데이터가 없으면 fetchQCRList 액션을 호출. === if(!qualityStore.hasQCRData) { qualityStore.fetchQCRList(); } 
+    !qualityStore.hasQCRData && qualityStore.fetchQCRList(); 
 });
 </script>
 

@@ -70,6 +70,8 @@ exports.getQCRList = async () => {
     throw err;
   }
 };
+
+// 1. 기존의 품질검사 지시 목록을 조회.
 exports.getQIOList = async () => {
   try {
     const result = await query("findAllQIO", []);
