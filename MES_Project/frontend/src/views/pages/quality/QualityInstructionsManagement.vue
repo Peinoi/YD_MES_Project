@@ -11,15 +11,47 @@ const tableData = computed(() => qualityStore.qcrList);
 // 모달 관련 상태
 const isModalVisible = ref(false);
 const modalTitle = ref('');
+const modalData = ref([]);
+const modalColumns = ref([]);
 
 // 모달 열기 함수
-const openModal = (type) => {
+const openModal = async (type) => {
     if (type === 'inspection') {
         modalTitle.value = '검사지시 불러오기';
+        // 스토어에 qioList 데이터가 없으면 가져옵니다.
+        if (!qualityStore.qioList.length) {
+            await qualityStore.fetchQIOList(); // fetchQIOList 액션이 스토어에 구현되어 있어야 합니다.
+        }
+        modalData.value = qualityStore.qioList;
+        modalColumns.value = [
+            { field: 'qio_code', header: '검사지시코드' },
+            { field: 'order_date', header: '지시일자' },
+            { field: 'user_name', header: '지시자' }
+        ];
     } else if (type === 'stock') {
-        modalTitle.value = '재고목록 불러오기';
+        modalTitle.value = '자재목록 불러오기';
+        // 스토어에 mpr_dList 데이터가 없으면 가져옵니다.
+        if (!qualityStore.mpr_dList.length) {
+            await qualityStore.fetchMpr_dList();
+        }
+        modalData.value = qualityStore.mpr_dList;
+        modalColumns.value = [
+            { field: 'mpr_d_code', header: '자재 코드' },
+            { field: 'mat_name', header: '자재 명' },
+            { field: 'req_qtt', header: '발주수량' }
+        ];
     } else if (type === 'production') {
         modalTitle.value = '생산실적 불러오기';
+        // 스토어에 prdrList 데이터가 없으면 가져옵니다.
+        if (!qualityStore.prdrList.length) {
+            await qualityStore.fetchPrdrList();
+        }
+        modalData.value = qualityStore.prdrList;
+        modalColumns.value = [
+            { field: 'prdr_code', header: '제품 코드' },
+            { field: 'prod_name', header: '제품 명' },
+            { field: 'production_qtt', header: '수량' }
+        ];
     }
     isModalVisible.value = true;
 };
@@ -70,8 +102,8 @@ const getBodyStyle = (field) => {
 
 // 2. onMounted (또는 onBeforeMount) 훅에서 데이터 로딩을 '요청'만 합니다.
 onMounted(() => {
-    // 스토어에 데이터가 없으면 fetchQCRList 액션을 호출. === if(!qualityStore.hasQCRData) { qualityStore.fetchQCRList(); } 
-    !qualityStore.hasQCRData && qualityStore.fetchQCRList(); 
+    // 스토어에 데이터가 없으면 fetchQCRList 액션을 호출. === if(!qualityStore.hasQCRData) { qualityStore.fetchQCRList(); }
+    !qualityStore.hasQCRData && qualityStore.fetchQCRList();
 });
 </script>
 
@@ -181,7 +213,7 @@ onMounted(() => {
         </DataTable>
 
         <!-- SearchModal 컴포넌트 추가 -->
-        <SearchModal v-model:visible="isModalVisible" :header="modalTitle" @onConfirm="handleModalConfirm" />
+        <SearchModal v-model:visible="isModalVisible" :header="modalTitle" :data="modalData" :columns="modalColumns" @onConfirm="handleModalConfirm" />
     </div>
 </template>
 
