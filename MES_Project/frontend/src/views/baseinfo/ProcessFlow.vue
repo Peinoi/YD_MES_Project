@@ -183,10 +183,10 @@ const onDeleteProcess = () => {
 const onAddSubProcess = () => {
     const maxId = subProcessData.value.reduce((max, item) => Math.max(max, item.id || 0), 0);
     const nextId = maxId + 1;
-    const maxPoNumber = subProcessData.value.reduce((max, item) => Math.max(max, Number(item.poNumber) || 0), 0);
+    const maxNo = subProcessData.value.reduce((max, item) => Math.max(max, Number(item.no) || 0), 0); // poNumber 대신 no 사용
     subProcessData.value.push({
         id: nextId,
-        poNumber: maxPoNumber + 1,
+        no: maxNo + 1, // 필드명을 no로 통일
         poCode: '',
         poName: '',
         machine: ''
@@ -314,8 +314,10 @@ const onUpdate = () => {
                             <Column selectionMode="multiple" headerStyle="width:3rem"></Column>
                             <!-- 공정순서: 숫자 입력 -->
                             <Column field="no" header="공정순서" style="width: 60px">
-                                <template #body="{ data }"><InputNumber v-model="data.no" @input="(e) => updateSeq(data, Number(e.value))" :min="1" :useGrouping="false" style="width: 60px" class="p-inputtext-tight" /> </template
-                            ></Column>
+                                <template #body="{ data }">
+                                    <InputNumber v-model="data.no" @change="(e) => updateSeq(data, e.value)" :min="1" :useGrouping="false" style="width: 60px" class="p-inputtext-tight" />
+                                </template>
+                            </Column>
                             <!-- 공정코드 + 돋보기 버튼 -->
                             <Column field="po_code" header="공정코드" style="width: 120px">
                                 <template #body="{ data }">

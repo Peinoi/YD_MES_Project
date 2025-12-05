@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const bomService = require("../services/bomService.js");
+const { bomExcelDownload } = require("../services/bomService");
 
 /** GET /api/bom - 전체 BOM 리스트 조회 */
 //전체 조회
@@ -62,18 +63,41 @@ router.get("/mat/:prodCode", async (req, res) => {
 });
 router.post("/save", async (req, res) => {
   try {
-    const { bom_code, materials } = req.body;
+    const { bom_code, materials, deleted } = req.body;
 
-    if (!bom_code) return res.status(400).json({ message: "bom_code 누락됨" });
-    if (!materials || !materials.length)
-      return res.status(400).json({ message: "재료 목록이 비어 있음" });
-
-    const result = await bomService.saveBomMaterials(bom_code, materials);
+    const result = await bomService.saveBomMaterials(
+      bom_code,
+      materials,
+      deleted || []
+    );
 
     res.json(result);
+  } catch (e) {
+    console.error("Router Error:", e);
+    res.status(500).json({ message: "서버 오류" });
+  }
+});
+// ==========================
+// 📌 엑셀 다운로드 엔드포인트
+// ==========================
+router.get("/download", async (req, res) => {
+  try {
+    const workbook = await bomExcelDownload();
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=bom_export.xlsx"
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
   } catch (err) {
-    console.error("Router Error:", err);
-    res.status(500).json({ message: "서버 오류", error: err });
+    console.error("엑셀 다운로드 오류:", err);
+    res.status(500).json({ message: "엑셀 생성 실패" });
   }
 });
 
