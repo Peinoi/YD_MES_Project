@@ -8,16 +8,16 @@ import { useQcResultStore } from '../../../stores/qc/qcResultStore';
 const qcStore = useQcResultStore();
 
 // TODO: 삭제 API
-const onDelete = () => {};
+const deleted = () => {};
 
-const onReset = () => {};
+const reset = () => qcStore.reset();
 
-const onSave = () => qcStore.saveResult();
+const save = () => qcStore.saveResult();
 
-// TODO: 검사결과 불러오기
+// 검사결과 불러오기
 const onLoadPendingList = () => qcStore.loadPendingList();
 
-// TODO: 검사지시 불러오기
+// 검사지시 불러오기
 const onLoadInstruction = () => qcStore.loadInstruction();
 </script>
 
@@ -29,9 +29,9 @@ const onLoadInstruction = () => qcStore.loadInstruction();
                 <h3>기본정보</h3>
 
                 <div class="top-buttons">
-                    <Button label="삭제" class="p-button-danger" @click="onDelete" />
-                    <Button label="초기화" class="p-button-secondary" @click="onReset" />
-                    <Button label="저장" class="p-button-primary" @click="onSave" />
+                    <Button label="삭제" class="p-button-danger" @click="deleted" />
+                    <Button label="초기화" class="p-button-secondary" @click="reset" />
+                    <Button label="저장" class="p-button-primary" @click="save" />
                     <Button label="검사결과 불러오기" class="p-button-success" @click="onLoadPendingList" />
                 </div>
             </div>
@@ -54,7 +54,7 @@ const onLoadInstruction = () => qcStore.loadInstruction();
 
         <!-- 검사항목 -->
         <div class="section">
-            <h3>검사항목 - 지시정보 기반으로 출력</h3>
+            <h3>검사항목</h3>
             <QcResultItemTable />
         </div>
     </div>

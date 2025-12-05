@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import { findQcList } from '../../../api/qc/qcApi';
+import { getQcList } from '../../../service/qc/qcService';
 
 // QC용 컴포넌트
 import QcListSearch from '@/components/qc/004/QcListSearch.vue';
@@ -12,8 +12,8 @@ const searchCriteria = ref({});
 const allRows = ref([]);
 
 const qcListSearch = async (criteria) => {
-    const result = await findQcList(criteria);
-    allRows.value = result;
+    const result = await getQcList(criteria);
+    allRows.value = result.data;
 };
 
 const searchReset = () => {

@@ -25,19 +25,19 @@ function resultBody(result) {
         <div v-if="rows.length === 0" class="no-result">조회된 결과가 없습니다.</div>
         <DataTable v-else :value="rows" :loading="loading" dataKey="id" showGridlines size="small">
             <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
-            <Column field="qcr_code" header="검사유형" />
-            <Column field="prod_code" header="제품코드" />
-            <Column field="prod_name" header="품목명" />
-            <Column field="check_method" header="검사항목" />
+            <Column field="qcrCode" header="검사유형" />
+            <Column field="prodCode" header="제품코드" />
+            <Column field="prodName" header="품목명" />
+            <Column field="checkMethod" header="검사항목" />
             <Column field="unit" header="단위" />
             <Column field="result" header="결과">
                 <template #body="slotProps">
                     <span v-html="resultBody(slotProps.data.result)"></span>
                 </template>
             </Column>
-            <Column field="start_date" header="검사일">
+            <Column field="startDate" header="검사일">
                 <template #body="slotProps">
-                    {{ yymmddFormat(slotProps.data.start_date) }}
+                    {{ yymmddFormat(slotProps.data.startDate) }}
                 </template>
             </Column>
         </DataTable>

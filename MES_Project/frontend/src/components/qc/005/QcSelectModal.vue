@@ -6,14 +6,14 @@ const qcStore = useQcResultStore();
 const { modal } = storeToRefs(qcStore);
 
 // 닫기
-const close = () => {
-    qcStore.closeResultModal();
-};
+function close() {
+    qcStore.closeModal();
+}
 
 // 확인
-const onSelect = () => {
+function select() {
     qcStore.selectedQirCode();
-};
+}
 </script>
 
 <template>
@@ -24,7 +24,7 @@ const onSelect = () => {
 
         <div class="flex justify-content-end gap-2">
             <Button label="닫기" severity="secondary" @click="close" />
-            <Button label="확인" severity="primary" :disabled="!modal.selectedRow" @click="onSelect" />
+            <Button label="확인" severity="primary" :disabled="!modal.selectedRow" @click="select" />
         </div>
     </Dialog>
 </template>

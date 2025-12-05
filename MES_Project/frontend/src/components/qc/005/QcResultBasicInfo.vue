@@ -7,7 +7,7 @@ const { basic } = storeToRefs(qcStore);
 </script>
 
 <template>
-    <div class="grid-3col">
+    <div class="grid-4col">
         <div class="cell">
             <label>결과코드</label>
             <InputText v-model="basic.qirCode" readonly />
@@ -15,12 +15,12 @@ const { basic } = storeToRefs(qcStore);
 
         <div class="cell">
             <label>검사자</label>
-            <InputText v-model="basic.qirEmpCode" />
+            <InputText v-model="basic.qirEmpCode" readonly />
         </div>
 
         <div class="cell">
             <label>시작일시</label>
-            <InputText v-model="basic.startDate" />
+            <InputText v-model="basic.startDate" readonly />
         </div>
 
         <div class="cell">
@@ -30,17 +30,21 @@ const { basic } = storeToRefs(qcStore);
 
         <div></div>
 
+        <div></div>
+
+        <div></div>
+
         <div class="cell">
             <label>비고</label>
-            <InputText v-model="basic.note" />
+            <InputText v-model="basic.note" readonly />
         </div>
     </div>
 </template>
 
 <style scoped>
-.grid-3col {
+.grid-4col {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 1rem;
 }
 
