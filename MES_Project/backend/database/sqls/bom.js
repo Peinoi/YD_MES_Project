@@ -27,7 +27,7 @@ From prod_tbl;`,
         unit, 
         spec, 
         DATE_FORMAT(regdate, '%Y-%m-%d') AS regdate,
-        note, 
+        note,   
         com_value, 
         reg,
         prod_type
@@ -36,6 +36,7 @@ From prod_tbl;`,
 `,
   bom_mat: `SELECT 
     bm.mat_code,
+    bm.bom_code,
     bm.mat_name,
     bm.mat_type,
     bm.req_qtt,
@@ -52,8 +53,28 @@ WHERE pt.prod_code = ?;`,
 )
 UNION ALL
 (
-    SELECT prod_code AS mat_code, prod_name AS mat_name, prod_type, unit
+    SELECT prod_code AS mat_code, prod_name AS mat_name, prod_type AS prod_type, unit
     FROM prod_tbl
     WHERE prod_type = 'i2'
 )`,
+  updateBomMat: `
+    UPDATE bom_mat
+    SET 
+        mat_name = ?,
+        mat_type = ?,
+        req_qtt = ?,
+        unit = ?,
+        loss_rate = ?
+    WHERE bom_code = ?
+      AND mat_code = ?
+`,
+  insertBomMat: `INSERT INTO bom_mat (
+    mat_code,
+    bom_code,
+    mat_name,
+    mat_type,
+    req_qtt,
+    unit,
+    loss_rate
+) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 };

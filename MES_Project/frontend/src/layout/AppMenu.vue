@@ -12,9 +12,18 @@ const model = ref([
                 icon: 'pi pi-fw pi-cog',
                 to: '/',
                 items: [
-                    { label: '제품 및 BOM 등록', to: '/baseinfo/bom' },
-                    { label: '라인 정보', to: '' },
-                    { label: '공정 흐름도 등록', to: '/baseinfo/process' }
+                    {
+                        label: '제품 및 BOM 등록',
+                        to: '/baseinfo/bom'
+                    },
+                    {
+                        label: '라인 정보',
+                        to: '/baseinfo/lineinfo'
+                    },
+                    {
+                        label: '공정 흐름도 등록',
+                        to: '/baseinfo/process'
+                    }
                 ]
             },
             {

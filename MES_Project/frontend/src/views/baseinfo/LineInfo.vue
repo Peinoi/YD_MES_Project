@@ -25,7 +25,7 @@ const selectedSubProcess = ref([]);
 
 // 공정순서에 따라 데이터를 자동 정렬
 const subProcessList = computed(() => {
-    return [...subProcessData.value].sort((a, b) => a.no - b.no);
+    return [...subProcessData.value].sort((a, b) => a.poNumber - b.poNumber);
 });
 
 // 공형분류
@@ -66,11 +66,9 @@ const selectedProcessModal2 = ref([]);
 // // 이벤트 핸들러
 // // -------------------------------
 
-// Datatalbe 선택
 const rowClass = (rowData) => {
     return selectedProcess.value && rowData.id === selectedProcess.value.id ? 'selected-row' : '';
 };
-
 // 흐름도 코드/명 모달호출
 const openProcessModal1 = async () => {
     try {
@@ -91,10 +89,6 @@ const openProcessModal2 = async () => {
         console.error('데이터 조회 모달 실패', error.message);
     }
 };
-
-// 공정 코드를 클릭하면 해당 값 볼 수 있는 모달 호출
-// const openProcessDetail = async () =>
-
 // 흐름도 코드/명 값 전달
 const selectProcessFromModal1 = (event) => {
     const row = event.data;
@@ -149,8 +143,7 @@ const onSearch = async () => {
     }
 };
 
-// 공정 흐름도를 선택 시 기준정보에 값이 들어가고 흐름도 상세 조회
-const onSelectProcess = async () => {
+const onSelectProcess = () => {
     const row = selectedProcess.value;
 
     if (!row) {
@@ -159,16 +152,7 @@ const onSelectProcess = async () => {
         return;
     }
     detailForm.value = { ...row };
-    // 흐름도 상세
-    try {
-        const response = await axios.get('/api/process/detail', {
-            params: { processCode: row.processCode }
-        });
-        subProcessData.value = response.data;
-    } catch (error) {
-        console.error('흐름도 상세 조회 실패', error.message);
-        subProcessData.value = [];
-    }
+    subProcessData.value = row.subProcessData || [];
 };
 
 const onDeleteProcess = () => {
@@ -225,23 +209,18 @@ const onUpdate = () => {
         <div class="card search-panel">
             <div class="search-row">
                 <div class="field">
-                    <label for="processCode">흐름도코드</label>
+                    <label for="processCode">라인코드</label>
                     <InputText id="processCode" v-model="searchForm.processCode" placeholder="흐름도코드 선택" readonly @click="openProcessModal1" />
                 </div>
 
                 <div class="field">
-                    <label for="processName">흐름도명</label>
+                    <label for="processName">라인명</label>
                     <InputText id="processName" v-model="searchForm.processName" placeholder="흐름도명 선택" readonly @click="openProcessModal1" />
                 </div>
 
                 <div class="field">
-                    <label for="itemCode">제품코드</label>
+                    <label for="itemCode">사용여부</label>
                     <InputText id="itemCode" v-model="searchForm.itemCode" placeholder="제품코드 선택" readonly @click="openProcessModal2" />
-                </div>
-
-                <div class="field">
-                    <label for="itemName">제품명</label>
-                    <InputText id="itemName" v-model="searchForm.itemName" placeholder="제품명 선택" readonly @click="openProcessModal2" />
                 </div>
 
                 <div class="field date-range-field flex flex-column">
@@ -281,7 +260,7 @@ const onUpdate = () => {
                 <div class="left-pane">
                     <!-- 검색 결과 헤더 -->
                     <div class="list-header">
-                        <span>공정흐름도</span>
+                        <span>라인흐름도</span>
                         <div>검색 결과 {{ processList.length }}건</div>
                         <div class="list-header-buttons">
                             <Button label="삭제" class="p-button-danger p-button-sm" :disabled="!selectedProcess" @click="onDeleteProcess" />
@@ -289,15 +268,15 @@ const onUpdate = () => {
                     </div>
 
                     <!-- 공정 흐름도 그리드 -->
-                    <DataTable :value="processList" dataKey="id" selectionMode="single" v-model:selection="selectedProcess" @rowSelect="onSelectProcess" scrollable scrollHeight="220px" class="p-datatable-sm process-list-table" :rowClass="rowClass">
-                        <Column field="processCode" header="흐름도코드" style="width: 90px"></Column>
-                        <Column field="processName" header="흐름도명" style="width: 130px"></Column>
-                        <Column field="itemCode" header="제품코드" style="width: 90px"></Column>
-                        <Column field="itemName" header="제품명" style="width: 90px"></Column>
+                    <DataTable :value="processList" dataKey="id" selectionMode="single" :rowClass="rowClass" v-model:selection="selectedProcess" @rowSelect="onSelectProcess" scrollable scrollHeight="220px" class="p-datatable-sm process-list-table">
+                        <Column field="processCode" header="라인코드" style="width: 90px"></Column>
+                        <Column field="processName" header="라인명" style="width: 130px"></Column>
+                        <Column field="itemCode" header="라인유형" style="width: 90px"></Column>
+                        <Column field="itemName" header="공정수" style="width: 90px"></Column>
+                        <Column field="itemName" header="사용여부" style="width: 90px"></Column>
                         <Column field="regDate" header="등록일자" style="width: 100px">
                             <template #body="{ data }">{{ data.regDate ? data.regDate.slice(0, 10) : '' }}</template></Column
                         >
-                        <Column field="remark" header="비고" style="width: 150px"></Column>
                     </DataTable>
 
                     <!-- 좌하단: 흐름도 상세 -->
@@ -313,18 +292,27 @@ const onUpdate = () => {
                         <DataTable :value="subProcessList" dataKey="id" v-model:selection="selectedSubProcess" selectionMode="single" class="p-datatable-sm sub-process-table">
                             <Column selectionMode="multiple" headerStyle="width:3rem"></Column>
                             <!-- 공정순서: 숫자 입력 -->
-                            <Column field="no" header="공정순서" style="width: 60px">
-                                <template #body="{ data }"><InputNumber v-model="data.no" @input="(e) => updateSeq(data, Number(e.value))" :min="1" :useGrouping="false" style="width: 60px" class="p-inputtext-tight" /> </template
+                            <Column field="poNumber" header="공정순서" style="width: 60px">
+                                <template #body="{ data }"><InputNumber v-model="data.poNumber" @input="(e) => updateSeq(data, Number(e.value))" :min="1" :useGrouping="false" style="width: 60px" class="p-inputtext-tight" /> </template
                             ></Column>
                             <!-- 공정코드 + 돋보기 버튼 -->
-                            <Column field="po_code" header="공정코드" style="width: 120px">
+                            <Column field="poCode" header="공정명" style="width: 120px">
                                 <template #body="{ data }">
                                     <div class="flex align-items-center gap-2">
-                                        <InputText v-model="data.po_code" disabled style="width: 120px" /><Button icon="pi pi-search" class="p-button-text p-button-sm" @click="openProcessDetail(data)" />
+                                        <InputText v-model="data.poCode" disabled style="width: 120px" /><Button icon="pi pi-search" class="p-button-text p-button-sm" @click="openProcessDetail(data)" />
                                     </div> </template
                             ></Column>
-                            <Column field="po_name" header="공정명" style="width: 100px"> ></Column>
-                            <Column field="eq_type_name" header="설비유형" style="width: 120px"> </Column>
+                            <Column field="poName" header="공정코드" style="width: 100px">
+                                <template #body="{ data }"><InputText v-model="data.poName" disabled style="width: 100px" /> </template
+                            ></Column>
+                            <Column field="machine" header="설비코드" style="width: 120px">
+                                <template #body="{ data }"> <InputText v-model="data.machine" disabled style="width: 100px" /> </template
+                            ></Column>
+                            <Column field="machine" header="설비명" style="width: 120px">
+                                <template #body="{ data }"> <InputText v-model="data.machine" disabled style="width: 100px" /> </template></Column
+                            ><Column field="machine" header="사용여부" style="width: 120px">
+                                <template #body="{ data }"> <InputText v-model="data.machine" disabled style="width: 100px" /> </template
+                            ></Column>
                         </DataTable>
                     </div>
                 </div>
@@ -343,35 +331,28 @@ const onUpdate = () => {
                     <div class="detail-form">
                         <div class="form-grid">
                             <div class="field">
-                                <label>제품공정 흐름도 코드</label>
+                                <label>라인 코드</label>
                                 <InputText v-model="detailForm.processCode" placeholder="자동입력" disabled />
                             </div>
 
                             <div class="field">
-                                <label>제품 흐름도명</label>
+                                <label>라인명</label>
                                 <InputText v-model="detailForm.processName" placeholder="자동입력" />
                             </div>
 
                             <div class="field">
-                                <label>제품코드</label>
+                                <label>라인유형</label>
                                 <InputText v-model="detailForm.itemCode" placeholder="자동입력" />
                             </div>
 
                             <div class="field">
-                                <label>제품명</label>
+                                <label>담당부서</label>
                                 <InputText v-model="detailForm.itemName" placeholder="자동입력" />
                             </div>
 
                             <div class="field">
-                                <label>공형분류</label>
+                                <label>사용여부</label>
                                 <Dropdown v-model="detailForm.processStructure" :options="processStructureOptions" optionLabel="label" optionValue="value" placeholder="정형/비정형" />
-                            </div>
-
-                            <div class="field">
-                                <label>등록자</label>
-                                <div class="p-inputgroup">
-                                    <InputText v-model="detailForm.reg" placeholder="자동입력" disabled />
-                                </div>
                             </div>
 
                             <div class="field">
@@ -456,6 +437,11 @@ const onUpdate = () => {
     justify-content: space-between;
     align-items: center;
     margin-top: 0.5rem;
+}
+.sub-process-wrapper {
+    height: 260px;
+    overflow-y: auto;
+    border: 1px solid var(--surface-border);
 }
 
 .sub-process-buttons {
@@ -548,22 +534,5 @@ const onUpdate = () => {
 }
 .sub-process-table :deep(.p-inputnumber .p-inputnumber-input) {
     width: 60px;
-}
-.process-list-table :deep(.p-datatable .p-datatable-tbody > tr.p-highlight) {
-    background-color: var(--surface-card) !important;
-    color: var(--text-color) !important;
-}
-.sub-process-table :deep(.p-datatable .p-datatable-tbody > tr.p-highligt) {
-    background-color: var(--surface-card) !important;
-    color: var(--text-color) !important;
-}
-.sub-process-wrapper :deep(.p-datatable .p-datatable-tbody > tr.p-highlight) {
-    background-color: var(--surface-card) !important;
-    color: var(--text-color) !important;
-}
-.sub-process-wrapper :deep(.p-datatable .p-datatable-tbody > tr:not(.p-highlight):hover),
-.process-list-table :deep(.p-datatable .p-datatable-tbody > tr:not(.p-highlight):hover) {
-    background: var(--surface-hover);
-    color: var(--text-color);
 }
 </style>

@@ -60,5 +60,21 @@ router.get("/mat/:prodCode", async (req, res) => {
     res.status(500).json({ message: "서버 오류", error: err.message });
   }
 });
+router.post("/save", async (req, res) => {
+  try {
+    const { bom_code, materials } = req.body;
+
+    if (!bom_code) return res.status(400).json({ message: "bom_code 누락됨" });
+    if (!materials || !materials.length)
+      return res.status(400).json({ message: "재료 목록이 비어 있음" });
+
+    const result = await bomService.saveBomMaterials(bom_code, materials);
+
+    res.json(result);
+  } catch (err) {
+    console.error("Router Error:", err);
+    res.status(500).json({ message: "서버 오류", error: err });
+  }
+});
 
 module.exports = router; // 이렇게 변경해 주세요.

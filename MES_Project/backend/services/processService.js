@@ -7,7 +7,7 @@ const createProcessFlowBindingValues = (params) => {
   const pn = params.processName || null;
   const ic = params.itemCode || null;
   const iname = params.itemName || null;
-  const sDate = params.startDate || null;
+  const rDate = params.regDate || null;
   // SQl 템플릿의 ? 순서에 맞춰 값을 나열
   const values = [
     pc,
@@ -22,8 +22,8 @@ const createProcessFlowBindingValues = (params) => {
     iname,
     iname,
     iname,
-    sDate,
-    sDate,
+    rDate,
+    rDate,
   ];
   return values;
 };
@@ -37,7 +37,21 @@ exports.getProcessFlowList = async (searchParams) => {
     const rows = await query(sqlAlias, values);
     return rows;
   } catch (err) {
-    console.error("processService.js오류", err.message);
+    console.error("processService.js공정흐름도오류", err.message);
+    throw err;
+  }
+};
+
+// 흐름도 상세 공정 가져오기
+exports.getSubProcessList = async (processCode) => {
+  const sqlAlias = "getSubProcessList";
+  const values = [processCode];
+
+  try {
+    const rows = await query(sqlAlias, values);
+    return rows;
+  } catch (err) {
+    console.error("processService.js흐름도상세오류", err.message);
     throw err;
   }
 };
