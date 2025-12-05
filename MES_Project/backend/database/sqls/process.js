@@ -5,6 +5,7 @@ module.exports = {
             P.po_name        AS processName, -- 흐름도명
             D.prod_code      AS itemCode,    -- 제품코드
             D.prod_name      AS itemName,    -- 제품명
+            P.reg            AS reg,         -- 등록자
             P.reg_date       AS regDate,     -- 등록일자
             P.note           AS remark       -- 비고
         FROM
@@ -27,4 +28,21 @@ module.exports = {
         
         /* 등록일자 (시작일) */
         AND ( ? IS NULL OR DATE(P.reg_date) >= ? )`,
+
+  getSubProcessList: `
+    SELECT 
+            D.no,
+            D.po_code,
+            C.note AS eq_type_name,
+            O.po_name
+    FROM
+            prod_proc_d_tbl AS D
+    INNER JOIN
+            po_tbl AS O ON D.po_code = O.po_code
+    LEFT JOIN
+            common_code AS C ON D.eq_type = C.com_value AND C.group_value = '1A'
+    WHERE
+            D.prod_proc_code = ?
+    ORDER BY
+            D.no ASC`,
 };

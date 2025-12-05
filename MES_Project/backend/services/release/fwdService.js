@@ -1,9 +1,36 @@
 // MES_Project/backend/services/release/fwdService.js
 const db = require("../../database/mapper.js");
 const fwdSQL = require("../../database/sqlList.js");
+const commonService = require("../commonService.js");
 
 /* ===========================
- *  주문 관련 서비스
+ *          공통코드
+ * =========================== */
+
+// 출고 화면에서 쓸 공통코드 묶음 조회
+async function getForwardingCommonCodes() {
+  // group_value 는 너네 common_code 테이블 기준으로 맞춰줘
+  const [unitList, specList, typeList] = await Promise.all([
+    commonService.getNoteList("0H"), // 단위
+    commonService.getNoteList("0O"), // 규격
+    commonService.getNoteList("0I"), // 유형
+  ]);
+
+  const toMap = (list) =>
+    Object.fromEntries(list.map((row) => [row.com_value, row.note]));
+
+  return {
+    unitMap: toMap(unitList),
+    specMap: toMap(specList),
+    typeMap: toMap(typeList),
+    unitList,
+    specList,
+    typeList,
+  };
+}
+
+/* ===========================
+ *       주문 관련 서비스
  * =========================== */
 
 /**
@@ -86,7 +113,7 @@ async function getOrderDetail(orderNo) {
  * =========================== */
 
 /**
- * 출고전표 목록 조회 (모달용)
+ * 출고요청 목록 조회 (모달용)
  * 라우터: GET /api/release/fwd
  * query: keyword, fromDate, toDate, client, status
  */
@@ -96,28 +123,28 @@ async function getReleaseList(params = {}) {
     fromDate = "",
     toDate = "",
     client = "",
-    status = "",
+    status = "", // 지금은 안 씀
   } = params;
 
   const where = [];
   const values = [];
 
   if (keyword) {
-    // 🔹 출고번호 / 주문번호 / 거래처명 검색
+    // 🔹 출고요청코드 / 주문코드 / 거래처명 검색
     where.push(
-      "(pb.poutbnd_code LIKE ? OR orq.ord_code LIKE ? OR c.client_name LIKE ?)"
+      "(orq.out_req_code LIKE ? OR orq.ord_code LIKE ? OR c.client_name LIKE ?)"
     );
     const like = `%${keyword}%`;
     values.push(like, like, like);
   }
 
   if (fromDate) {
-    where.push("pb.deadline >= ?");
+    where.push("orq.out_req_date >= ?");
     values.push(fromDate);
   }
 
   if (toDate) {
-    where.push("pb.deadline <= ?");
+    where.push("orq.out_req_date <= ?");
     values.push(toDate);
   }
 
@@ -126,28 +153,23 @@ async function getReleaseList(params = {}) {
     values.push(`%${client}%`);
   }
 
-  if (status) {
-    where.push("pb.stat = ?");
-    values.push(status);
-  }
+  // status는 out_req_tbl에 없으니 일단 무시하거나, 나중에 컬럼 추가하면 그때 처리
 
   const whereSQL = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-  // 🔹 sql의 /*WHERE*/ 자리 치환
   const listSql = fwdSQL.SELECT_RELEASE_LIST.replace("/*WHERE*/", whereSQL);
 
   const conn = await db.getConnection();
   try {
-    // mariadb 쓰고 있으니까 구조분해 말고 그대로
     const rows = await conn.query(listSql, values);
-    return rows; // [{ releaseCode, releaseDate, orderCode, client, status, totalQty }, ...]
+    return rows;
   } finally {
     conn.release();
   }
 }
 
 /**
- * 출고전표 상세 조회 (헤더 + 라인)
+ * 출고요청 상세 조회 (헤더 + 라인)
  * 라우터: GET /api/release/fwd/:releaseCode
  */
 async function getReleaseDetail(releaseCode) {
@@ -155,11 +177,9 @@ async function getReleaseDetail(releaseCode) {
   const conn = await db.getConnection();
 
   try {
-    // 1) 헤더 조회
     const headerRows = await conn.query(fwdSQL.SELECT_RELEASE_HEADER, [
       releaseCode,
     ]);
-    console.log("[getReleaseDetail] headerRows:", headerRows);
 
     if (!headerRows || headerRows.length === 0) {
       return null;
@@ -169,21 +189,19 @@ async function getReleaseDetail(releaseCode) {
 
     const header = {
       releaseCode: h.releaseCode,
-      releaseDate: h.releaseDate, // 'YYYY-MM-DD'
+      releaseDate: h.releaseDate,
       orderCode: h.orderCode,
       client: h.client,
       remark: h.remark,
       status: h.status,
-      orderDate: h.orderDate, // 'YYYY-MM-DD'
+      orderDate: h.orderDate,
       registrantCode: h.registrantCode,
       registrantName: h.registrantName,
     };
 
-    // 2) 라인(상세) 조회
     const lineRows = await conn.query(fwdSQL.SELECT_RELEASE_LINES, [
       releaseCode,
     ]);
-    console.log("[getReleaseDetail] lineRows:", lineRows);
 
     const lines = (lineRows || []).map((r) => ({
       lineNo: r.line_no,
@@ -221,21 +239,246 @@ async function getEmployeeList() {
 }
 
 /* ===========================
- *  출고전표 생성/수정/삭제
- *  👉 poutbnd_tbl 구조가 "헤더+라인"을 어떻게 가질지
- *     아직 명확하지 않아서 일단 Not Implemented 처리
+ *  제품 목록 조회 (출고제품 모달)
+ *  라우터: GET /api/release/fwd/products
+ *  query: keyword
+ * =========================== */
+async function getProductList(keyword = "") {
+  const conn = await db.getConnection();
+
+  try {
+    const kw = `%${(keyword || "").trim()}%`;
+    const rows = await conn.query(fwdSQL.SELECT_PRODUCT_LIST, [kw, kw]);
+    console.log("[getProductList] rows.length =", rows.length);
+    return rows; // [{ productCode, productName, ... }]
+  } finally {
+    conn.release();
+  }
+}
+
+/* ===========================
+ *  거래처 목록 조회 (거래처 모달)
+ *  라우터: GET /api/release/fwd/clients
+ *  query: keyword
+ * =========================== */
+async function getClientList(keyword = "") {
+  const conn = await db.getConnection();
+
+  try {
+    const kw = `%${(keyword || "").trim()}%`;
+    const rows = await conn.query(fwdSQL.SELECT_CLIENT_LIST, [kw, kw]);
+    console.log("[getClientList] rows.length =", rows.length);
+    return rows; // [{ clientCode, clientName, ... }]
+  } finally {
+    conn.release();
+  }
+}
+
+/* ===========================
+ *   출고요청 생성/수정/삭제
  * =========================== */
 
-async function createRelease() {
-  throw new Error("createRelease is not implemented yet.");
+async function createRelease({ header, lines }) {
+  const conn = await db.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    const { orderCode, registrant } = header;
+
+    if (!orderCode) {
+      throw new Error("orderCode is required for createRelease.");
+    }
+
+    if (!registrant) {
+      throw new Error("registrant(mcode) is required for createRelease.");
+    }
+
+    // 주문에서 client_code 조회
+    const orderRows = await conn.query(fwdSQL.SELECT_ORDER_CLIENT_CODE, [
+      orderCode,
+    ]);
+
+    if (!orderRows || orderRows.length === 0) {
+      throw new Error(
+        `ord_tbl에서 orderCode ${orderCode}에 해당하는 데이터를 찾을 수 없습니다.`
+      );
+    }
+
+    const clientCode = orderRows[0].client_code;
+
+    // 출고요청 자동채번 번호 만들어서 outReqCode 에 넣기
+    const outReqCodeRows = await conn.query(fwdSQL.GENERATE_OUT_REQ_CODE);
+    const outReqCode = outReqCodeRows[0].out_req_code;
+
+    // 납기일 계산: 라인 dueDate 중 가장 빠른 날짜
+    let predictDate = header.releaseDate || null;
+    for (const line of lines) {
+      if (line.dueDate) {
+        const d = new Date(line.dueDate);
+        if (!predictDate || d < new Date(predictDate)) {
+          predictDate = line.dueDate;
+        }
+      }
+    }
+
+    const outReqDate = header.releaseDate || new Date(); // 출고요청일
+
+    // 출고요청 헤더 INSERT (out_req_tbl)
+    await conn.query(fwdSQL.INSERT_OUT_REQ, [
+      outReqCode, // out_req_code
+      outReqDate, // out_req_date
+      predictDate || outReqDate, // ord_predict_date
+      header.remark || null, // note
+      orderCode, // ord_code
+      header.registrant, // mcode (담당자)
+      clientCode, // client_code
+    ]);
+
+    // 출고요청 상세 INSERT (out_req_d_tbl)
+    for (const line of lines) {
+      // 출고요청 수량이 0 이하인 경우는 무시
+      if (!line.releaseQty || line.releaseQty <= 0) continue;
+
+      // 출고요청 상세 자동채번 번호 만들어서 outReqDCodeRows 에 넣기
+      const outReqDCodeRows = await conn.query(fwdSQL.GENERATE_OUT_REQ_D_CODE);
+      const outReqDCode = outReqDCodeRows[0].out_req_d_code;
+
+      await conn.query(fwdSQL.INSERT_OUT_REQ_D, [
+        outReqDCode, // out_req_d_code
+        line.releaseQty, // out_req_d_amount (요청수량 = 화면 출고수량)
+        line.orderQty || 0, // ord_amount (주문수량)
+        outReqCode, // out_req_code (헤더 FK)
+        line.productCode, // prod_code
+        line.type || null, // com_value (완제품 유형)
+      ]);
+    }
+
+    await conn.commit();
+
+    return {
+      outReqCode,
+      message: "출고요청이 성공적으로 생성되었습니다.",
+    };
+  } catch (err) {
+    await conn.rollback();
+    console.error("[createRelease] error:", err);
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
 
-async function updateRelease(/* releaseCode, payload */) {
-  throw new Error("updateRelease is not implemented yet.");
+async function updateRelease(releaseCode, { header, lines }) {
+  const conn = await db.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    if (!releaseCode) {
+      throw new Error("releaseCode is required for updateRelease.");
+    }
+
+    const { orderCode, registrant } = header;
+
+    if (!orderCode) {
+      throw new Error("orderCode is required for updateRelease.");
+    }
+
+    if (!registrant) {
+      throw new Error("registrant(mcode) is required for updateRelease.");
+    }
+
+    // 예측납기일: 라인 dueDate 중 가장 빠른 날짜
+    let predictDate = header.releaseDate || null;
+    for (const line of lines) {
+      if (line.dueDate) {
+        const d = new Date(line.dueDate);
+        if (!predictDate || d < new Date(predictDate)) {
+          predictDate = line.dueDate;
+        }
+      }
+    }
+
+    const outReqDate = header.releaseDate || new Date(); // 출고요청일
+
+    // 헤더 업데이트 (out_req_tbl)
+    await conn.query(fwdSQL.UPDATE_OUT_REQ, [
+      outReqDate, // out_req_date
+      predictDate || outReqDate, // ord_predict_date
+      header.remark || null, // note
+      registrant, // mcode
+      releaseCode, // WHERE out_req_code = ?
+    ]);
+
+    // 기존 라인들 삭제 (out_req_d_tbl)
+    await conn.query(fwdSQL.DELETE_OUT_REQ_D_BY_HEADER, [releaseCode]);
+
+    // 새로운 라인들 INSERT (out_req_d_tbl)
+    for (const line of lines) {
+      // 출고요청 수량이 0 이하인 경우는 무시
+      if (!line.releaseQty || line.releaseQty <= 0) continue;
+
+      // 새 상세 코드 자동채번
+      const outReqDCodeRows = await conn.query(fwdSQL.GENERATE_OUT_REQ_D_CODE);
+      const outReqDCode = outReqDCodeRows[0].out_req_d_code;
+
+      await conn.query(fwdSQL.INSERT_OUT_REQ_D, [
+        outReqDCode, // out_req_d_code
+        line.releaseQty, // out_req_d_amount
+        line.orderQty || 0, // ord_amount
+        releaseCode, // out_req_code (헤더 FK)
+        line.productCode, // prod_code
+        line.type || null, // com_value (완제품 유형 코드)
+      ]);
+    }
+
+    await conn.commit();
+
+    return {
+      outReqCode: releaseCode,
+      message: "출고요청이 성공적으로 수정되었습니다.",
+    };
+  } catch (err) {
+    await conn.rollback();
+    console.error("[updateRelease] error:", err);
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
 
-async function deleteRelease(/* releaseCode */) {
-  throw new Error("deleteRelease is not implemented yet.");
+async function deleteRelease(releaseCode) {
+  const conn = await db.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // 상세 삭제 (FK 제약조건 때문에 상세 먼저 삭제)
+    const detailResult = await conn.query(fwdSQL.DELETE_OUT_REQ_D_BY_HEADER, [
+      releaseCode,
+    ]);
+
+    // 헤더 삭제
+    const headerResult = await conn.query(fwdSQL.DELETE_OUT_REQ_HEADER, [
+      releaseCode,
+    ]);
+
+    await conn.commit();
+
+    return {
+      releaseCode,
+      deletedDetails: detailResult.affectedRows ?? 0,
+      deletedHeader: headerResult.affectedRows ?? 0,
+      message: "출고요청이 성공적으로 삭제되었습니다.",
+    };
+  } catch (err) {
+    await conn.rollback();
+    console.error("[deleteRelease] error:", err);
+    throw err;
+  } finally {
+    conn.release();
+  }
 }
 
 module.exports = {
@@ -247,4 +490,7 @@ module.exports = {
   updateRelease,
   deleteRelease,
   getEmployeeList,
+  getForwardingCommonCodes,
+  getProductList,
+  getClientList,
 };

@@ -23,6 +23,7 @@ const typeMap = {
 onMounted(async () => {
     const res = await axios.get('/api/baseinfo/bom/mat');
     list.value = res.data;
+    console.log(res.data);
 });
 
 const close = () => emit('update:visible', false);

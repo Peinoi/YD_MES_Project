@@ -1,6 +1,12 @@
 <!-- src/views/release/ForwardingCheck.vue -->
 <script setup>
 import { reactive, ref, computed } from 'vue';
+import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
+import axios from 'axios';
+
+/* ===========================
+ *  검색 폼 & 결과 리스트
+ * =========================== */
 
 const searchForm = reactive({
     releaseNo: '',
@@ -9,48 +15,16 @@ const searchForm = reactive({
     qtyTo: '',
     dateFrom: '',
     dateTo: '',
-    requester: '',
     manager: '',
     client: ''
 });
 
-const rows = ref([
-    {
-        id: 1,
-        checked: false,
-        releaseNo: 'SH20250501-1',
-        productName: '스낵면',
-        qty: 20000,
-        date: '2025-05-26',
-        manager: '한주연',
-        client: '이마트',
-        status: '부분출고'
-    },
-    {
-        id: 2,
-        checked: false,
-        releaseNo: 'SH20250501-2',
-        productName: '신라면',
-        qty: 70000,
-        date: '2025-05-26',
-        manager: '한주연',
-        client: '홈플러스',
-        status: '출고완료'
-    },
-    {
-        id: 3,
-        checked: false,
-        releaseNo: 'SH20250501-3',
-        productName: '신라면',
-        qty: 60000,
-        date: '2025-05-26',
-        manager: '한주연',
-        client: '이마트',
-        status: '출고대기'
-    }
-    // 필요하면 더미데이터를 추가해서 테스트해도 됨
-]);
+// 실제 검색 결과 (백엔드 연동 전이라 가짜 데이터/또는 나중에 세팅)
+const rows = ref([]);
 
+/* ===========================
+ *  전체 체크박스
+ * =========================== */
 const allChecked = computed({
     get() {
         return rows.value.length > 0 && rows.value.every((r) => r.checked);
@@ -62,33 +36,38 @@ const allChecked = computed({
     }
 });
 
+/* ===========================
+ *  필터링 (프런트 필터)
+ * =========================== */
 const filteredRows = computed(() => {
     return rows.value.filter((r) => {
         // 출고번호
-        if (searchForm.releaseNo && !r.releaseNo.toLowerCase().includes(searchForm.releaseNo.toLowerCase())) return false;
+        if (searchForm.releaseNo && !String(r.releaseNo).toLowerCase().includes(searchForm.releaseNo.toLowerCase())) return false;
 
         // 제품명
-        if (searchForm.productName && !r.productName.toLowerCase().includes(searchForm.productName.toLowerCase())) return false;
+        if (searchForm.productName && !String(r.productName).toLowerCase().includes(searchForm.productName.toLowerCase())) return false;
 
         // 수량 범위
         if (searchForm.qtyFrom && r.qty < Number(searchForm.qtyFrom)) return false;
         if (searchForm.qtyTo && r.qty > Number(searchForm.qtyTo)) return false;
 
-        // 출고일자 범위
+        // 출고일자 범위 (r.date 는 'YYYY-MM-DD' 가정)
         if (searchForm.dateFrom && r.date < searchForm.dateFrom) return false;
         if (searchForm.dateTo && r.date > searchForm.dateTo) return false;
 
-        // 출고입자 / 담당자 / 거래처는 샘플 데이터에 따로 필드가 없어서
-        // 여기서는 manager, client만 간단히 매핑
-        if (searchForm.manager && !r.manager.toLowerCase().includes(searchForm.manager.toLowerCase())) return false;
-
-        if (searchForm.client && !r.client.toLowerCase().includes(searchForm.client.toLowerCase())) return false;
+        // 출고담당자 / 거래처
+        if (searchForm.manager && !String(r.manager).toLowerCase().includes(searchForm.manager.toLowerCase())) return false;
+        if (searchForm.client && !String(r.client).toLowerCase().includes(searchForm.client.toLowerCase())) return false;
 
         return true;
     });
 });
 
 const resultCount = computed(() => filteredRows.value.length);
+
+/* ===========================
+ *  공통: 초기화 / 조회 / 엑셀
+ * =========================== */
 
 const resetForm = () => {
     searchForm.releaseNo = '';
@@ -97,13 +76,12 @@ const resetForm = () => {
     searchForm.qtyTo = '';
     searchForm.dateFrom = '';
     searchForm.dateTo = '';
-    searchForm.requester = '';
     searchForm.manager = '';
     searchForm.client = '';
 };
 
 const doSearch = () => {
-    // 실제 검색은 filteredRows가 반응형으로 처리하므로 여기선 로그만
+    // 나중에 실제 API 검색 붙이면 여기서 호출
     console.log('조회 클릭', { ...searchForm });
 };
 
@@ -111,10 +89,283 @@ const downloadExcel = () => {
     // 나중에 실제 엑셀 다운로드 로직 연결
     console.log('엑셀 다운로드 클릭');
 };
+
+/* ===========================
+ *  출고번호 모달 (출고요청 목록)
+ *  - ForwardingManagement 의 출고 모달 재사용 느낌
+ * =========================== */
+
+const showReleaseModal = ref(false);
+const releaseKeyword = ref('');
+const releaseRows = ref([]);
+
+const releaseColumns = [
+    { field: 'releaseCode', label: '출고번호' },
+    { field: 'releaseDate', label: '출고일자' },
+    { field: 'orderCode', label: '주문번호' },
+    { field: 'client', label: '거래처' },
+    { field: 'status', label: '상태' },
+    { field: 'totalQty', label: '총 출고수량' }
+];
+
+const formatDate = (d) => {
+    if (!d) return '';
+    return String(d).split('T')[0];
+};
+
+const fetchReleaseList = async (keyword = '') => {
+    try {
+        const res = await axios.get('/api/release/fwd', {
+            params: { keyword }
+        });
+
+        console.log('[ForwardingCheck] 출고 목록 조회 응답:', res.data);
+
+        const raw = res.data?.data;
+
+        if (!raw) {
+            releaseRows.value = [];
+        } else if (Array.isArray(raw)) {
+            releaseRows.value = raw.map((r) => ({
+                ...r,
+                releaseDate: formatDate(r.releaseDate)
+            }));
+        } else {
+            releaseRows.value = [
+                {
+                    ...raw,
+                    releaseDate: formatDate(raw.releaseDate)
+                }
+            ];
+        }
+    } catch (err) {
+        console.error('[ForwardingCheck] 출고 목록 조회 실패:', err);
+        releaseRows.value = [];
+    }
+};
+
+const openReleaseModal = () => {
+    fetchReleaseList('');
+    showReleaseModal.value = true;
+};
+
+const handleSearchRelease = (keyword) => {
+    releaseKeyword.value = keyword;
+    fetchReleaseList(keyword);
+};
+
+const handleConfirmRelease = (row) => {
+    if (!row) return;
+    // 검색조건에 출고번호 세팅
+    searchForm.releaseNo = row.releaseCode;
+    showReleaseModal.value = false;
+};
+
+const handleCancelRelease = () => {
+    showReleaseModal.value = false;
+};
+
+/* ===========================
+ *  출고담당자 모달 (사원 목록)
+ *  - ForwardingManagement 의 직원 모달 재사용
+ * =========================== */
+
+const showEmpModal = ref(false);
+const employees = ref([]);
+const empKeyword = ref('');
+
+const empColumns = [
+    { field: 'empCode', label: '사원코드' },
+    { field: 'empName', label: '이름' }
+];
+
+const fetchEmployees = async () => {
+    try {
+        const res = await axios.get('/api/release/fwd/employees');
+        console.log('[ForwardingCheck] 직원 목록 응답:', res.data);
+
+        if (res.data?.status === 'success' && Array.isArray(res.data.data)) {
+            employees.value = res.data.data;
+        } else {
+            employees.value = [];
+        }
+    } catch (err) {
+        console.error('[ForwardingCheck] 직원 목록 조회 실패:', err);
+        employees.value = [];
+    }
+};
+
+const employeeRows = computed(() => {
+    if (!empKeyword.value) return employees.value;
+    const kw = empKeyword.value.toLowerCase();
+    return employees.value.filter((e) => (e.empCode && e.empCode.toLowerCase().includes(kw)) || (e.empName && e.empName.toLowerCase().includes(kw)));
+});
+
+const openEmpModal = () => {
+    if (!employees.value.length) {
+        fetchEmployees();
+    }
+    showEmpModal.value = true;
+};
+
+const handleSearchEmp = (keyword) => {
+    empKeyword.value = (keyword || '').trim();
+};
+
+const handleConfirmEmp = (row) => {
+    if (!row) return;
+    searchForm.manager = row.empName; // 검색조건에는 이름으로 세팅
+    showEmpModal.value = false;
+};
+
+const handleCancelEmp = () => {
+    showEmpModal.value = false;
+};
+
+/* ===========================
+ *  출고제품 모달
+ *  - 아직 백엔드 API 없으니 껍데기만 만들어둠
+ *    (나중에 제품검색 API 연결해서 rows 채우면 됨)
+ * =========================== */
+
+const showProductModal = ref(false);
+const productKeyword = ref('');
+const productRows = ref([]);
+
+const productColumns = [
+    { field: 'productCode', label: '제품코드' },
+    { field: 'productName', label: '제품명' }
+    // 필요하면 타입/규격/단위 컬럼 추가
+];
+
+const fetchProductList = async (keyword = '') => {
+    try {
+        const res = await axios.get('/api/release/fwd/products', {
+            params: { keyword }
+        });
+        console.log('[ForwardingCheck] 제품 목록 응답:', res.data);
+
+        const raw = res.data?.data;
+        productRows.value = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    } catch (err) {
+        console.error('[ForwardingCheck] 제품 목록 조회 실패:', err);
+        productRows.value = [];
+    }
+};
+
+const openProductModal = () => {
+    fetchProductList('');
+    showProductModal.value = true;
+};
+
+const handleSearchProduct = (keyword) => {
+    productKeyword.value = keyword;
+    fetchProductList(keyword);
+};
+
+const handleConfirmProduct = (row) => {
+    if (!row) return;
+    searchForm.productName = row.productName;
+    showProductModal.value = false;
+};
+
+const handleCancelProduct = () => {
+    showProductModal.value = false;
+};
+
+/* ===========================
+ *  거래처 모달
+ *  - client_tbl 기반 조회용 껍데기
+ *    (API 만들면 여기 연결)
+ * =========================== */
+
+const showClientModal = ref(false);
+const clientKeyword = ref('');
+const clientRows = ref([]); // TODO: 실제 client 목록 API 연결
+
+const clientColumns = [
+    { field: 'clientCode', label: '거래처코드' },
+    { field: 'clientName', label: '거래처명' }
+];
+
+const fetchClientList = async (keyword = '') => {
+    try {
+        const res = await axios.get('/api/release/fwd/clients', {
+            params: { keyword }
+        });
+        console.log('[ForwardingCheck] 거래처 목록 응답:', res.data);
+
+        const raw = res.data?.data;
+        clientRows.value = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    } catch (err) {
+        console.error('[ForwardingCheck] 거래처 목록 조회 실패:', err);
+        clientRows.value = [];
+    }
+};
+
+const openClientModal = () => {
+    fetchClientList('');
+    showClientModal.value = true;
+};
+
+const handleSearchClient = (keyword) => {
+    clientKeyword.value = keyword;
+    fetchClientList(keyword);
+};
+
+const handleConfirmClient = (row) => {
+    if (!row) return;
+    searchForm.client = row.clientName;
+    showClientModal.value = false;
+};
+
+const handleCancelClient = () => {
+    showClientModal.value = false;
+};
 </script>
 
 <template>
     <div class="forward-check-page">
+        <!-- 🔍 모달들 -->
+        <!-- 출고번호 선택 모달 -->
+        <SearchSelectModal
+            v-model="showReleaseModal"
+            :columns="releaseColumns"
+            :rows="releaseRows"
+            row-key="releaseCode"
+            search-placeholder="출고번호 / 주문번호 / 거래처를 입력해주세요."
+            @search="handleSearchRelease"
+            @confirm="handleConfirmRelease"
+            @cancel="handleCancelRelease"
+        />
+
+        <!-- 출고제품 선택 모달 -->
+        <SearchSelectModal
+            v-model="showProductModal"
+            :columns="productColumns"
+            :rows="productRows"
+            row-key="productCode"
+            search-placeholder="제품코드 / 제품명을 입력해주세요."
+            @search="handleSearchProduct"
+            @confirm="handleConfirmProduct"
+            @cancel="handleCancelProduct"
+        />
+
+        <!-- 출고담당자 선택 모달 -->
+        <SearchSelectModal v-model="showEmpModal" :columns="empColumns" :rows="employeeRows" row-key="empCode" search-placeholder="사원코드 / 이름을 입력해주세요." @search="handleSearchEmp" @confirm="handleConfirmEmp" @cancel="handleCancelEmp" />
+
+        <!-- 거래처 선택 모달 -->
+        <SearchSelectModal
+            v-model="showClientModal"
+            :columns="clientColumns"
+            :rows="clientRows"
+            row-key="clientCode"
+            search-placeholder="거래처코드 / 거래처명을 입력해주세요."
+            @search="handleSearchClient"
+            @confirm="handleConfirmClient"
+            @cancel="handleCancelClient"
+        />
+
         <!-- 🔍 검색 조건 영역 -->
         <section class="search-card">
             <h3>출고조회</h3>
@@ -122,17 +373,17 @@ const downloadExcel = () => {
                 <!-- 출고번호 -->
                 <div class="field">
                     <label>출고번호</label>
-                    <input v-model="searchForm.releaseNo" type="text" class="input" placeholder="출고번호" />
+                    <input v-model="searchForm.releaseNo" type="text" class="input clickable" placeholder="출고번호" readonly @click="openReleaseModal" />
                 </div>
 
                 <!-- 출고제품 -->
                 <div class="field">
                     <label>출고제품</label>
-                    <input v-model="searchForm.productName" type="text" class="input" placeholder="출고제품" />
+                    <input v-model="searchForm.productName" type="text" class="input clickable" placeholder="출고제품" readonly @click="openProductModal" />
                 </div>
 
                 <!-- 출고수량 범위 -->
-                <div class="field field-range">
+                <div class="field field-range qty-range">
                     <label>출고수량</label>
                     <div class="range-row">
                         <input v-model="searchForm.qtyFrom" type="number" class="input" placeholder="from" />
@@ -151,22 +402,16 @@ const downloadExcel = () => {
                     </div>
                 </div>
 
-                <!-- 출고입자 -->
-                <div class="field">
-                    <label>출고입자</label>
-                    <input v-model="searchForm.requester" type="text" class="input" placeholder="출고입자" />
-                </div>
-
                 <!-- 출고담당자 -->
                 <div class="field">
                     <label>출고담당자</label>
-                    <input v-model="searchForm.manager" type="text" class="input" placeholder="출고담당자" />
+                    <input v-model="searchForm.manager" type="text" class="input clickable" placeholder="출고담당자" readonly @click="openEmpModal" />
                 </div>
 
                 <!-- 거래처 -->
                 <div class="field">
                     <label>거래처</label>
-                    <input v-model="searchForm.client" type="text" class="input" placeholder="거래처" />
+                    <input v-model="searchForm.client" type="text" class="input clickable" placeholder="거래처" readonly @click="openClientModal" />
                 </div>
             </div>
 
@@ -238,6 +483,8 @@ const downloadExcel = () => {
     height: 100%; /* ✅ 부모 높이만 따라감 (100vh 강제 X) */
     box-sizing: border-box;
     overflow: hidden; /* ✅ 페이지 자체 스크롤 막기 */
+    flex: 1; /* ✅ 상위 flex 레이아웃 안에서 남는 높이 차지 */
+    min-height: 0; /* ✅ 내부 스크롤 영역이 제대로 계산되도록 */
 }
 
 /* 🔍 검색 카드 */
@@ -284,6 +531,12 @@ const downloadExcel = () => {
 
 .input:focus {
     border-color: #f2b300;
+}
+
+/* 클릭 가능한 인풋 (모달 오픈용) */
+.clickable {
+    cursor: pointer;
+    background-color: #fff;
 }
 
 .range-dash {
@@ -372,7 +625,7 @@ const downloadExcel = () => {
 
 .result-table thead {
     background: #f9f9fb;
-    position: sticky; /* ✅ 스크롤 시 헤더 고정 (원하면 유지, 싫으면 지워도 됨) */
+    position: sticky; /* ✅ 스크롤 시 헤더 고정 */
     top: 0;
     z-index: 10;
 }
@@ -394,6 +647,11 @@ const downloadExcel = () => {
 .empty {
     text-align: center;
     color: #888;
+}
+
+/* 출고수량 input 너비 조절 */
+.field-range.qty-range .range-row .input {
+    width: 125px; /* 🔥 원래보다 좁게 */
 }
 
 /* 반응형 */

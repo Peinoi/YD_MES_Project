@@ -45,6 +45,20 @@ router.get("/search", async (req, res, next) => {
   }
 });
 
+// GET /order/production - 주문 정보, 제품 정보 조회
+router.get("/production", async (req, res, next) => {
+  try {
+    // 쿼리스트링에서 검색 조건 받기
+    const ord_code = req.query.ord_code;
+
+    const productions = await orderService.getOrderProduction(ord_code);
+
+    res.json({ code: "S200", data: productions });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
 // GET /order/client/list - 거래처 목록 전체 조회
 router.get("/client/list", async (req, res, next) => {
   try {
@@ -73,6 +87,17 @@ router.get("/manager/list", async (req, res, next) => {
     const managers = await orderService.getManagerList();
 
     res.json({ code: "S200", data: managers });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
+// DELETE /order/:ord_code - 주문 삭제
+router.delete("/order/:ord_code", async (req, res, next) => {
+  try {
+    const deletedOrder = await orderService.removeOrder(req.params.ord_code);
+
+    res.json({ code: "S200", data: deletedOrder });
   } catch (err) {
     next(err); // 에러를 전역 오류 처리 미들웨어로 전달
   }

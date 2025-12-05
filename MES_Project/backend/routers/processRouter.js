@@ -13,4 +13,21 @@ router.get("/list", async (req, res, next) => {
   }
 });
 
+// GET /api/process/detail - 공정 흐름도 상세 목록 조회
+router.get("/detail", async (req, res, next) => {
+  try {
+    // 흐름도 코드 받아옴
+    const { processCode } = req.query;
+
+    if (!processCode) {
+      return res.status(400).json({ message: "processCode 가 없습니다" });
+    }
+
+    const subProcess = await processService.getSubProcessList(processCode);
+    res.json(subProcess);
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
 module.exports = router;

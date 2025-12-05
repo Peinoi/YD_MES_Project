@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 
 const props = defineProps({
     visible: {
@@ -13,13 +13,20 @@ const props = defineProps({
     header: {
         type: String,
         default: '조회'
+    },
+    data: {
+        type: Array,
+        default: () => []
+    },
+    columns: {
+        type: Array,
+        default: () => []
     }
 });
 
 const emit = defineEmits(['update:visible', 'onConfirm']);
 
 const searchValue = ref('');
-const tableData = ref([]);
 const selectedRow = ref(null);
 const loading = ref(false);
 
@@ -29,28 +36,24 @@ watch(
     (newValue) => {
         if (newValue) {
             searchValue.value = props.initialSearchValue;
-            // 모달이 열릴 때 검색을 바로 실행하고 싶다면 아래 주석을 해제하세요.
-            handleSearch();
+            selectedRow.value = null; // 모달 열릴 때 선택 초기화
         }
     }
 );
 
-// 검색 로직 (현재는 더미 데이터 사용)
-const handleSearch = () => {
-    loading.value = true;
-    console.log(`'${searchValue.value}' 값으로 검색을 수행합니다.`);
-
-    // 이 부분에 실제 API 호출 또는 데이터 조회 로직을 구현해야 합니다.
-    const allData = [
-        { id: 'P001', name: '사과', spec: '1kg' },
-        { id: 'P002', name: '바나나', spec: '1봉지' },
-        { id: 'P003', name: '오렌지', spec: '1개' }
-    ];
-    tableData.value = allData.filter((item) =>
+// 검색어에 따라 props.data를 필터링하는 computed 속성
+const filteredData = computed(() => {
+    if (!searchValue.value) {
+        return props.data;
+    }
+    return props.data.filter((item) =>
+        // 모든 컬럼의 값을 문자열로 변환하여 검색어가 포함되어 있는지 확인
         Object.values(item).some((val) => String(val).toLowerCase().includes(searchValue.value.toLowerCase()))
-    ); // 간단한 필터링 예시
-    loading.value = false;
-};
+    );
+});
+
+// 검색 버튼 클릭 시 (실제 검색은 computed 속성이 처리하므로 특별한 동작 없음)
+const handleSearch = () => {};
 
 // 확인 버튼 클릭 시
 const confirmSelection = () => {
@@ -76,28 +79,26 @@ const closeModal = () => {
         <div class="flex flex-col gap-4">
             <!-- 검색 입력 필드 -->
             <div class="flex gap-2">
-                <InputText v-model="searchValue" placeholder="검색어를 입력하세요" class="flex-grow" @keyup.enter="handleSearch" />
+                <InputText v-model="searchValue" placeholder="검색어를 입력하세요" class="flex-grow" @keyup.enter="() => {}" />
                 <Button label="조회" @click="handleSearch" icon="pi pi-search" />
             </div>
 
             <!-- 결과 표시 데이터 테이블 -->
             <DataTable
-                :value="tableData"
+                :value="filteredData"
                 v-model:selection="selectedRow"
                 selectionMode="single"
-                dataKey="id"
+                :dataKey="columns.length > 0 ? columns[0].field : 'id'"
                 :loading="loading"
                 responsiveLayout="scroll"
                 scrollable
                 scrollHeight="400px"
                 @row-select="() => {}"
                 @row-unselect="() => {}"
-                @dblclick="confirmSelection"
+                @rowDblclick="confirmSelection"
             >
                 <Column selectionMode="single" headerStyle="width: 3rem"></Column>
-                <Column field="id" header="ID"></Column>
-                <Column field="name" header="이름"></Column>
-                <Column field="spec" header="규격"></Column>
+                <Column v-for="col in columns" :key="col.field" :field="col.field" :header="col.header"></Column>
             </DataTable>
         </div>
 
