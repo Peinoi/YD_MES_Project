@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import DefaultInfo from '../../components/production/DefaultInfo.vue';
 import WorkInstructions from '../../components/production/WorkInstructions.vue';
@@ -10,8 +10,35 @@ const searchCriteria = ref({});
 const allRows = ref([]);
 const isLoading = ref(false);
 
-const otherDataFromChild = ref(null); // DefaultInfo에서 받은 값
+// 🔹 DefaultInfo에서 받은 데이터
+const otherDataFromChild = ref(null);
 
+// WorkInstructions로 보낼 데이터
+const workOrderData = ref({
+    productName: '',
+    instructionQuantity: '',
+    startDate: '',
+    expectedCompletion: '',
+    instructionStatus: '',
+    lineType: '',
+    lineCode: ''
+});
+
+// 🔹 DefaultInfo에서 선택된 값 watch로 WorkInstructions에 반영
+watch(otherDataFromChild, (newData) => {
+    if (!newData) return;
+
+    workOrderData.value.productName = newData.productName || '';
+    workOrderData.value.instructionQuantity = newData.quantity || '';
+    // datetime-local input은 'YYYY-MM-DDTHH:mm' 형식
+    workOrderData.value.startDate = newData.startDateTime ? newData.startDateTime.slice(0, 16) : '';
+    workOrderData.value.expectedCompletion = newData.dueDate ? newData.dueDate.slice(0, 16) : '';
+    workOrderData.value.instructionStatus = newData.status || '';
+    workOrderData.value.lineType = ''; // 필요 시 매핑
+    workOrderData.value.lineCode = newData.lineCode || '';
+});
+
+// API 호출
 const fetchWorkData = async (params = {}) => {
     isLoading.value = true;
     try {
@@ -27,6 +54,7 @@ const fetchWorkData = async (params = {}) => {
 
 onMounted(() => fetchWorkData());
 
+// 검색/초기화
 const handleSearch = (form) => {
     searchCriteria.value = form;
     fetchWorkData(form);
@@ -41,7 +69,7 @@ const downloadExcel = () => {
     console.log('엑셀 다운로드:', searchCriteria.value);
 };
 
-// 🔹 자식(DefaultInfo)에서 전달된 값 받기
+// 🔹 DefaultInfo에서 선택된 값을 받는 이벤트
 const handleOtherData = (data) => {
     otherDataFromChild.value = data;
     console.log('부모에서 받은 otherData:', data);
@@ -55,12 +83,12 @@ const filteredRows = computed(() => allRows.value);
         <!-- DefaultInfo: 이벤트 바인딩 -->
         <DefaultInfo :plan-data="filteredRows" @updateOtherData="handleOtherData" @search="handleSearch" @reset="handleReset" />
 
-        <!-- WorkInstructions: 부모가 받은 otherDataFromChild 전달 -->
-        <WorkInstructions :other-data="otherDataFromChild" />
+        <!-- WorkInstructions: 부모가 받은 otherDataFromChild -> workOrderData로 매핑되어 전달 -->
+        <WorkInstructions :work-order-data="workOrderData" />
 
         <div v-if="isLoading" class="p-4 text-center text-lg text-blue-500 font-semibold">데이터 로드 중...</div>
 
-        <NonStandardProcess v-else :rows="filteredRows" @download="downloadExcel" />
+        <NonStandardProcess v-else :rows="[]" @download="downloadExcel" />
     </div>
 </template>
 
