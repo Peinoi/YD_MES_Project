@@ -1,4 +1,5 @@
 const { query, getConnection } = require("../database/mapper.js");
+const sqlList = require("../database/sqlList.js");
 
 // 생산 계획/작업지시 목록을 조회하는 함수
 const getProductionPlan = async () => {
@@ -30,36 +31,26 @@ const checkProductionPlanExists = async (workOrderNo) => {
 // 🔄 작업지시 업데이트 (두 테이블 동시)
 const updateProductionPlan = async (data) => {
   const conn = await getConnection(); // 트랜잭션용 연결
+  console.log("data is:", data);
   try {
     await conn.beginTransaction();
 
     // 1️⃣ wko_tbl 업데이트 (작업지시 정보)
-    await conn.query(
-      `UPDATE wko_tbl SET 
-     wko_qtt = ?, 
-     start_date = ?, 
-     end_date = ?, 
-     stat = ?, 
-     line_code = ?
-   WHERE wko_code = ?`,
-      [
-        data.wko_qtt || 0, // undefined 방지
-        data.start_date || null,
-        data.end_date || null,
-        data.stat || "",
-        data.line_code || "",
-        data.wko_code,
-      ]
-    );
+
+    await conn.query(sqlList.updateWko, [
+      data.wko_qtt || 0, // undefined 방지
+      data.start_date || null,
+      data.end_date || null,
+      data.stat || "",
+      data.line_code || "",
+      data.wko_code,
+    ]);
 
     // 2️⃣ prdp_tbl 업데이트 (계획 정보, 계획번호, 계획일자는 변경하지 않음)
-    await conn.query(
-      `UPDATE prdp_tbl SET 
-     prdp_name = ?, 
-     due_date = ?
-   WHERE prdp_code = ?`,
-      [data.prdp_name || "", data.due_date || null, data.prdp_code]
-    );
+    await conn.query(sqlList.updatePrdp, [
+      data.due_date || null,
+      data.prdp_code,
+    ]);
     await conn.commit();
     return { success: true };
   } catch (err) {

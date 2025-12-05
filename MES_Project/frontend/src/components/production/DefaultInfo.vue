@@ -97,7 +97,7 @@ watch(
 
         console.log('부모1(DefaultInfo)에서 받은 workOrderData:', newVal);
 
-        formData.value.planName = newVal.productName || '';
+        formData.value.planName = newVal.planName || '';
         formData.value.dueDate = newVal.expectedCompletion?.slice(0, 10) || '';
         formData.value.status = newVal.instructionStatus || '';
         formData.value.lineType = newVal.lineCode ? '정형' : '비정형';
@@ -180,7 +180,7 @@ const handleSave = async () => {
             line_code: otherDataStore.value?.lineCode || (formData.value.lineType === '정형' ? 'LINE-001' : 'LINE-999'),
             wko_code: formData.value.workOrderNo,
             prdp_code: formData.value.productionPlanNo,
-            prdp_name: formData.value.planName,
+            prdp_name: formData.value.prdp_name,
             due_date: formatDateOnly(formData.value.dueDate)
         };
 
