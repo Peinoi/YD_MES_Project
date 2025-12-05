@@ -23,7 +23,7 @@ router.get('/pending-list', async (req, res) => {
 });
 
 // 005 검사지시 불러오기
-router.get('/instruction/:qirCode', async (req, res) => {
+router.get('/instruction/:qir_code', async (req, res) => {
   try {
     const result = await qcService.findInstructionService(req.params);
     res.json(result);

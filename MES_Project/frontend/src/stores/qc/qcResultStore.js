@@ -1,26 +1,22 @@
 import { defineStore } from 'pinia';
-import { getQcResultList, saveQcResult } from '../../service/qc/qcService';
+import { getPendingList, getInstruction, saveQcResult } from '../../service/qc/qcService';
 
 export const useQcResultStore = defineStore('qcResult', {
     state: () => ({
         basic: {
-            qir_code: '',
-            qcr_code: '',
-            qio_code: '',
-            qir_emp_code: '',
-            start_date: '',
-            end_date: '',
-            result: '',
-            defect_qty: '',
+            qirCode: '',
+            qirEmpCode: '',
+            startDate: '',
+            endDate: '',
+            defectQty: '',
             note: ''
         },
 
         instruction: {
-            instrCode: '',
-            productName: '',
-            processName: '',
-            type: '',
-            qty: ''
+            qioCode: '',
+            prodName: '',
+            qcrCode: '',
+            inspVol: ''
         },
 
         modal: {
@@ -32,16 +28,27 @@ export const useQcResultStore = defineStore('qcResult', {
         // 테이블 데이터
         resultItems: [],
 
-        // 모달에서 선택된 검사결과코드
+        // 모달에서 선택된 코드
         selectedQir: ''
     }),
 
     actions: {
-        async loadResult() {
-            const res = await getQcResultList(this.selectedQir);
-            this.basic = res.data.basic;
-            this.instruction = res.data.instruction;
-            this.resultItems = res.data.items;
+        async loadPendingList() {
+            try {
+                const res = await getPendingList();
+                this.modal.resultRows = res.data;
+                // 모달 열기
+                this.modal.resultSelectVisible = true;
+            } catch (err) {
+                console.error('loadResultList() 오류:', err);
+            }
+        },
+
+        async loadInstruction() {
+            const result = await getInstruction(this.selectedQir);
+            this.basic = result.data[0];
+            this.instruction = result.data[0];
+            this.resultItems = result.data[0];
         },
 
         async saveResult() {
@@ -62,8 +69,10 @@ export const useQcResultStore = defineStore('qcResult', {
             this.modal.resultSelectVisible = false;
         },
 
-        confirmResultSelection() {
-            this.selectedQir = this.modal.selectedRow?.qir_code;
+        selectedQirCode() {
+            this.selectedQir = this.modal.selectedRow?.qirCode;
+            this.basic.qirCode = this.selectedQir;
+            this.basic.qirEmpCode = 'seung01';
             this.closeResultModal();
         }
     }

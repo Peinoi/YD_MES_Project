@@ -11,20 +11,20 @@ const close = () => {
 };
 
 // 확인
-const onConfirm = () => {
-    qcStore.confirmResultSelection();
+const onSelect = () => {
+    qcStore.selectedQirCode();
 };
 </script>
 
 <template>
     <Dialog v-model:visible="modal.resultSelectVisible" header="검사결과 선택" modal :draggable="false" :style="{ width: '380px' }">
-        <DataTable v-model:selection="modal.selectedRow" :value="modal.resultRows" selectionMode="single" dataKey="qir_code" style="margin-bottom: 1rem">
-            <Column field="qir_code" header="검사결과 코드"></Column>
+        <DataTable v-model:selection="modal.selectedRow" :value="modal.resultRows" selectionMode="single" dataKey="qirCode" style="margin-bottom: 1rem">
+            <Column field="qirCode" header="검사결과 코드"></Column>
         </DataTable>
 
         <div class="flex justify-content-end gap-2">
             <Button label="닫기" severity="secondary" @click="close" />
-            <Button label="확인" severity="primary" :disabled="!modal.selectedRow" @click="onConfirm" />
+            <Button label="확인" severity="primary" :disabled="!modal.selectedRow" @click="onSelect" />
         </div>
     </Dialog>
 </template>

@@ -11,27 +11,22 @@ const { instruction } = storeToRefs(qcStore);
     <div class="grid-3col">
         <div class="cell">
             <label>지시코드</label>
-            <InputText v-model="instruction.instrCode" />
+            <InputText v-model="instruction.qioCode" />
         </div>
 
         <div class="cell">
             <label>제품명</label>
-            <InputText v-model="instruction.productName" />
-        </div>
-
-        <div class="cell">
-            <label>공정명</label>
-            <InputText v-model="instruction.processName" />
+            <InputText v-model="instruction.prodName" />
         </div>
 
         <div class="cell">
             <label>검사유형</label>
-            <InputText v-model="instruction.type" />
+            <InputText v-model="instruction.qcrCode" />
         </div>
 
         <div class="cell">
             <label>지시량</label>
-            <InputText v-model="instruction.qty" />
+            <InputText v-model="instruction.inspVol" />
         </div>
     </div>
 </template>

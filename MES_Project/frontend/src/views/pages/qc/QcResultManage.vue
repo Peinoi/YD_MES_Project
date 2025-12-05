@@ -15,13 +15,10 @@ const onReset = () => {};
 const onSave = () => qcStore.saveResult();
 
 // TODO: 검사결과 불러오기
-const onLoadResult = async () => {
-    const result = await qcStore.loadResultList(); // API 통해 rows 반환
-    qcStore.openResultModal(result);
-};
+const onLoadPendingList = () => qcStore.loadPendingList();
 
 // TODO: 검사지시 불러오기
-const onLoadInstruction = () => {};
+const onLoadInstruction = () => qcStore.loadInstruction();
 </script>
 
 <template>
@@ -35,7 +32,7 @@ const onLoadInstruction = () => {};
                     <Button label="삭제" class="p-button-danger" @click="onDelete" />
                     <Button label="초기화" class="p-button-secondary" @click="onReset" />
                     <Button label="저장" class="p-button-primary" @click="onSave" />
-                    <Button label="검사결과 불러오기" class="p-button-success" @click="onLoadResult" />
+                    <Button label="검사결과 불러오기" class="p-button-success" @click="onLoadPendingList" />
                 </div>
             </div>
 

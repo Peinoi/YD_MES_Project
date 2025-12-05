@@ -10,12 +10,12 @@ const { basic } = storeToRefs(qcStore);
     <div class="grid-3col">
         <div class="cell">
             <label>결과코드</label>
-            <InputText v-model="basic.resultCode" readonly />
+            <InputText v-model="basic.qirCode" readonly />
         </div>
 
         <div class="cell">
             <label>검사자</label>
-            <InputText v-model="basic.inspector" />
+            <InputText v-model="basic.qirEmpCode" />
         </div>
 
         <div class="cell">
@@ -24,14 +24,11 @@ const { basic } = storeToRefs(qcStore);
         </div>
 
         <div class="cell">
-            <label>종료일시</label>
-            <InputText v-model="basic.endDate" />
-        </div>
-
-        <div class="cell">
             <label>불량수량</label>
             <InputText v-model="basic.defectQty" />
         </div>
+
+        <div></div>
 
         <div class="cell">
             <label>비고</label>
