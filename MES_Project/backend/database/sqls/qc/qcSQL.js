@@ -39,12 +39,13 @@ SELECT
   qcr.check_method,
   qcr.range_top,
   qcr.range_bot,
-  qcr.unit    
+  c.note AS unit
 FROM qir_tbl qir
 JOIN qio_tbl qio ON qir.qio_code = qio.qio_code
 JOIN qcr_tbl qcr ON qcr.qcr_code = qir.qcr_code
 JOIN prdr_tbl prdr ON prdr.prdr_code = qio.prdr_code
 JOIN prod_tbl p ON p.prod_code = prdr.prod_code
+JOIN common_code c ON c.com_value = qcr.unit
 WHERE qir.qir_code = ?
 `;
 
