@@ -1,14 +1,24 @@
 <!-- src/views/release/ForwardingManagement.vue -->
 <script setup>
-import { reactive, ref, onMounted } from 'vue';
+import { reactive, ref, onMounted, computed } from 'vue';
 import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
 import axios from 'axios';
 
-const showOrderModal = ref(false);
-const showReleaseModal = ref(false); // 출고 모달
+// 공통 코드 맵
+const unitMap = ref({});
+const specMap = ref({});
+const typeMap = ref({});
 
 // 🔹 등록자(직원) 목록
 const employees = ref([]);
+
+// 모달들
+const showOrderModal = ref(false);
+const showReleaseModal = ref(false); // 출고 모달
+const showEmpModal = ref(false); // 직원 선택 모달
+
+// 직원 검색 키워드
+const empKeyword = ref('');
 
 const formatDate = (d) => {
     if (!d) return '';
@@ -136,8 +146,15 @@ const basicInfo = reactive({
     releaseDate: '',
     orderDate: '',
     client: '',
-    registrant: '',
+    registrant: '', // 사원코드(emp_code)
     remark: ''
+});
+
+// 🔹 담당자(등록자) 표시용 computed (코드 -> 이름)
+const registrantName = computed(() => {
+    if (!basicInfo.registrant) return '';
+    const emp = employees.value.find((e) => e.empCode === basicInfo.registrant);
+    return emp?.empName || basicInfo.registrant;
 });
 
 // 제품 리스트 (주문/출고 선택 시 API 결과로 채움)
@@ -213,6 +230,7 @@ const fetchReleaseDetail = async (releaseCode) => {
         basicInfo.client = header.client;
         basicInfo.remark = header.remark ?? '';
 
+        // 담당자 코드 세팅 (화면에는 registrantName으로 이름 표시됨)
         basicInfo.registrant = header.registrantCode || '';
 
         // 라인 정보 세팅
@@ -249,9 +267,52 @@ const fetchEmployees = async () => {
     }
 };
 
-// 페이지 진입 시 직원 목록 먼저 가져오기
+/* ===========================
+ *  직원 모달 관련
+ * =========================== */
+
+// 직원 리스트 + 검색어로 필터링
+const employeeRows = computed(() => {
+    if (!empKeyword.value) return employees.value;
+    const kw = empKeyword.value.toLowerCase();
+    return employees.value.filter((e) => (e.empCode && e.empCode.toLowerCase().includes(kw)) || (e.empName && e.empName.toLowerCase().includes(kw)));
+});
+
+// 직원 모달 컬럼
+const empColumns = [
+    { field: 'empCode', label: '사원코드' },
+    { field: 'empName', label: '이름' }
+];
+
+// 직원 모달 열기
+const openEmpModal = () => {
+    if (!employees.value.length) {
+        fetchEmployees();
+    }
+    showEmpModal.value = true;
+};
+
+// 직원 검색
+const handleSearchEmp = (keyword) => {
+    empKeyword.value = (keyword || '').trim();
+};
+
+// 직원 선택 확인
+const handleConfirmEmp = (row) => {
+    if (!row) return;
+    basicInfo.registrant = row.empCode; // 내부 값은 사원코드 유지
+    showEmpModal.value = false;
+};
+
+// 직원 모달 취소
+const handleCancelEmp = () => {
+    showEmpModal.value = false;
+};
+
+// 페이지 진입 시 직원 목록 + 공통코드 먼저 가져오기
 onMounted(() => {
     fetchEmployees();
+    fetchCommonCodes();
 });
 
 /* ===========================
@@ -355,14 +416,19 @@ const onDelete = async () => {
         return;
     }
 
-    // TODO: 실제 삭제 API 연결하고 싶으면 아래 주석 해제
-    // try {
-    //   const res = await axios.delete(`/api/release/fwd/${basicInfo.releaseCode}`);
-    //   console.log('삭제 결과:', res.data);
-    //   onReset();
-    // } catch (err) {
-    //   console.error('[Forwarding] 출고전표 삭제 실패:', err);
-    // }
+    if (!confirm('현재 출고요청을 삭제하시겠습니다?')) {
+        return;
+    }
+
+    try {
+        const res = await axios.delete(`/api/release/fwd/${basicInfo.releaseCode}`);
+        console.log('[Forwarding] 삭제 결과:', res.data);
+        alert('출고요청이 삭제되었습니다.');
+        onReset();
+    } catch (err) {
+        console.error('[Forwarding] 삭제 실패:', err);
+        alert('출고요청 삭제 중 오류가 발생했습니다.');
+    }
 };
 
 const onReset = () => {
@@ -371,33 +437,99 @@ const onReset = () => {
     basicInfo.releaseDate = '';
     basicInfo.orderDate = '';
     basicInfo.client = '';
+    // basicInfo.registrant 는 유지 (담당자는 계속 동일하게 쓸 수 있게)
     basicInfo.remark = '';
     products.value = [];
     console.log('초기화 클릭');
 };
 
 const onSave = async () => {
+    // 필수값 체크
+    if (!basicInfo.orderCode) {
+        alert('주문을 선택해주세요.');
+        return;
+    }
+
+    if (!basicInfo.releaseDate) {
+        alert('출고일자를 입력해주세요.');
+        return;
+    }
+
+    if (!basicInfo.orderDate) {
+        alert('주문일자를 확인해주세요.');
+        return;
+    }
+
+    if (!basicInfo.client) {
+        alert('거래처 정보가 없습니다.');
+        return;
+    }
+
+    if (!basicInfo.registrant) {
+        alert('등록자를 선택해주세요.');
+        return;
+    }
+
+    // 🔹 주문을 선택했는데 products 비어있으면 비정상
+    if (!products.value.length) {
+        alert('제품 정보가 없습니다. 주문을 다시 선택해주세요.');
+        return;
+    }
+
+    // 🔹 출고수량이 모두 0이면 저장할 수 없게
+    const totalRelease = products.value.reduce((sum, item) => sum + (item.releaseQty || 0), 0);
+    if (totalRelease <= 0) {
+        alert('출고수량을 입력해주세요.');
+        return;
+    }
+
     const payload = {
         header: { ...basicInfo },
         lines: products.value
     };
 
-    console.log('저장 클릭 payload:', payload);
+    try {
+        if (!basicInfo.releaseCode) {
+            // 신규: 출고요청 등록
+            const res = await axios.post('/api/release/fwd', payload);
+            console.log('[Forwarding] 저장 결과:', res.data);
+            alert('출고요청이 등록되었습니다.');
+            onReset();
+        } else {
+            const res = await axios.put(`/api/release/fwd/${basicInfo.releaseCode}`, payload);
+            console.log('[Forwarding] 수정 결과:', res.data);
+            alert('출고요청이 수정되었습니다.');
+            onReset();
+        }
+    } catch (err) {
+        console.error('[Forwarding] 저장 실패:', err);
+    }
+};
 
-    // TODO: 백엔드 저장 기능 완성되면 여기서 POST/PUT 분기
-    // try {
-    //   if (!basicInfo.releaseCode) {
-    //     // 신규
-    //     const res = await axios.post('/api/release/fwd', payload);
-    //     console.log('출고전표 생성 결과:', res.data);
-    //   } else {
-    //     // 수정
-    //     const res = await axios.put(`/api/release/fwd/${basicInfo.releaseCode}`, payload);
-    //     console.log('출고전표 수정 결과:', res.data);
-    //   }
-    // } catch (err) {
-    //   console.error('[Forwarding] 출고전표 저장 실패:', err);
-    // }
+const fetchCommonCodes = async () => {
+    try {
+        const res = await axios.get('/api/release/fwd/codes');
+        console.log('[Forwarding] 공통코드 응답:', res.data);
+
+        if (res.data?.status === 'success' && res.data.data) {
+            const { unitMap: u, specMap: s, typeMap: t } = res.data.data;
+            console.log('[Forwarding] unitMap:', u);
+            console.log('[Forwarding] specMap:', s);
+            console.log('[Forwarding] typeMap:', t);
+            unitMap.value = u || {};
+            specMap.value = s || {};
+            typeMap.value = t || {};
+        } else {
+            unitMap.value = {};
+            specMap.value = {};
+            typeMap.value = {};
+        }
+    } catch (err) {
+        console.error('[Forwarding] 공통코드 조회 실패:', err);
+        unitMap.value = {};
+        specMap.value = {};
+        typeMap.value = {};
+    }
 };
 </script>
 
@@ -441,17 +573,20 @@ const onSave = async () => {
                 @cancel="handleCancelRelease"
             />
 
+            <!-- 직원 선택 모달 -->
+            <SearchSelectModal v-model="showEmpModal" :columns="empColumns" :rows="employeeRows" row-key="empCode" search-placeholder="사원코드 / 이름을 입력해주세요." @search="handleSearchEmp" @confirm="handleConfirmEmp" @cancel="handleCancelEmp" />
+
             <div class="form-grid">
                 <!-- 출고코드 -->
                 <div class="form-field col-2">
                     <label class="form-label">출고코드</label>
-                    <input v-model="basicInfo.releaseCode" type="text" class="form-input" placeholder="출고코드" />
+                    <input v-model="basicInfo.releaseCode" type="text" class="form-input" placeholder="출고코드(자동생성)" disabled />
                 </div>
 
                 <!-- 주문코드 -->
                 <div class="form-field col-2">
                     <label class="form-label">주문코드</label>
-                    <input v-model="basicInfo.orderCode" type="text" class="form-input" placeholder="주문코드" />
+                    <input v-model="basicInfo.orderCode" type="text" class="form-input" placeholder="주문코드" disabled />
                 </div>
 
                 <!-- 출고일자 -->
@@ -472,15 +607,10 @@ const onSave = async () => {
                     <input v-model="basicInfo.client" type="text" class="form-input" placeholder="거래처" />
                 </div>
 
-                <!-- 등록자 -->
+                <!-- 등록자 (인풋 + 모달 오픈) -->
                 <div class="form-field col-2">
                     <label class="form-label">등록자</label>
-                    <select v-model="basicInfo.registrant" class="form-input">
-                        <option value="">등록자를 선택하세요</option>
-                        <option v-for="emp in employees" :key="emp.empCode" :value="emp.empCode">
-                            {{ emp.empName }}
-                        </option>
-                    </select>
+                    <input type="text" class="form-input clickable-input" :value="registrantName" placeholder="등록자를 선택하세요" readonly @click="openEmpModal" />
                 </div>
 
                 <!-- 비고 (전체 폭) -->
@@ -518,9 +648,14 @@ const onSave = async () => {
 
                         <tr v-for="(item, idx) in products" :key="idx">
                             <td>{{ item.name }}</td>
-                            <td>{{ item.type }}</td>
-                            <td>{{ item.spec }}</td>
-                            <td>{{ item.unit }}</td>
+                            <!-- 유형: 코드 -> 한글 note -->
+                            <td>{{ typeMap[item.type] ?? item.type }}</td>
+
+                            <!-- 규격 -->
+                            <td>{{ specMap[item.spec] ?? item.spec }}</td>
+
+                            <!-- 단위 -->
+                            <td>{{ unitMap[item.unit] ?? item.unit }}</td>
 
                             <!-- 주문수량 -->
                             <td class="num">{{ item.orderQty }}</td>
@@ -530,7 +665,7 @@ const onSave = async () => {
                                 <input type="number" v-model.number="item.releaseQty" min="0" :max="maxReleaseQty(item)" :disabled="maxReleaseQty(item) === 0" class="qty-input" @blur="clampReleaseQty(item)" />
                             </td>
 
-                            <!-- 남은수량: 주문수량 - 출고수량 -->
+                            <!-- 미출고수량: 주문수량 - 출고수량 -->
                             <td class="num">
                                 {{ Math.max(0, ((item.notReleasedQty ?? item.orderQty) || 0) - (item.releaseQty || 0)) }}
                             </td>
@@ -687,6 +822,16 @@ const onSave = async () => {
 .form-input:focus,
 .form-textarea:focus {
     border-color: #1976d2;
+}
+
+/* 클릭 가능한 input (등록자) */
+.clickable-input {
+    cursor: pointer;
+    background-color: #fff;
+}
+
+.clickable-input:read-only {
+    background-color: #fff;
 }
 
 /* 기본 테이블 래퍼 */
