@@ -1,66 +1,32 @@
 <script setup>
-import { reactive, watch } from 'vue';
+import { storeToRefs } from 'pinia';
+import { useQcResultStore } from '@/stores/qc/qcResultStore';
 
-const props = defineProps({
-    instruction: {
-        type: Object,
-        required: true
-    }
-});
-
-const emit = defineEmits(['update:instruction']);
-
-const thisInstruction = reactive({
-    instrCode: '',
-    productName: '',
-    processName: '',
-    type: '',
-    qty: ''
-});
-
-watch(
-    () => props.instruction,
-    (val) => {
-        if (!val) return;
-        Object.assign(thisInstruction, val);
-    },
-    { deep: true, immediate: true }
-);
-
-watch(
-    thisInstruction,
-    (val) => {
-        emit('update:instruction', { ...val });
-    },
-    { deep: true }
-);
+// Pinia store 호출
+const qcStore = useQcResultStore();
+const { instruction } = storeToRefs(qcStore);
 </script>
 
 <template>
     <div class="grid-3col">
         <div class="cell">
             <label>지시코드</label>
-            <InputText v-model="thisInstruction.instrCode" />
+            <InputText v-model="instruction.qioCode" />
         </div>
 
         <div class="cell">
             <label>제품명</label>
-            <InputText v-model="thisInstruction.productName" />
-        </div>
-
-        <div class="cell">
-            <label>공정명</label>
-            <InputText v-model="thisInstruction.processName" />
+            <InputText v-model="instruction.prodName" />
         </div>
 
         <div class="cell">
             <label>검사유형</label>
-            <InputText v-model="thisInstruction.type" />
+            <InputText v-model="instruction.qcrCode" />
         </div>
 
         <div class="cell">
             <label>지시량</label>
-            <InputText v-model="thisInstruction.qty" />
+            <InputText v-model="instruction.inspVol" />
         </div>
     </div>
 </template>

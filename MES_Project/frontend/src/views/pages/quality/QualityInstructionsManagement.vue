@@ -1,20 +1,57 @@
 <script setup>
-import axios from 'axios';
-import { onBeforeMount, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import SearchModal from './SearchModal.vue'; // SearchModal 컴포넌트 임포트
+import { useQualityStore } from '@/stores/qualityStore';
+
+const qualityStore = useQualityStore();
+
+// 1. tableData를 스토어의 qcrList를 바라보는 computed 속성으로 변경합니다.
+const tableData = computed(() => qualityStore.qcrList);
 
 // 모달 관련 상태
 const isModalVisible = ref(false);
 const modalTitle = ref('');
+const modalData = ref([]);
+const modalColumns = ref([]);
 
 // 모달 열기 함수
-const openModal = (type) => {
+const openModal = async (type) => {
     if (type === 'inspection') {
         modalTitle.value = '검사지시 불러오기';
+        // 스토어에 qioList 데이터가 없으면 가져옵니다.
+        if (!qualityStore.qioList.length) {
+            await qualityStore.fetchQIOList(); // fetchQIOList 액션이 스토어에 구현되어 있어야 합니다.
+        }
+        modalData.value = qualityStore.qioList;
+        modalColumns.value = [
+            { field: 'qio_code', header: '검사지시코드' },
+            { field: 'order_date', header: '지시일자' },
+            { field: 'user_name', header: '지시자' }
+        ];
     } else if (type === 'stock') {
-        modalTitle.value = '재고목록 불러오기';
+        modalTitle.value = '자재목록 불러오기';
+        // 스토어에 mpr_dList 데이터가 없으면 가져옵니다.
+        if (!qualityStore.mpr_dList.length) {
+            await qualityStore.fetchMpr_dList();
+        }
+        modalData.value = qualityStore.mpr_dList;
+        modalColumns.value = [
+            { field: 'mpr_d_code', header: '자재 코드' },
+            { field: 'mat_name', header: '자재 명' },
+            { field: 'req_qtt', header: '발주수량' }
+        ];
     } else if (type === 'production') {
         modalTitle.value = '생산실적 불러오기';
+        // 스토어에 prdrList 데이터가 없으면 가져옵니다.
+        if (!qualityStore.prdrList.length) {
+            await qualityStore.fetchPrdrList();
+        }
+        modalData.value = qualityStore.prdrList;
+        modalColumns.value = [
+            { field: 'prdr_code', header: '제품 코드' },
+            { field: 'prod_name', header: '제품 명' },
+            { field: 'production_qtt', header: '수량' }
+        ];
     }
     isModalVisible.value = true;
 };
@@ -27,8 +64,6 @@ const handleModalConfirm = (selectedItem) => {
 
 // 선택된 행들을 저장할 반응형 변수
 const selectedProducts = ref();
-const defaultQCRList = ref();
-const tableData = ref([]);
 
 // DataTable의 컬럼 정의
 const columns = [
@@ -53,16 +88,6 @@ const formatNumber = (value) => {
     return num.toLocaleString('ko-KR');
 };
 
-// 0. 페이지 최초 로드 시 한번만 호출될 품질검사 기준 목록
-const qcrList = async () => {
-    const response = await axios.get('/api/quality/qcrs');
-    // 백엔드 응답 형식 { code: 'Q200', data: [...] } 에서 실제 데이터 배열은 response.data.data 에 있습니다.
-    defaultQCRList.value = response.data.data;
-    tableData.value = defaultQCRList.value;
-    console.log('qcrList code:', response.data.code);
-    console.log('qcrList loaded:', tableData.value);
-};
-
 // 컬럼의 field에 따라 동적으로 body 스타일을 반환하는 함수
 const getBodyStyle = (field) => {
     if (field === 'inspection_item') {
@@ -75,9 +100,10 @@ const getBodyStyle = (field) => {
     return { textAlign: 'center' }; // 기본값 (예: 체크박스 컬럼)
 };
 
-// onBeforeMount 훅
-onBeforeMount(() => {
-    qcrList();
+// 2. onMounted (또는 onBeforeMount) 훅에서 데이터 로딩을 '요청'만 합니다.
+onMounted(() => {
+    // 스토어에 데이터가 없으면 fetchQCRList 액션을 호출. === if(!qualityStore.hasQCRData) { qualityStore.fetchQCRList(); }
+    !qualityStore.hasQCRData && qualityStore.fetchQCRList();
 });
 </script>
 
@@ -187,7 +213,7 @@ onBeforeMount(() => {
         </DataTable>
 
         <!-- SearchModal 컴포넌트 추가 -->
-        <SearchModal v-model:visible="isModalVisible" :header="modalTitle" @onConfirm="handleModalConfirm" />
+        <SearchModal v-model:visible="isModalVisible" :header="modalTitle" :data="modalData" :columns="modalColumns" @onConfirm="handleModalConfirm" />
     </div>
 </template>
 

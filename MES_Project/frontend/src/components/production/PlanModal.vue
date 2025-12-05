@@ -59,12 +59,29 @@ const handleConfirm = () => {
         return;
     }
 
-    emit('select', {
+    // 선택된 3가지
+    const selectedData = {
         prdp_code: selectedPlan.계획번호,
         wko_code: selectedPlan.작업지시번호,
         prdp_date: selectedPlan.계획일자
-    });
+    };
+
+    // 나머지 값들
+    const otherData = {
+        dueDate: selectedPlan.납기일자,
+        planName: selectedPlan.계획명,
+        productName: selectedPlan.제품명,
+        quantity: selectedPlan.지시수량,
+        startDateTime: selectedPlan.작업시작일시,
+        expectedEndDateTime: selectedPlan.예상완료일시,
+        status: selectedPlan.상태,
+        lineCode: selectedPlan.작업라인코드
+    };
+
+    // 부모에게 payload 형태로 전달
+    emit('select', { selectedData, otherData });
 };
+
 // 취소
 const handleCancel = () => {
     emit('select', null);

@@ -1,89 +1,24 @@
 <script setup>
-import { reactive, ref } from 'vue';
-
 import QcResultBasicInfo from '../../../components/qc/005/QcResultBasicInfo.vue';
 import QcResultInstructionInfo from '../../../components/qc/005/QcResultInstructionInfo.vue';
 import QcResultItemTable from '../../../components/qc/005/QcResultTable.vue';
-import QcSelectModal from '../../../components/common/SearchSelectModal.vue';
-import { findResultList } from '../../../api/qc/qcApi';
+import QcSelectModal from '../../../components/qc/005/QcSelectModal.vue';
+import { useQcResultStore } from '../../../stores/qc/qcResultStore';
 
-// 기본정보
-const basic = reactive({
-    resultCode: '',
-    inspector: '',
-    startDate: '',
-    endDate: '',
-    defectQty: '',
-    note: ''
-});
+const qcStore = useQcResultStore();
 
-// 지시정보
-const instruction = reactive({
-    instrCode: '',
-    productName: '',
-    processName: '',
-    type: '',
-    qty: ''
-});
+// TODO: 삭제 API
+const onDelete = () => {};
 
-// 검사항목
-const items = ref([
-    {
-        id: 1,
-        selected: true,
-        item: '중량',
-        top: 95,
-        bottom: 105,
-        unit: 'g',
-        value: 100,
-        judge: '합격',
-        note: '1'
-    }
-]);
+const onReset = () => {};
 
-// 버튼 이벤트(나중에 API 연결)
-const onDelete = () => {
-    // TODO: 삭제 API
-};
+const onSave = () => qcStore.saveResult();
 
-const onReset = () => {
-    Object.assign(basic, {
-        resultCode: '',
-        inspector: '',
-        startDate: '',
-        endDate: '',
-        defectQty: '',
-        note: ''
-    });
+// TODO: 검사결과 불러오기
+const onLoadPendingList = () => qcStore.loadPendingList();
 
-    Object.assign(instruction, {
-        instrCode: '',
-        productName: '',
-        processName: '',
-        type: '',
-        qty: ''
-    });
-
-    items.value = [];
-};
-
-const onSave = () => {
-    // TODO: 저장 API
-    // basic, instruction, items 를 그대로 서버로 보내면 됨
-};
-
-const showResultModal = ref(false);
-
-const onLoadResult = async () => {
-    // TODO: 검사결과 불러오기
-    const result = await findResultList();
-    console.log(result);
-    showResultModal.value = true;
-};
-
-const onLoadInstruction = () => {
-    // TODO: 검사지시 불러오기
-};
+// TODO: 검사지시 불러오기
+const onLoadInstruction = () => qcStore.loadInstruction();
 </script>
 
 <template>
@@ -97,11 +32,11 @@ const onLoadInstruction = () => {
                     <Button label="삭제" class="p-button-danger" @click="onDelete" />
                     <Button label="초기화" class="p-button-secondary" @click="onReset" />
                     <Button label="저장" class="p-button-primary" @click="onSave" />
-                    <Button label="검사결과 불러오기" class="p-button-success" @click="onLoadResult" />
+                    <Button label="검사결과 불러오기" class="p-button-success" @click="onLoadPendingList" />
                 </div>
             </div>
 
-            <QcResultBasicInfo v-model:basic="basic" />
+            <QcResultBasicInfo />
         </div>
 
         <!-- 지시정보 -->
@@ -114,25 +49,17 @@ const onLoadInstruction = () => {
                 </div>
             </div>
 
-            <QcResultInstructionInfo v-model:instruction="instruction" />
+            <QcResultInstructionInfo />
         </div>
 
         <!-- 검사항목 -->
         <div class="section">
             <h3>검사항목 - 지시정보 기반으로 출력</h3>
-            <QcResultItemTable v-model:rows="items" />
+            <QcResultItemTable />
         </div>
     </div>
 
-    <QcSelectModal
-        v-model="showResultModal"
-        :searchPlaceholder="'검사결과 검색'"
-        :columns="[{ field: 'resultCode', label: '결과코드' }]"
-        :rows="[
-            { id: 1, resultCode: 'R0001' },
-            { id: 2, resultCode: 'R0002' }
-        ]"
-    />
+    <QcSelectModal />
 </template>
 
 <style scoped>

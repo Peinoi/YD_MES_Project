@@ -35,7 +35,8 @@ async function pendingListService() {
 // 005 검사지시 불러오기
 async function findInstructionService(params) {
   try {
-    const result = await query('QC_INSTRUCTION', params.qirCode);
+    const result = await query('QC_INSTRUCTION', [params.qir_code]);
+    console.log(result);
     return result;
   } catch (err) {
     throw err;
