@@ -8,5 +8,10 @@ export default [
         path: '/baseinfo/bom',
         name: 'bom',
         component: () => import('@/views/baseinfo/bom.vue')
+    },
+    {
+        path: '/baseinfo/lineinfo',
+        name: 'lineInfo',
+        component: () => import('@/views/baseinfo/LineInfo.vue')
     }
 ];

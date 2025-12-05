@@ -61,7 +61,7 @@ const onSelectSubMaterial = (materials) => {
 };
 
 const onProductSelect = (selectedProduct) => {
-    (searchForm.value.itemCode = selectedProduct.prod_code), (searchForm.value.itemName = selectedProduct.prod_name);
+    ((searchForm.value.itemCode = selectedProduct.prod_code), (searchForm.value.itemName = selectedProduct.prod_name));
 };
 const useYnOptions = [
     { label: '사용', value: 'Y' },
