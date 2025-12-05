@@ -24,17 +24,6 @@ const { basic } = storeToRefs(qcStore);
         </div>
 
         <div class="cell">
-            <label>불량수량</label>
-            <InputText v-model="basic.defectQty" />
-        </div>
-
-        <div></div>
-
-        <div></div>
-
-        <div></div>
-
-        <div class="cell">
             <label>비고</label>
             <InputText v-model="basic.note" readonly />
         </div>

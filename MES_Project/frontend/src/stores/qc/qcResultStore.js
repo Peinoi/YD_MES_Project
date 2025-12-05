@@ -1,27 +1,12 @@
 import { defineStore } from 'pinia';
 import { getPendingList, getInstruction, saveQcResult } from '../../service/qc/qcService';
+import { dateFormatUtil } from '../../components/qc/utils/dateFormat';
 
 export const useQcResultStore = defineStore('qcResult', {
     state: () => ({
-        basic: {
-            qirCode: '',
-            qirEmpCode: '',
-            startDate: '',
-            endDate: '',
-            defectQty: '',
-            note: ''
-        },
+        basic: {},
 
-        instruction: {
-            qioCode: '',
-            prodName: '',
-            qcrCode: '',
-            inspVol: '',
-            checkMethod: '',
-            rangeTop: '',
-            rangeBot: '',
-            unit: ''
-        },
+        instruction: {},
 
         modal: {
             resultSelectVisible: false,
@@ -51,7 +36,7 @@ export const useQcResultStore = defineStore('qcResult', {
                 // 모달 열기
                 this.modal.selectedRow = null;
                 this.modal.resultSelectVisible = true;
-
+                this.basic.value = '';
                 this.isReset = false;
             } catch (err) {
                 console.error('loadResultList() 오류:', err);
@@ -68,19 +53,21 @@ export const useQcResultStore = defineStore('qcResult', {
                 alert('등록된 검사지시가 없습니다.');
                 return;
             }
-            this.basic = result.data[0];
             this.basic.qirEmpCode = 'seung02';
+            this.basic.value = '';
             this.instruction = result.data[0];
             this.resultItems = result.data;
         },
 
         async saveResult() {
-            const payload = {
-                basic: this.basic,
-                instruction: this.instruction,
-                items: this.resultItems
-            };
-            await saveQcResult(payload);
+            if (this.isReset || this.basic.value == '') {
+                alert('검사결과를 확인해주세요.');
+                return;
+            }
+            this.basic.endDate = dateFormatUtil();
+
+            console.log(this.basic);
+            // await saveQcResult(payload);
         },
 
         closeModal() {
@@ -91,11 +78,24 @@ export const useQcResultStore = defineStore('qcResult', {
             this.selectedQir = this.modal.selectedRow?.qirCode;
             this.basic.qirCode = this.selectedQir;
             this.basic.qirEmpCode = 'seung01';
+            this.basic.startDate = dateFormatUtil();
             this.closeModal();
         },
 
         reset() {
             this.$reset();
+        },
+
+        textClean(row) {
+            row.value = row.value.replace(/\D/g, '');
+        },
+
+        enterJudge(row) {
+            const v = Number(row.value);
+            if (isNaN(v)) return (row.result = '');
+            row.result = v >= row.rangeBot && v <= row.rangeTop ? '합격' : '불합격';
+            this.basic.value = row.value;
+            this.basic.result = row.result == '합격' ? 'g2' : 'g1';
         }
     }
 });

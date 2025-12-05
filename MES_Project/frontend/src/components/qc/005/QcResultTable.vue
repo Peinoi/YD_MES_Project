@@ -4,23 +4,6 @@ import { useQcResultStore } from '@/stores/qc/qcResultStore';
 
 const qcStore = useQcResultStore();
 const { resultItems } = storeToRefs(qcStore);
-
-function valueCheck(row) {
-    const value = Number(row.value);
-    const top = Number(row.rangeTop);
-    const bottom = Number(row.rangeBot);
-
-    if (isNaN(value)) {
-        row.result = '';
-        return;
-    }
-
-    if (value >= bottom && value <= top) {
-        row.result = '합격';
-    } else {
-        row.result = '불합격';
-    }
-}
 </script>
 
 <template>
@@ -33,7 +16,7 @@ function valueCheck(row) {
 
         <Column field="value" header="검사값" style="width: 10%">
             <template #body="{ data }">
-                <InputText v-model="data.value" @input="valueCheck(data)" />
+                <InputText v-model="data.value" @keydown.enter="qcStore.enterJudge(data)" @compositionend="data.value = data.value.replace(/\D/g, '')" @input="data.value = data.value.replace(/\D/g, '')" @paste.prevent />
             </template>
         </Column>
 

@@ -7,7 +7,7 @@ import { useQcResultStore } from '../../stores/qc/qcResultStore';
 
 const qcStore = useQcResultStore();
 
-// TODO: 삭제 API
+// 상단 버튼
 const deleted = () => {};
 
 const reset = () => qcStore.reset();
