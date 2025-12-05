@@ -1,74 +1,38 @@
 <script setup>
-import { reactive, watch } from 'vue';
+import { storeToRefs } from 'pinia';
+import { useQcResultStore } from '../../../stores/qc/qcResultStore';
 
-const props = defineProps({
-    basic: {
-        type: Object,
-        required: true
-    }
-});
-
-const emit = defineEmits(['update:basic']);
-
-const thisBasic = reactive({
-    resultCode: '',
-    inspector: '',
-    startDate: '',
-    endDate: '',
-    defectQty: '',
-    note: ''
-});
-
-watch(
-    () => props.basic,
-    (val) => {
-        if (!val) {
-            return;
-        }
-        Object.assign(thisBasic, val);
-    },
-    { deep: true, immediate: true }
-);
-
-watch(
-    thisBasic,
-    (val) => {
-        emit('update:basic', { ...val });
-    },
-    { deep: true }
-);
+const qcStore = useQcResultStore();
+const { basic } = storeToRefs(qcStore);
 </script>
 
 <template>
     <div class="grid-3col">
         <div class="cell">
             <label>결과코드</label>
-            <InputText v-model="thisBasic.resultCode" readonly />
+            <InputText v-model="basic.qirCode" readonly />
         </div>
 
         <div class="cell">
             <label>검사자</label>
-            <InputText v-model="thisBasic.inspector" />
+            <InputText v-model="basic.qirEmpCode" />
         </div>
 
         <div class="cell">
             <label>시작일시</label>
-            <InputText v-model="thisBasic.startDate" />
-        </div>
-
-        <div class="cell">
-            <label>종료일시</label>
-            <InputText v-model="thisBasic.endDate" />
+            <InputText v-model="basic.startDate" />
         </div>
 
         <div class="cell">
             <label>불량수량</label>
-            <InputText v-model="thisBasic.defectQty" />
+            <InputText v-model="basic.defectQty" />
         </div>
+
+        <div></div>
 
         <div class="cell">
             <label>비고</label>
-            <InputText v-model="thisBasic.note" />
+            <InputText v-model="basic.note" />
         </div>
     </div>
 </template>

@@ -2,17 +2,7 @@ const express = require("express");
 const router = express.Router();
 const qualityService = require("../services/qualityService.js");
 
-// GET /api/quality/inspection-orders - 생산 계획 전체 목록 조회
-router.get("/inspection-orders", async (req, res, next) => {
-  try {
-    const orders = await qualityService.getInspectionOrders();
-    res.json({ code: "Q200", data: orders });
-  } catch (err) {
-    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
-  }
-});
-
-// GET /api/quality/qcrs - qcr목록 전체 조회
+// GET /api/quality/qcrs - qcr_tbl목록 전체 조회
 router.get("/qcrs", async (req, res, next) => {
   try {
     const orders = await qualityService.getQCRList();
@@ -22,10 +12,30 @@ router.get("/qcrs", async (req, res, next) => {
   }
 });
 
-// GET /api/quality/qio - qio목록 전체 조회
+// GET /api/quality/qio - qio_tbl목록 전체 조회
 router.get("/qio", async (req, res, next) => {
   try {
     const orders = await qualityService.getQIOList();
+    res.json({ code: "Q200", data: orders });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
+// GET /api/quality/prdrs - prdr_tbl목록 전체 조회
+router.get("/prdrs", async (req, res, next) => {
+  try {
+    const orders = await qualityService.getPrdrList();
+    res.json({ code: "Q200", data: orders });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
+// GET /api/quality/mpr_ds - mpr_d_tbl목록 전체 조회
+router.get("/mpr_ds", async (req, res, next) => {
+  try {
+    const orders = await qualityService.getMpr_dList();
     res.json({ code: "Q200", data: orders });
   } catch (err) {
     next(err); // 에러를 전역 오류 처리 미들웨어로 전달

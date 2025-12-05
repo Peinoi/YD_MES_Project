@@ -70,21 +70,31 @@ exports.getQCRList = async () => {
     throw err;
   }
 };
-exports.getQIOList = async () => {
+
+// 1. 생산실적 테이블 조회
+exports.getPrdrList = async () => {
   try {
-    const result = await query("findAllQIO", []);
+    const result = await query("findAllPrdr", []);
     return result;
   } catch (err) {
     throw err;
   }
 };
 
-// 1. 품질검사 지시 조회 로직 - qio_tbl
-exports.getInspectionOrders = async () => {
-  // 기존 품질검사 지시 내역을 조회하는 모달창에서 사용.
+// 2. 발주서 사본 테이블 조회
+exports.getMpr_dList = async () => {
   try {
-    const result = query("findQuailtyInspectionOrders", []);
+    const result = await query("findAllMpr_d", []);
+    return result;
+  } catch (err) {
+    throw err;
+  }
+};
 
+// ?. 기존의 품질검사 지시 목록을 조회.
+exports.getQIOList = async () => {
+  try {
+    const result = await query("findAllQIO", []);
     return result;
   } catch (err) {
     throw err;
