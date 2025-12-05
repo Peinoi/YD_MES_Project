@@ -12,6 +12,23 @@ const history = ref([]);
 const loading = ref(false);
 const errorMessage = ref('');
 
+const unitOptions = {
+    h1: 'kg',
+    h2: 't',
+    h3: 'L',
+    h4: 'ea',
+    h5: 'box',
+    h6: 'g',
+    h7: 'mm',
+    h8: '%',
+    h9: 'cm',
+    ha: 'N'
+};
+
+function getUnitLabel(code) {
+    return unitOptions[code] || code;
+}
+
 // 날짜 YYYY-MM-DD
 function formatDate(dateStr) {
     if (!dateStr) return '';
@@ -134,7 +151,7 @@ onMounted(fetchDetail);
                             <td class="text-right">
                                 {{ formatNumber(row.reqQtt) }}
                             </td>
-                            <td>{{ row.unitName || row.unit }}</td>
+                            <td>{{ getUnitLabel(row.unit) }}</td>
                             <td>{{ row.clientName }}</td>
                             <td>{{ row.note }}</td>
                         </tr>

@@ -7,6 +7,7 @@ const purchaseCode = ref('');
 const showPOModal = ref(false);
 const showMateModal = ref(false);
 const showReqModal = ref(false);
+const showEmpModal = ref(false);
 
 // 선택 행 기억
 const activeMateRow = ref(null);
@@ -35,6 +36,13 @@ const ReqColumns = [
     { field: 'matName', label: '자재명' }
 ];
 
+//작성자 모달 컬럼
+const empColumns = [
+    { field: 'empCode', label: '사원번호' },
+    { field: 'empName', label: '사원명' },
+    { field: 'deptName', label: '부서명' }
+];
+
 const typeOptions = {
     t1: '원자재',
     t2: '부자재'
@@ -61,6 +69,7 @@ const statusOptions = {
 const orderRows = ref([]);
 const mateRows = ref([]);
 const reqRows = ref([]);
+const empRows = ref([]);
 
 //발주정보 모달 목록 불러오기
 const fetchOrderList = async (keyword = '') => {
@@ -105,6 +114,17 @@ const fetchReqList = async (keyword = '') => {
     }));
 };
 
+// 사원 목록 불러오기
+const fetchEmpList = async (keyword = '') => {
+    const res = await axios.get('/api/poder/emp/list', {
+        params: {
+            keyword: keyword || null
+        }
+    });
+
+    empRows.value = res.data.data || [];
+};
+
 //발주정보 모달 열기
 const openOrderModal = async () => {
     await fetchOrderList();
@@ -124,6 +144,11 @@ const openReqModal = async () => {
     showReqModal.value = true;
 };
 
+const openEmpModal = async () => {
+    await fetchEmpList();
+    showEmpModal.value = true;
+};
+
 // 오늘날짜, 형식변환
 function getToday() {
     return new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
@@ -134,7 +159,8 @@ const orderDate = ref(getToday()); // regdate
 const purchaseDate = ref(getToday()); // purchase_req_date
 
 // 헤더 필드
-const writerCode = ref('EMP-10003');
+const writerCode = ref('');
+const writerName = ref('');
 const note = ref('');
 const status = ref('c1');
 const reqNo = ref(''); // 자재구매요청서번호
@@ -249,7 +275,8 @@ const deletePo = async () => {
         orderDate.value = getToday();
         status.value = 'c1';
         note.value = '';
-        writerCode.value = 'EMP-10003';
+        writerCode.value = '';
+        writerName.value = '';
         reqNo.value = '';
         materials.value = [createRow(), createRow(), createRow()];
         allChecked.value = false;
@@ -268,7 +295,8 @@ const resetForm = () => {
     orderDate.value = getToday();
     status.value = 'c1';
     note.value = '';
-    writerCode.value = 'EMP-10003';
+    writerCode.value = '';
+    writerName.value = '';
     reqNo.value = '';
 
     // 자재 테이블 초기화
@@ -298,7 +326,8 @@ const handleConfirmOrder = async (selectedRow) => {
 
         status.value = data.header.stat || 'c1';
         note.value = data.header.note || '';
-        writerCode.value = data.header.mcode || 'EMP-10003';
+        writerCode.value = data.header.mcode || '';
+        writerName.value = data.header.mname || data.header.mcode || '';
         reqNo.value = data.header.mpr_code || '';
 
         // 3) 상세(자재 목록) 매핑
@@ -432,6 +461,29 @@ const handleMateSearch = async (keyword) => {
 const handleReqSearch = async (keyword) => {
     await fetchReqList(keyword);
 };
+
+// 작성자 모달 닫기
+const handleCancelEmp = () => {
+    showEmpModal.value = false;
+};
+
+// 작성자 선택
+const handleConfirmEmp = (selectedRow) => {
+    if (!selectedRow || !selectedRow.empCode) {
+        alert('작성자를 선택해 주세요.');
+        return;
+    }
+
+    writerCode.value = selectedRow.empCode;
+    writerName.value = selectedRow.empName || '';
+
+    showEmpModal.value = false;
+};
+
+// 작성자 모달 검색
+const handleEmpSearch = async (keyword) => {
+    await fetchEmpList(keyword);
+};
 </script>
 
 <template>
@@ -462,11 +514,7 @@ const handleReqSearch = async (keyword) => {
 
                 <div class="form-item">
                     <label>작성자</label>
-                    <select class="input" v-model="writerCode">
-                        <option>EMP-10003</option>
-                        <option>EMP-10004</option>
-                        <option>EMP-10001</option>
-                    </select>
+                    <input type="text" class="input" v-model="writerName" readonly placeholder="작성자를 선택해 주세요." @click="openEmpModal" />
                 </div>
 
                 <div class="form-item">
@@ -497,55 +545,57 @@ const handleReqSearch = async (keyword) => {
                     <button class="btn-green" @click="openReqModal">자재구매요청서 불러오기</button>
                 </div>
             </div>
+            <div class="table-scroll">
+                <table class="nice-table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" v-model="allChecked" @change="toggleAll" /></th>
+                            <th>자재명</th>
+                            <th>자재유형</th>
+                            <th>자재코드</th>
+                            <th>단위</th>
+                            <th>필요수량</th>
+                            <th>현재고</th>
+                            <th>부족수량</th>
+                            <th>입고납기일</th>
+                            <th>공급업체</th>
+                        </tr>
+                    </thead>
 
-            <table class="nice-table">
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" v-model="allChecked" @change="toggleAll" /></th>
-                        <th>자재명</th>
-                        <th>자재유형</th>
-                        <th>자재코드</th>
-                        <th>단위</th>
-                        <th>필요수량</th>
-                        <th>현재고</th>
-                        <th>부족수량</th>
-                        <th>입고납기일</th>
-                        <th>공급업체</th>
-                    </tr>
-                </thead>
+                    <tbody>
+                        <tr v-for="row in materials" :key="row.id">
+                            <td>
+                                <input type="checkbox" v-model="row.checked" />
+                            </td>
 
-                <tbody>
-                    <tr v-for="row in materials" :key="row.id">
-                        <td>
-                            <input type="checkbox" v-model="row.checked" />
-                        </td>
+                            <td>
+                                <input class="cell-input" v-model="row.name" @click="openMateModal(row)" readonly placeholder="자재 선택" />
+                            </td>
+                            <td><input class="cell-input" :value="getTypeLabel(row.type)" disabled /></td>
+                            <td>
+                                <input class="cell-input" v-model="row.code" disabled />
+                            </td>
 
-                        <td>
-                            <input class="cell-input" v-model="row.name" @click="openMateModal(row)" readonly placeholder="자재 선택" />
-                        </td>
-                        <td><input class="cell-input" :value="getTypeLabel(row.type)" disabled /></td>
-                        <td>
-                            <input class="cell-input" v-model="row.code" disabled />
-                        </td>
+                            <td>
+                                <input class="cell-input" :value="getUnitLabel(row.unit)" disabled />
+                            </td>
 
-                        <td>
-                            <input class="cell-input" :value="getUnitLabel(row.unit)" disabled />
-                        </td>
+                            <td><input class="cell-input" type="number" v-model="row.needQty" /></td>
+                            <td><input class="cell-input" type="number" v-model="row.stock" disabled /></td>
+                            <td><input class="cell-input" type="number" v-model="row.lackQty" disabled /></td>
 
-                        <td><input class="cell-input" type="number" v-model="row.needQty" /></td>
-                        <td><input class="cell-input" type="number" v-model="row.stock" disabled /></td>
-                        <td><input class="cell-input" type="number" v-model="row.lackQty" disabled /></td>
-
-                        <td><input class="cell-input" type="date" v-model="row.dueDate" /></td>
-                        <td><input class="cell-input" v-model="row.vendor" disabled /></td>
-                    </tr>
-                </tbody>
-            </table>
+                            <td><input class="cell-input" type="date" v-model="row.dueDate" /></td>
+                            <td><input class="cell-input" v-model="row.vendor" disabled /></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </section>
     <SearchSelectModal v-model="showPOModal" :columns="orderColumns" :rows="orderRows" row-key="purchaseCode" search-placeholder="발주서번호를 입력해주세요." @confirm="handleConfirmOrder" @cancel="handleCancelOrder" @search="handleOrderSearch" />
     <SearchSelectModal v-model="showMateModal" :columns="mateColumns" :rows="mateRows" row-key="matCode" search-placeholder="자재명 또는 자재코드를 입력해주세요." @confirm="handleConfirmMate" @cancel="handleCancelMate" @search="handleMateSearch" />
     <SearchSelectModal v-model="showReqModal" :columns="ReqColumns" :rows="reqRows" row-key="mprCode" search-placeholder="자재구매요청번호를 입력해주세요." @confirm="handleConfirmReq" @cancel="handleCancelReq" @search="handleReqSearch" />
+    <SearchSelectModal v-model="showEmpModal" :columns="empColumns" :rows="empRows" row-key="empCode" search-placeholder="사원번호 또는 사원명을 입력해주세요." @confirm="handleConfirmEmp" @cancel="handleCancelEmp" @search="handleEmpSearch" />
 </template>
 
 <style scoped>
@@ -632,18 +682,41 @@ const handleReqSearch = async (keyword) => {
     border-radius: 6px;
 }
 
-/* ---------- 테이블 ---------- */
+/* 기본 테이블은 그대로 사용 */
+.table-scroll {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden; /* 가로 스크롤은 안 쓰고 세로만 */
+}
+
 .nice-table {
     width: 100%;
     border-collapse: collapse;
-    border: 1px solid #ddd;
+    table-layout: fixed;
+}
+
+.nice-table thead {
+    background: #faf7e8;
+}
+
+.nice-table thead,
+.nice-table tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+
+.nice-table tbody {
+    display: block;
+    max-height: 260px;
+    overflow-y: auto;
 }
 
 .nice-table th {
-    background: #faf7e8;
     border-bottom: 1px solid #ddd;
     padding: 10px;
     font-size: 14px;
+    text-align: left;
 }
 
 .nice-table td {
@@ -656,5 +729,68 @@ const handleReqSearch = async (keyword) => {
     padding: 6px;
     border: 1px solid #ccc;
     border-radius: 4px;
+    box-sizing: border-box; /* 좁은 셀에서도 입력창이 넘치지 않게 */
+}
+
+/* 🔽 여기부터 열 너비 – px → % 로 변경 */
+
+/* 1: 체크박스 */
+.nice-table th:nth-child(1),
+.nice-table td:nth-child(1) {
+    width: 4%;
+}
+
+/* 2: 자재명 (제일 넓게) */
+.nice-table th:nth-child(2),
+.nice-table td:nth-child(2) {
+    width: 18%;
+}
+
+/* 3: 자재유형 */
+.nice-table th:nth-child(3),
+.nice-table td:nth-child(3) {
+    width: 10%;
+}
+
+/* 4: 자재코드 */
+.nice-table th:nth-child(4),
+.nice-table td:nth-child(4) {
+    width: 14%;
+}
+
+/* 5: 단위 */
+.nice-table th:nth-child(5),
+.nice-table td:nth-child(5) {
+    width: 5%;
+}
+
+/* 6: 필요수량 */
+.nice-table th:nth-child(6),
+.nice-table td:nth-child(6) {
+    width: 10%;
+}
+
+/* 7: 현재고 */
+.nice-table th:nth-child(7),
+.nice-table td:nth-child(7) {
+    width: 10%;
+}
+
+/* 8: 부족수량 */
+.nice-table th:nth-child(8),
+.nice-table td:nth-child(8) {
+    width: 10%;
+}
+
+/* 9: 입고납기일 */
+.nice-table th:nth-child(9),
+.nice-table td:nth-child(9) {
+    width: 10%;
+}
+
+/* 10: 공급업체 */
+.nice-table th:nth-child(10),
+.nice-table td:nth-child(10) {
+    width: 9%;
 }
 </style>

@@ -4,6 +4,7 @@ import axios from 'axios';
 import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
 
 const showMateModal = ref(false);
+const showEmpModal = ref(false);
 
 //등록일자
 const reqDate = ref(getToday());
@@ -25,6 +26,13 @@ const mateColumns = [
     { field: 'clientName', label: '공급업체' }
 ];
 
+//작성자 선택 모달 컬럼
+const empColumns = [
+    { field: 'empCode', label: '사원번호' },
+    { field: 'empName', label: '사원명' },
+    { field: 'deptName', label: '부서명' }
+];
+
 const unitOptions = {
     h1: 'kg',
     h2: 't',
@@ -39,7 +47,9 @@ const unitOptions = {
 };
 
 const mateRows = ref([]);
+const empRows = ref([]);
 
+//자재 모달 목록 불러오기
 const fetchMateList = async (keyword = '') => {
     const res = await axios.get('/api/poder/mate', {
         params: {
@@ -50,6 +60,17 @@ const fetchMateList = async (keyword = '') => {
     mateRows.value = res.data.data || [];
 };
 
+//사원 목록 불러오기
+const fetchEmpList = async (keyword = '') => {
+    const res = await axios.get('/api/poder/emp/list', {
+        params: {
+            keyword: keyword || null
+        }
+    });
+
+    empRows.value = res.data.data || [];
+};
+
 //자재 모달
 const openMateModal = async (row) => {
     activeMateRow.value = row;
@@ -57,13 +78,19 @@ const openMateModal = async (row) => {
     showMateModal.value = true;
 };
 
+//작성자 모달
+const openEmpModal = async () => {
+    await fetchEmpList();
+    showEmpModal.value = true;
+};
 // 오늘날짜, 형식변환
 function getToday() {
     return new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
 }
 
 // 헤더 필드
-const writerCode = ref('EMP-10003');
+const writerCode = ref('');
+const writerName = ref('');
 
 // 자재 리스트
 const materials = ref([createRow(), createRow(), createRow()]);
@@ -113,7 +140,8 @@ function getUnitLabel(code) {
 
 //초기화 작업
 function clearForm() {
-    writerCode.value = 'EMP-10003';
+    writerCode.value = '';
+    writerName.value = '';
     deadLine.value = '';
     reqDate.value = getToday();
 
@@ -226,6 +254,29 @@ watch(
     },
     { immediate: true }
 );
+
+//작성자 모달 선택
+const handleConfirmEmp = (selectedRow) => {
+    if (!selectedRow || !selectedRow.empCode) {
+        alert('작성자를 선택해 주세요.');
+        return;
+    }
+
+    writerCode.value = selectedRow.empCode;
+    writerName.value = selectedRow.empName || '';
+
+    showEmpModal.value = false;
+};
+
+// 작성자 모달 닫기
+const handleCancelEmp = () => {
+    showEmpModal.value = false;
+};
+
+// 작성자 모달 검색
+const handleEmpSearch = async (keyword) => {
+    await fetchEmpList(keyword);
+};
 // 초기 로드
 fetchNextCode();
 </script>
@@ -251,12 +302,9 @@ fetchNextCode();
 
                 <div class="form-item">
                     <label>작성자</label>
-                    <select class="input" v-model="writerCode">
-                        <option>EMP-10003</option>
-                        <option>EMP-10004</option>
-                        <option>EMP-10001</option>
-                    </select>
+                    <input type="text" class="input" v-model="writerName" readonly placeholder="작성자를 선택해 주세요." @click="openEmpModal" />
                 </div>
+
                 <div class="form-item">
                     <label>요청부서</label>
                     <input type="text" class="input" v-model="deptName" disabled />
@@ -284,47 +332,50 @@ fetchNextCode();
                 </div>
             </div>
 
-            <table class="nice-table">
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" v-model="allChecked" @change="toggleAll" /></th>
-                        <th>자재코드</th>
-                        <th>자재명</th>
-                        <th>요청수량</th>
-                        <th>단위</th>
-                        <th>공급업체</th>
-                        <th>비고</th>
-                    </tr>
-                </thead>
+            <div class="table-scroll">
+                <table class="nice-table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" v-model="allChecked" @change="toggleAll" /></th>
+                            <th>자재코드</th>
+                            <th>자재명</th>
+                            <th>요청수량</th>
+                            <th>단위</th>
+                            <th>공급업체</th>
+                            <th>비고</th>
+                        </tr>
+                    </thead>
 
-                <tbody>
-                    <tr v-for="row in materials" :key="row.id">
-                        <td>
-                            <input type="checkbox" v-model="row.checked" />
-                        </td>
-                        <td>
-                            <input class="cell-input" v-model="row.code" @click="openMateModal(row)" readonly placeholder="자재 선택" />
-                        </td>
+                    <tbody>
+                        <tr v-for="row in materials" :key="row.id">
+                            <td>
+                                <input type="checkbox" v-model="row.checked" />
+                            </td>
+                            <td>
+                                <input class="cell-input" v-model="row.code" @click="openMateModal(row)" readonly placeholder="자재 선택" />
+                            </td>
 
-                        <td>
-                            <input class="cell-input" v-model="row.name" @click="openMateModal(row)" readonly placeholder="자재 선택" />
-                        </td>
+                            <td>
+                                <input class="cell-input" v-model="row.name" @click="openMateModal(row)" readonly placeholder="자재 선택" />
+                            </td>
 
-                        <td><input class="cell-input" type="number" v-model="row.needQty" /></td>
+                            <td><input class="cell-input" type="number" v-model="row.needQty" /></td>
 
-                        <td>
-                            <input class="cell-input" :value="getUnitLabel(row.unit)" disabled />
-                        </td>
+                            <td>
+                                <input class="cell-input" :value="getUnitLabel(row.unit)" disabled />
+                            </td>
 
-                        <td><input class="cell-input" v-model="row.vendor" disabled /></td>
-                        <td><input class="cell-input" type="text" v-model="row.note" /></td>
-                    </tr>
-                </tbody>
-            </table>
+                            <td><input class="cell-input" v-model="row.vendor" disabled /></td>
+                            <td><input class="cell-input" type="text" v-model="row.note" /></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </section>
 
     <SearchSelectModal v-model="showMateModal" :columns="mateColumns" :rows="mateRows" row-key="matCode" search-placeholder="자재명을 입력해주세요." @confirm="handleConfirmMate" @cancel="handleCancelMate" @search="handleSearchMate" />
+    <SearchSelectModal v-model="showEmpModal" :columns="empColumns" :rows="empRows" row-key="empCode" search-placeholder="사원번호 또는 사원명을 입력해주세요." @confirm="handleConfirmEmp" @cancel="handleCancelEmp" @search="handleEmpSearch" />
 </template>
 
 <style scoped>
@@ -411,18 +462,43 @@ fetchNextCode();
     border-radius: 6px;
 }
 
-/* ---------- 테이블 ---------- */
+/* 테이블 */
+.table-scroll {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
 .nice-table {
     width: 100%;
     border-collapse: collapse;
-    border: 1px solid #ddd;
+    table-layout: fixed;
 }
 
-.nice-table th {
+.nice-table thead {
     background: #faf7e8;
+}
+
+.nice-table thead,
+.nice-table tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+
+/* ----- tbody 스크롤 영역 ----- */
+.nice-table tbody {
+    display: block;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+/* ----- 공통 셀 스타일 ----- */
+.nice-table th {
     border-bottom: 1px solid #ddd;
     padding: 10px;
     font-size: 14px;
+    text-align: left;
 }
 
 .nice-table td {
@@ -430,10 +506,46 @@ fetchNextCode();
     border-bottom: 1px solid #eee;
 }
 
+/* 입력창 */
 .cell-input {
     width: 100%;
     padding: 6px;
     border: 1px solid #ccc;
     border-radius: 4px;
+}
+
+.nice-table th:nth-child(1),
+.nice-table td:nth-child(1) {
+    width: 30px; /* 체크박스 */
+}
+
+.nice-table th:nth-child(2),
+.nice-table td:nth-child(2) {
+    width: 120px; /* 자재코드 */
+}
+
+.nice-table th:nth-child(3),
+.nice-table td:nth-child(3) {
+    width: 150px; /* 자재명 */
+}
+
+.nice-table th:nth-child(4),
+.nice-table td:nth-child(4) {
+    width: 110px; /* 요청수량 */
+}
+
+.nice-table th:nth-child(5),
+.nice-table td:nth-child(5) {
+    width: 80px; /* 단위 */
+}
+
+.nice-table th:nth-child(6),
+.nice-table td:nth-child(6) {
+    width: 150px; /* 공급업체 */
+}
+
+.nice-table th:nth-child(7),
+.nice-table td:nth-child(7) {
+    width: auto; /* 비고 */
 }
 </style>

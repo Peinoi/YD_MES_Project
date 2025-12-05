@@ -189,7 +189,7 @@ module.exports = {
     t.purchase_code                  AS purchaseCode,
     DATE(t.purchase_req_date)        AS purchaseDate, 
     t.stat                           AS stat,         
-    t.mcode                          AS mcode,        
+    e.emp_name                       AS mcode,        
     DATE(t.regdate)                  AS regDate,        
     m.material_type_code             AS type,           
     m.mat_name                       AS matName,        
@@ -199,6 +199,8 @@ module.exports = {
   FROM mpo_tbl t
   JOIN mpo_d_tbl d
     ON t.purchase_code = d.purchase_code
+  LEFT JOIN emp_tbl e
+    ON t.mcode = e.emp_code
   LEFT JOIN mat_tbl m
     ON d.mat_code = m.mat_code
   LEFT JOIN (
@@ -412,4 +414,14 @@ module.exports = {
   DELETE FROM mpr_mapp_tbl
   WHERE purchase_code = ?
 `,
+  //작성자 조회
+  selectEmpListBase: `
+    SELECT 
+      e.emp_code AS empCode,
+      e.emp_name AS empName,
+      d.dept_name AS deptName
+    FROM emp_tbl e
+    LEFT JOIN dept_tbl d
+      ON e.dept_code = d.dept_code
+  `,
 };

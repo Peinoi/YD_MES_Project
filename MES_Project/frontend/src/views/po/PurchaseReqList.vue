@@ -8,6 +8,7 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 const showClientModal = ref(false);
 const showMateModal = ref(false);
+const showReqModal = ref(false);
 
 // 선택 행 기억
 const activeMateRow = ref(null);
@@ -32,6 +33,13 @@ const mateColumns = [
     { field: 'matCode', label: '자재코드' },
     { field: 'matName', label: '자재명' },
     { field: 'clientName', label: '공급업체' }
+];
+// 요청 불러오기 모달 컬럼
+const ReqColumns = [
+    { field: 'mprCode', label: '요청서 번호' },
+    { field: 'reqDate', label: '요청일' },
+    { field: 'mCode', label: '요청자' },
+    { field: 'matName', label: '자재명' }
 ];
 
 const clientTypeOptions = {
@@ -58,6 +66,7 @@ const allList = ref([]);
 // 모달 데이터
 const mateRows = ref([]);
 const clientRows = ref([]);
+const reqRows = ref([]);
 
 // 실제 테이블에 보여줄 데이터
 const tableRows = ref([...allList.value]);
@@ -100,6 +109,23 @@ const fetchReqList = async () => {
 
     tableRows.value = [...allList.value];
     allChecked.value = false;
+};
+
+//요청 모달 목록 불러오기
+const fetchReqModalList = async (keyword = '') => {
+    const res = await axios.get('/api/poder/mpr/list', {
+        params: {
+            mprCode: keyword || null
+        }
+    });
+
+    const rows = res.data.data || [];
+
+    reqRows.value = rows.map((row) => ({
+        ...row,
+        // 날짜 문자열 잘라서 YYYY-MM-DD 형태로
+        reqDate: row.reqDate ? String(row.reqDate).slice(0, 10) : ''
+    }));
 };
 
 // 필터 적용 함수 / 조회 눌러 적용
@@ -271,6 +297,39 @@ const handleMateSearch = async (keyword) => {
     await fetchMateList(keyword);
 };
 
+//요청 모달 열기
+const openReqModal = async () => {
+    await fetchReqModalList();
+    showReqModal.value = true;
+};
+
+// 요청 선택
+const handleConfirmReq = (selectedRow) => {
+    if (!selectedRow || !selectedRow.mprCode) {
+        alert('요청서를 선택해 주세요.');
+        return;
+    }
+
+    filters.value.mprCode = selectedRow.mprCode || '';
+
+    filters.value.matName = '';
+    filters.value.matCode = '';
+    filters.value.reqDate = '';
+    filters.value.vendor = '';
+
+    showReqModal.value = false;
+};
+
+// 요청 닫기
+const handleCancelReq = () => {
+    showReqModal.value = false;
+};
+
+//  요청 모달 검색
+const handleReqSearch = async (keyword) => {
+    await fetchReqModalList(keyword);
+};
+
 // 초기 데이터 로드
 onMounted(() => {
     fetchReqList();
@@ -286,7 +345,7 @@ onMounted(() => {
                 <!-- 1행 -->
                 <div class="form-item">
                     <label>요청번호</label>
-                    <input class="input" v-model="filters.mprCode" />
+                    <input class="input" v-model="filters.mprCode" readonly placeholder="요청서 선택" @click="openReqModal(row)" />
                 </div>
 
                 <div class="form-item">
@@ -348,7 +407,7 @@ onMounted(() => {
                     <tbody>
                         <tr v-for="row in tableRows" :key="row.id" @click="goDetail(row)" class="table-row">
                             <td>
-                                <input type="checkbox" v-model="row.checked" />
+                                <input type="checkbox" v-model="row.checked" @click.stop />
                             </td>
                             <td>{{ row.mprCode }}</td>
                             <td>{{ row.matName }}</td>
@@ -380,6 +439,7 @@ onMounted(() => {
     />
 
     <SearchSelectModal v-model="showMateModal" :columns="mateColumns" :rows="mateRows" row-key="matCode" search-placeholder="자재명 또는 자재코드를 입력해주세요." @confirm="handleConfirmMate" @cancel="handleCancelMate" @search="handleMateSearch" />
+    <SearchSelectModal v-model="showReqModal" :columns="ReqColumns" :rows="reqRows" row-key="mprCode" search-placeholder="자재구매요청번호를 입력해주세요." @confirm="handleConfirmReq" @cancel="handleCancelReq" @search="handleReqSearch" />
 </template>
 
 <style scoped>
