@@ -2,6 +2,7 @@
 // WorkPerformanceSearch.vue
 import { ref, computed, onBeforeMount } from 'vue';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 // 1. 분리된 컴포넌트 임포트 (경로는 실제 파일 구조에 맞게 수정 필요)
 import SearchForm from '../../components/production/WorkPerformanceSearch.vue';
 import SearchTable from '../../components/production/WorkPerformanceTable.vue';
@@ -31,8 +32,37 @@ const handleReset = () => {
 };
 
 const downloadExcel = () => {
-    console.log('엑셀 다운로드 클릭, 현재 검색 조건:', searchCriteria.value);
+    // 체크된 행만 선택
+    const selected = filteredRows.value.filter((row) => row.checked);
+
+    if (!selected.length) {
+        alert('다운로드할 행을 선택해 주세요.');
+        return;
+    }
+
+    // Excel 변환 데이터 구성
+    const data = selected.map((row) => ({
+        실적번호: row.code,
+        생산일자: getDateString(row.cr_date),
+        제품명: row.name,
+        작업지시번호: row.order_num,
+        양품수량: row.qtt,
+        불량수량: row.notqtt,
+        LOT번호: row.lotnum,
+        라인번호: row.linecode,
+        상태: row.stat,
+    }));
+
+    // 워크시트/워크북 생성
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '생산실적');
+
+    // 파일명: 생산실적_20250625.xlsx
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    XLSX.writeFile(wb, `생산실적_${today}.xlsx`);
 };
+
 
 // 📌 4. 필터링 로직 수정 (새로운 필드명 반영)
 const filteredRows = computed(() => {

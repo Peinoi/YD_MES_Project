@@ -3,6 +3,8 @@
 import { onBeforeMount, ref, computed } from 'vue';
 import axios from 'axios';
 import { useWorkStore } from '@/stores/workStore.js';
+import { useRouter } from 'vue-router';
+const router = useRouter();
 const workStore = useWorkStore();
 const workInfo = computed(() => workStore.selectedWork);
 let workList = ref([]);
@@ -15,7 +17,9 @@ const getWorkList = async () => {
     const result = await axios.get(`/api/work/list/${workInfo.value.prdrcode}`);
     workList.value = result.data.data.result;
 };
-
+const goList = () => {
+    router.push('TaskProgressList');
+}
 const getProgressText = (process) => {
     // 진행률이 0이면 '대기중'을 표시
     if (process['진행률'] === 0) {
@@ -41,6 +45,7 @@ onBeforeMount(() => {
         <div class="md:w-1/2 mb-6">
             <div class="card flex flex-col gap-2 p-4 border border-gray-200 rounded-lg shadow-md bg-white">
                 <h2 class="text-xl font-semibold mb-2 text-gray-700">작업 지시 정보</h2>
+                <button class="btn-action bg-blue-500 text-white" @click="goList()">작업 진행 목록</button>
                 <div class="grid grid-cols-2 gap-4">
                     <div class="flex flex-col gap-1">
                         <label for="code" class="text-xs font-medium text-gray-500">작업지시코드</label>
@@ -228,7 +233,12 @@ $grid-layout: 1.2fr 2.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr;
     font-size: 13px;
     text-align: center;
 }
-
+button{
+    width: 150px;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+} 
 /* ------------------------------------------------ */
 /* 조건 2 & 3: input[type="range"]를 사용하지 않고 div/span으로 진행률 바를 구현했으므로, 
    만약 input[type="range"]를 사용한다면 아래 코드를 추가하여 핸들을 제거할 수 있습니다. 

@@ -99,7 +99,7 @@ const downloadExcel = () => {
 
                     <tr v-for="row in props.rows" :key="row.id" @click="goLink(row)">
                         <td>
-                            <input v-model="row.checked" type="checkbox" />
+                            <input v-model="row.checked" type="checkbox" @click.stop />
                         </td>
                         <td>{{ row.code }}</td>
                         <td>{{ row.name }}</td>
