@@ -1,4 +1,5 @@
 <script setup>
+// TaskProgressListSearch.vue
 import { ref, computed, onBeforeMount } from 'vue';
 import axios from 'axios';
 // 1. 분리된 컴포넌트 임포트 (경로는 실제 파일 구조에 맞게 수정 필요)
