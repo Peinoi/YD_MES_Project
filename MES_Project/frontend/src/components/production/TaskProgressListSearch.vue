@@ -1,17 +1,16 @@
 <script setup>
+// TaskProgressListSearch.vue
 import { reactive, defineEmits } from 'vue';
 
 const emit = defineEmits(['search', 'reset']);
 
 // 검색 조건의 초기 상태에 'remarks' 추가
 const initialForm = {
-    startDate: '', // 기간 시작일
-    endDate: '', // 기간 종료일
-    status: '', // 상태
-    line: '', // 라인
-    productName: '', // 제품명
-    worker: '', // 작업자
-    remarks: '' // ⭐️ 비고 추가
+    code: "", // 작업지시번호
+    name: "",// 제품명
+    line: "",// 라인
+    start: "",// 시작일자
+    stat: ""// 상태
 };
 
 const searchForm = reactive({ ...initialForm });
@@ -33,35 +32,35 @@ const resetForm = () => {
         <div class="search-grid">
             <div class="field">
                 <label>작업지시코드</label>
-                <input v-model="searchForm.productName" type="text" class="input" placeholder="제품명 입력" />
+                <input v-model="searchForm.code" type="text" class="input" placeholder="제품명 입력" />
             </div>
             <div class="field">
                 <label>제품명</label>
-                <input v-model="searchForm.productName" type="text" class="input" placeholder="제품명 입력" />
+                <input v-model="searchForm.name" type="text" class="input" placeholder="제품명 입력" />
             </div>
 
             <div class="field field-range">
                 <label>작업지시일자</label>
                 <div class="range-row">
-                    <input v-model="searchForm.startDate" type="date" class="input" />
+                    <input v-model="searchForm.start" type="date" class="input" />
                 </div>
             </div>
 
             <div class="field">
                 <label>상태</label>
-                <select v-model="searchForm.status" class="input">
+                <select v-model="searchForm.stat" class="input">
                     <option value="">전체</option>
-                    <option value="진행중">진행중</option>
-                    <option value="작업대기">작업대기</option>
-                    <option value="작업완료">작업완료</option>
-                    <option value="작업보류">작업보류</option>
+                    <option value="v1">진행중</option>
+                    <option value="v4">작업대기</option>
+                    <option value="v2">작업완료</option>
+                    <option value="v3">작업보류</option>
                 </select>
             </div>
 
             <div class="field">
                 <label>라인</label>
                 <div class="range-row">
-                    <input v-model="searchForm.startDate" type="date" class="input" />
+                    <input v-model="searchForm.line" type="text" class="input" />
                 </div>
             </div>
         </div>

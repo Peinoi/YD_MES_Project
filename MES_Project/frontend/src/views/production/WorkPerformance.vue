@@ -1,4 +1,5 @@
 <script setup>
+// WorkPerformanceSearch.vue
 import { ref, computed, onBeforeMount } from 'vue';
 import axios from 'axios';
 // 1. 분리된 컴포넌트 임포트 (경로는 실제 파일 구조에 맞게 수정 필요)
@@ -16,7 +17,7 @@ const getPerformanceList = async () => {
 // 2. 검색 이벤트 핸들러: 검색 조건을 받아와 필터링 로직 실행
 const handleSearch = (form) => {
     console.log('🔍 검색 요청 수신:', form);
-    performanceList.value = form; // 새로운 검색 조건 저장
+    searchCriteria.value = form; // 새로운 검색 조건 저장
 
     // 실제로는 이 곳에서 API 호출을 수행하고, 결과를 allRows에 업데이트해야 합니다.
 };
@@ -35,37 +36,40 @@ const downloadExcel = () => {
 
 // 📌 4. 필터링 로직 수정 (새로운 필드명 반영)
 const filteredRows = computed(() => {
-    const sForm = searchCriteria.value;
-    if (Object.keys(sForm).length === 0 || Object.values(sForm).every((v) => v === '' || v === null)) {
-        return performanceList.value; // 검색 조건이 없으면 전체 반환
-    }
+    const s = searchCriteria.value;
 
     return performanceList.value.filter((r) => {
-        // 작업지시번호 (기존 releaseNo)
-        if (sForm.workOrderNo && !r.workOrderNo.toLowerCase().includes(sForm.workOrderNo.toLowerCase())) return false;
-        // 제품명
-        if (sForm.productName && !r.productName.toLowerCase().includes(sForm.productName.toLowerCase())) return false;
+        const rowDate = getDateString(r.cr_date); // "YYYY-MM-DD" 형식 문자열
+        const start = s.startDate;
+        const end = s.endDate;
+        // 날짜 필터링: 문자열 비교로 안전하게 수행
+        if (start && rowDate < start) return false;
+        if (end && rowDate > end) return false; // 2025-06-25 > 2025-06-24 -> true, 제외됨
 
-        // 공정명 (새로운 필터링 항목)
-        if (sForm.processName && !r.processName.toLowerCase().includes(sForm.processName.toLowerCase())) return false;
-
-        // 작업일자 범위 (기존 date)
-        if (sForm.dateFrom && r.workDate < sForm.dateFrom) return false;
-        if (sForm.dateTo && r.workDate > sForm.dateTo) return false;
-
-        // 상태 (새로운 필터링 항목 - 예시)
-        if (sForm.status && r.status !== sForm.status) return false;
-
-        // 담당자/거래처 필터링은 제거하거나 새로운 필드명 (예: manager)으로 대체 필요
-        // 현재 더미 데이터에는 manager가 남아있어 임시로 manager 필터링을 유지합니다.
-        if (sForm.manager && !r.manager.toLowerCase().includes(sForm.manager.toLowerCase())) return false;
-
-        // 나머지 필터링 로직 (qty, client 등)은 데이터에서 제거되었으므로,
-        // searchCriteria에서 관련 항목을 정리해야 합니다.
+        if (s.name && !r.name.includes(s.name)) return false;
+        if (s.linecode && !r.linecode.includes(s.linecode)) return false; 
+        if (s.stat && r.stat !== s.stat) return false;
+        if (s.order_num && !r.order_num.includes(s.order_num)) return false;
+        if (s.lotnum && !r.lotnum.includes(s.lotnum)) return false;
 
         return true;
     });
 });
+
+const getDateString = (str) => {
+    if (!str) return "";
+    
+    // Date 객체 생성: UTC 문자열을 기준으로 로컬 시간대 Date 객체를 생성합니다.
+    const date = new Date(str);
+    
+    // 로컬 시간대(KST)를 기준으로 YYYY-MM-DD 형식의 문자열을 생성합니다.
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+     return `${year}-${month}-${day}`;
+};
+
 onBeforeMount(() => {
     getPerformanceList();
 });
