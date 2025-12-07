@@ -1,7 +1,9 @@
 <script setup>
 import { storeToRefs } from 'pinia';
-import { useQcResultStore } from '@/stores/qc/qcResultStore';
+import { useQcResultStore } from '../../../stores/qc/qcResultStore';
+import { useQcAppService } from '../../../service/qc/qcAppService';
 
+const qcService = useQcAppService();
 const qcStore = useQcResultStore();
 const { resultItems } = storeToRefs(qcStore);
 </script>
@@ -16,7 +18,7 @@ const { resultItems } = storeToRefs(qcStore);
 
         <Column field="value" header="검사값" style="width: 10%">
             <template #body="{ data }">
-                <InputText v-model="data.value" @keydown.enter="qcStore.enterJudge(data)" @compositionend="data.value = data.value.replace(/\D/g, '')" @input="data.value = data.value.replace(/\D/g, '')" @paste.prevent />
+                <InputText v-model="data.value" @keydown.enter="qcService.enterJudge(data)" @compositionend="data.value = data.value.replace(/\D/g, '')" @input="data.value = data.value.replace(/\D/g, '')" @paste.prevent />
             </template>
         </Column>
 

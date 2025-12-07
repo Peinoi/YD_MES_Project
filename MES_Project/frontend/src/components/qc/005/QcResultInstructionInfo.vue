@@ -1,8 +1,7 @@
 <script setup>
 import { storeToRefs } from 'pinia';
-import { useQcResultStore } from '@/stores/qc/qcResultStore';
+import { useQcResultStore } from '../../../stores/qc/qcResultStore';
 
-// Pinia store 호출
 const qcStore = useQcResultStore();
 const { instruction } = storeToRefs(qcStore);
 </script>
