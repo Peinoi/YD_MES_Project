@@ -1,31 +1,28 @@
 <script setup>
-import { ref } from 'vue';
-import { getQcList } from '../../service/qc/qcService';
-
-// QC용 컴포넌트
 import QcListSearch from '@/components/qc/004/QcListSearch.vue';
 import QcListTable from '@/components/qc/004/QcListTable.vue';
+import { useQcAppService } from '../../service/qc/qcAppService';
 
-// 검색조건
-const searchCriteria = ref({});
+const qcService = useQcAppService();
 
-const allRows = ref([]);
-
-const qcListSearch = async (criteria) => {
-    const result = await getQcList(criteria);
-    allRows.value = result.data;
+const searchQcList = async () => {
+    const result = await qcService.getQcList();
+    if (!result.ok) {
+        alert(result.message);
+        return;
+    }
 };
 
 const searchReset = () => {
-    searchCriteria.value = {};
+    qcService.criteriaReset();
 };
 </script>
 
 <template>
     <h3>품질결과목록 조회</h3>
     <div class="qc-page">
-        <QcListSearch @search="qcListSearch" @reset="searchReset" />
-        <QcListTable :rows="allRows" />
+        <QcListSearch @search="searchQcList" @reset="searchReset" />
+        <QcListTable />
     </div>
 </template>
 

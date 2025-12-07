@@ -1,23 +1,9 @@
 const { query } = require('../database/mapper.js');
 
 // 004 목록 조회
-async function qcFindAllService(params) {
+async function findQcListService(params) {
   try {
-    const { qcrCore, prodCode, prodName, qcrCode, result, startDate } = params;
-    return await query('QC_SEARCH', [
-      qcrCore,
-      qcrCore,
-      prodCode,
-      prodCode,
-      prodName,
-      prodName,
-      qcrCode,
-      qcrCode,
-      result,
-      result,
-      startDate,
-      startDate,
-    ]);
+    return await query('QC_SEARCH', params);
   } catch (err) {
     throw err;
   }
@@ -68,7 +54,7 @@ async function deleteResultService(params) {
 }
 
 module.exports = {
-  qcFindAllService,
+  findQcListService,
   pendingListService,
   findInstructionService,
   saveResultService,

@@ -1,27 +1,23 @@
 <script setup>
-import { reactive } from 'vue';
+import { storeToRefs } from 'pinia';
+import { useQcResultStore } from '../../../stores/qc/qcResultStore';
+import { useQcAppService } from '../../../service/qc/qcAppService';
 
-const emit = defineEmits(['search', 'reset']);
+const qcService = useQcAppService();
+const qcStore = useQcResultStore();
+const { searchCriteria } = storeToRefs(qcStore);
 
-const formStatue = {
-    qcrCore: null,
-    prodCode: null,
-    prodName: null,
-    qcrCode: null,
-    result: null,
-    startDate: null
+const searchQcList = async () => {
+    const result = await qcService.getQcList();
+    if (!result.ok) {
+        alert(result.message);
+        return;
+    }
 };
 
-const form = reactive({ ...formStatue });
-
-function onSearch() {
-    emit('search', { ...form });
-}
-
-function onReset() {
-    Object.assign(form, formStatue);
-    emit('reset');
-}
+const searchReset = () => {
+    qcService.criteriaReset();
+};
 
 const qcrCodeList = [
     { key: '전체', value: null },
@@ -42,41 +38,41 @@ const resultList = [
         <div class="grid-3col">
             <div class="cell">
                 <label>검사유형</label>
-                <Dropdown class="w-full" v-model="form.qcrCore" :options="qcrCodeList" optionLabel="key" optionValue="value" />
+                <Dropdown class="w-full" v-model="searchCriteria.qcrCore" :options="qcrCodeList" optionLabel="key" optionValue="value" />
             </div>
 
             <div class="cell">
                 <label>제품코드</label>
-                <InputText class="w-full" v-model="form.prodCode" />
+                <InputText class="w-full" v-model="searchCriteria.prodCode" />
             </div>
 
             <div class="cell">
                 <label>품목명</label>
-                <InputText class="w-full" v-model="form.prodName" />
+                <InputText class="w-full" v-model="searchCriteria.prodName" />
             </div>
 
             <div class="cell">
                 <label>검사항목</label>
-                <InputText class="w-full" v-model="form.qcrCode" />
+                <InputText class="w-full" v-model="searchCriteria.qcrCode" />
             </div>
 
             <div class="cell">
                 <label>결과</label>
-                <Dropdown class="w-full" v-model="form.result" :options="resultList" optionLabel="key" optionValue="value" />
+                <Dropdown class="w-full" v-model="searchCriteria.result" :options="resultList" optionLabel="key" optionValue="value" />
             </div>
 
             <div class="cell">
                 <label>검사일</label>
-                <Calendar class="w-full" v-model="form.startDate" dateFormat="yy-mm-dd" showIcon inputStyle="width: 100%" />
+                <Calendar class="w-full" v-model="searchCriteria.startDate" dateFormat="yy-mm-dd" showIcon inputStyle="width: 100%" />
             </div>
 
             <div class="cell"></div>
             <div class="cell"></div>
 
-            <!-- 버튼: 오른쪽 아래 셀에 위치 -->
+            <!-- 버튼 -->
             <div class="cell btn-cell">
-                <Button label="초기화" class="p-button-secondary mr-2" @click="onReset" />
-                <Button label="조회" class="p-button-warning" @click="onSearch" />
+                <Button label="초기화" class="p-button-secondary mr-2" @click="searchReset" />
+                <Button label="조회" class="p-button-warning" @click="searchQcList" />
             </div>
         </div>
     </div>
@@ -85,7 +81,7 @@ const resultList = [
 <style scoped>
 .grid-3col {
     display: grid;
-    grid-template-columns: repeat(3, 1fr); /* 3개 열 동일 너비 */
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
 }
 
@@ -105,7 +101,6 @@ const resultList = [
     text-overflow: ellipsis;
 }
 
-/* 버튼 셀은 우측 정렬 */
 .btn-cell {
     display: flex;
     flex-direction: row;

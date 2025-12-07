@@ -15,7 +15,15 @@ export function useQcAppService() {
             }
         };
     }
+    // 004
+    async function getQcList() {
+        const params = [store.searchCriteria.qcrCode, store.searchCriteria.prodCode, store.searchCriteria.prodName, store.searchCriteria.checkMethod, store.searchCriteria.result, store.searchCriteria.startDate];
+        const result = await qcService.getQcList(params);
+        store.qcList = [...result.data];
+        return { ok: true };
+    }
 
+    // 005
     async function loadPendingList() {
         if (!store.isReset) {
             return { ok: false, message: '새로운 결과를 불러오기 전 초기화를 진행해주세요.' };
@@ -78,6 +86,7 @@ export function useQcAppService() {
     }
 
     const funcList = {
+        getQcList,
         loadPendingList,
         loadInstruction,
         saveResult
@@ -91,6 +100,7 @@ export function useQcAppService() {
 
     return {
         ...wrapperFuncs,
+        criteriaReset: store.criteriaReset,
         selectedQirCode,
         textClean,
         enterJudge,

@@ -2,6 +2,21 @@ import { defineStore } from 'pinia';
 
 export const useQcResultStore = defineStore('qcResult', {
     state: () => ({
+        // 004
+        // 리스트
+        qcList: [],
+
+        // 검색어
+        searchCriteria: {
+            qcrCode: null,
+            prodCode: '',
+            prodName: '',
+            checkMethod: '',
+            result: null,
+            startDate: null
+        },
+
+        // 005
         // 기본정보
         basic: {},
 
@@ -25,6 +40,12 @@ export const useQcResultStore = defineStore('qcResult', {
     }),
 
     actions: {
+        // 004
+        criteriaReset() {
+            this.searchCriteria = {};
+        },
+
+        // 005
         closeModal() {
             this.modal.showModal = false;
         },

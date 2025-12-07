@@ -1,11 +1,10 @@
 <script setup>
-import { yymmddFormat } from '../utils/dateFormat';
+import { storeToRefs } from 'pinia';
+import { useQcResultStore } from '../../../stores/qc/qcResultStore';
+import { dateTime } from '../utils/dateFormat';
 
-defineProps({
-    rows: Array,
-    loading: Boolean
-});
-
+const qcStore = useQcResultStore();
+const { qcList } = storeToRefs(qcStore);
 function resultBody(result) {
     if (result === 'g2') {
         return `<span class="text-green-600 font-bold">합격</span>`;
@@ -18,12 +17,12 @@ function resultBody(result) {
 <template>
     <div class="card p-3 w-full">
         <div class="table-header">
-            <span class="font-bold">검색 결과 {{ rows.length }}건</span>
+            <span class="font-bold">검색 결과 {{ qcList.length }}건</span>
 
             <Button label="엑셀 다운로드" icon="pi pi-file-excel" class="p-button-success" />
         </div>
-        <div v-if="rows.length === 0" class="no-result">조회된 결과가 없습니다.</div>
-        <DataTable v-else :value="rows" :loading="loading" dataKey="id" showGridlines size="small">
+        <div v-if="qcList.length === 0" class="no-result">조회된 결과가 없습니다.</div>
+        <DataTable v-else :value="qcList" dataKey="id" showGridlines size="small">
             <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
             <Column field="qcrCode" header="검사유형" />
             <Column field="prodCode" header="제품코드" />
@@ -37,7 +36,7 @@ function resultBody(result) {
             </Column>
             <Column field="startDate" header="검사일">
                 <template #body="slotProps">
-                    {{ yymmddFormat(slotProps.data.startDate) }}
+                    {{ dateTime(slotProps.data.startDate) }}
                 </template>
             </Column>
         </DataTable>
