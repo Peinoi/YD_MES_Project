@@ -27,7 +27,10 @@ ORDER BY start_date DESC;
 `;
 
 const QC_PENDING_LIST = `
-SELECT qir_code FROM qir_tbl
+SELECT 
+  qir_code,
+  note
+FROM qir_tbl
 WHERE result = 'g0'
 `;
 
@@ -52,7 +55,7 @@ WHERE qir.qir_code = ?
 `;
 
 const QC_RESULT_SAVE = `
-CALL UPDATE_QIR_RESULT(?, ?, ?, ?, ?)
+CALL UPDATE_QIR_RESULT(?, ?, ?, ?, ?, ?)
 `;
 
 const QC_RESULT_DELETE = `

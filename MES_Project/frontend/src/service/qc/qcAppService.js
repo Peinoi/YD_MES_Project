@@ -57,10 +57,11 @@ export function useQcAppService() {
     }
 
     function selectedQirCode() {
-        store.selectedQir = store.modal.selectedRow?.qirCode;
-        store.basic.qirCode = store.selectedQir;
+        store.selectedQir = store.modal.selectedRow;
+        store.basic.qirCode = store.selectedQir.qirCode;
         store.basic.qirEmpCode = 'EMP-10011';
         store.basic.startDate = dateTime();
+        store.basic.note = store.selectedQir.note;
         store.closeModal();
     }
 
@@ -68,7 +69,7 @@ export function useQcAppService() {
         if (store.basic.qirCode == '') {
             return { ok: false, message: '검사결과 선택해주세요.' };
         }
-        const result = await qcService.getInstruction(store.selectedQir);
+        const result = await qcService.getInstruction(store.selectedQir.qirCode);
         if (result.data.length == 0) {
             return { ok: false, message: '등록된 검사지시가 없습니다.' };
         }
@@ -84,12 +85,13 @@ export function useQcAppService() {
             return { ok: false, message: '검사결과를 확인해주세요.' };
         }
         store.basic.endDate = dateTime();
+        store.basic.note = store.resultItems[0].note;
         const result = await qcService.saveResult(store.basic);
         if (result.data.affectedRows == 0) {
             throw new Error('품질검사결과 저장 중 오류 발생');
         }
         store.reset();
-        return { ok: true, message: '품질검사결과 저장 완료' };
+        return { ok: true, message: '정상적으로 저장되었습니다.' };
     }
 
     async function deleteResult() {
@@ -97,11 +99,11 @@ export function useQcAppService() {
             return { ok: false, message: '검사결과를 확인해주세요.' };
         }
         const result = await qcService.deleteResult({ qirCode: store.basic.qirCode });
-        if (!result.data.ok) {
+        if (result.data.affectedRows == 0) {
             throw new Error('품질검사결과 삭제 중 오류 발생');
         }
-        // store.reset();
-        return { ok: true, message: '품질검사결과 삭제 완료' };
+        store.reset();
+        return { ok: true, message: '정상적으로 삭제되었습니다.' };
     }
 
     function textClean(row) {

@@ -18,6 +18,7 @@ export const useQcResultStore = defineStore('qcResult', {
             prodName: '',
             checkMethod: '',
             result: null,
+            note: '',
             startDate: null
         },
 

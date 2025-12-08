@@ -15,7 +15,6 @@ router.get('/list', async (req, res) => {
 // 004 검색 및 조회
 router.post('/list', async (req, res) => {
   try {
-    console.log(req.body);
     const result = await qcService.findQcListService(req.body);
     res.json(result);
   } catch (err) {
@@ -57,7 +56,6 @@ router.put('/', async (req, res) => {
 router.post('/delete', async (req, res) => {
   try {
     const result = await qcService.deleteResultService(req.body);
-    console.log(result);
     res.json(result);
   } catch (err) {
     res.status(500).json({ ok: false, message: 'delete Router Error' });

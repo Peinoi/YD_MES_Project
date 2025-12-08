@@ -45,9 +45,16 @@ async function saveResultService(data) {
       data.start_date,
       data.end_date,
       data.result,
+      data.note,
       data.qir_emp_code,
     ];
-    return await query('QC_RESULT_SAVE', params);
+    const result = await query('QC_RESULT_SAVE', params);
+
+    if (result.affectedRows == 0) {
+      throw new Error('저장된 데이터가 없습니다.');
+    }
+
+    return { ok: true, affectedRows: result.affectedRows };
   } catch (err) {
     throw err;
   }
@@ -60,8 +67,12 @@ async function deleteResultService(params) {
 
     const result = await conn.query(qcSql.QC_RESULT_DELETE, [params.qir_code]);
 
+    if (result.affectedRows == 0) {
+      throw new Error('삭제할 데이터가 없습니다.');
+    }
+
     await conn.commit();
-    return { ok: true };
+    return { ok: true, affectedRows: result.affectedRows };
   } catch (err) {
     await conn.rollback();
     throw err;
