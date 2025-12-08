@@ -1,17 +1,11 @@
 <script setup>
 import { storeToRefs } from 'pinia';
 import { useQcResultStore } from '../../../stores/qc/qcResultStore';
-import { dateTime } from '../utils/dateFormat';
+import { useQcAppService } from '../../../service/qc/qcAppService';
 
+const qcService = useQcAppService();
 const qcStore = useQcResultStore();
 const { qcList } = storeToRefs(qcStore);
-function resultBody(result) {
-    if (result === 'g2') {
-        return `<span class="text-green-600 font-bold">합격</span>`;
-    } else {
-        return `<span class="text-red-600 font-bold">불합격</span>`;
-    }
-}
 </script>
 
 <template>
@@ -22,7 +16,7 @@ function resultBody(result) {
             <Button label="엑셀 다운로드" icon="pi pi-file-excel" class="p-button-success" />
         </div>
         <div v-if="qcList.length === 0" class="no-result">조회된 결과가 없습니다.</div>
-        <DataTable v-else :value="qcList" dataKey="id" showGridlines size="small">
+        <DataTable v-else :value="qcList" dataKey="id" paginator :rows="10" showGridlines size="small">
             <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
             <Column field="qcrCode" header="검사유형" />
             <Column field="prodCode" header="제품코드" />
@@ -31,12 +25,12 @@ function resultBody(result) {
             <Column field="unit" header="단위" />
             <Column field="result" header="결과">
                 <template #body="slotProps">
-                    <span v-html="resultBody(slotProps.data.result)"></span>
+                    <span v-html="qcService.resultBody(slotProps.data.result)"></span>
                 </template>
             </Column>
             <Column field="startDate" header="검사일">
                 <template #body="slotProps">
-                    {{ dateTime(slotProps.data.startDate) }}
+                    {{ slotProps.data.startDate }}
                 </template>
             </Column>
         </DataTable>

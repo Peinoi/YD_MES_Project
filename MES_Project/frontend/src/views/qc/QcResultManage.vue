@@ -1,4 +1,5 @@
 <script setup>
+import { onMounted } from 'vue';
 import QcResultBasicInfo from '../../components/qc/005/QcResultBasicInfo.vue';
 import QcResultInstructionInfo from '../../components/qc/005/QcResultInstructionInfo.vue';
 import QcResultItemTable from '../../components/qc/005/QcResultTable.vue';
@@ -8,9 +9,14 @@ import { useQcAppService } from '../../service/qc/qcAppService';
 const qcService = useQcAppService();
 
 // 상단 버튼
-const deleted = () => {};
-
-const reset = () => qcService.reset();
+const deleted = async () => {
+    const result = await qcService.deleteResult();
+    if (!result.ok) {
+        alert(result.message);
+        return;
+    }
+    alert(result.message);
+};
 
 const save = async () => {
     const result = await qcService.saveResult();
@@ -18,6 +24,7 @@ const save = async () => {
         alert(result.message);
         return;
     }
+    alert(result.message);
 };
 
 // 검사결과 불러오기
@@ -37,6 +44,10 @@ async function clickLoadInstruction() {
         return;
     }
 }
+
+onMounted(() => {
+    qcService.reset();
+});
 </script>
 
 <template>
@@ -48,7 +59,7 @@ async function clickLoadInstruction() {
 
                 <div class="top-buttons">
                     <Button label="삭제" class="p-button-danger" @click="deleted" />
-                    <Button label="초기화" class="p-button-secondary" @click="reset" />
+                    <Button label="초기화" class="p-button-secondary" @click="qcService.reset" />
                     <Button label="저장" class="p-button-primary" @click="save" />
                     <Button label="검사결과 불러오기" class="p-button-success" @click="clickPendingList" />
                 </div>

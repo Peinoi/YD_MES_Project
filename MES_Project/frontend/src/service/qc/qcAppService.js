@@ -1,6 +1,6 @@
 import { qcService } from './qcService';
 import { useQcResultStore } from '../../stores/qc/qcResultStore';
-import { dateTime } from '../../components/qc/utils/dateFormat';
+import { dateTime, kstFormat } from '../../components/qc/utils/dateFormat';
 
 export function useQcAppService() {
     const store = useQcResultStore();
@@ -15,9 +15,28 @@ export function useQcAppService() {
             }
         };
     }
+
     // 004
+    async function getSearchList() {
+        const result = await qcService.getSearchList();
+        store.modal.resultRows = result.data.map((item) => ({
+            qcrCode: item.qcrCode,
+            checkMethod: item.checkMethod
+        }));
+        return { ok: true };
+    }
+
+    function selectedQcrCode() {
+        store.searchCriteria.qcrCode = store.modal.selectedRow.qcrCode;
+        store.searchCriteria.checkMethod = store.modal.selectedRow.checkMethod;
+        store.closeModal();
+    }
+
     async function getQcList() {
-        const params = [store.searchCriteria.qcrCode, store.searchCriteria.prodCode, store.searchCriteria.prodName, store.searchCriteria.checkMethod, store.searchCriteria.result, store.searchCriteria.startDate];
+        const qcrCode = store.searchCriteria.qcrCode == '전체' ? null : store.searchCriteria.qcrCode;
+        const checkMethod = store.searchCriteria.checkMethod == '전체' ? null : store.searchCriteria.checkMethod;
+        const startDate = kstFormat(store.searchCriteria.startDate);
+        const params = [qcrCode, store.searchCriteria.prodCode, store.searchCriteria.prodName, checkMethod, store.searchCriteria.result, startDate];
         const result = await qcService.getQcList(params);
         store.qcList = [...result.data];
         return { ok: true };
@@ -73,6 +92,18 @@ export function useQcAppService() {
         return { ok: true, message: '품질검사결과 저장 완료' };
     }
 
+    async function deleteResult() {
+        if (store.basic.qirCode == null) {
+            return { ok: false, message: '검사결과를 확인해주세요.' };
+        }
+        const result = await qcService.deleteResult({ qirCode: store.basic.qirCode });
+        if (!result.data.ok) {
+            throw new Error('품질검사결과 삭제 중 오류 발생');
+        }
+        // store.reset();
+        return { ok: true, message: '품질검사결과 삭제 완료' };
+    }
+
     function textClean(row) {
         row.value = row.value.replace(/\D/g, '');
     }
@@ -85,11 +116,21 @@ export function useQcAppService() {
         store.basic.result = row.result == '합격' ? 'g2' : 'g1';
     }
 
+    function resultBody(result) {
+        if (result == 'g2') {
+            return `<span class="text-green-600 font-bold">합격</span>`;
+        } else {
+            return `<span class="text-red-600 font-bold">불합격</span>`;
+        }
+    }
+
     const funcList = {
+        getSearchList,
         getQcList,
         loadPendingList,
         loadInstruction,
-        saveResult
+        saveResult,
+        deleteResult
     };
 
     const wrapperFuncs = Object.keys(funcList).reduce((acc, key) => {
@@ -101,9 +142,11 @@ export function useQcAppService() {
     return {
         ...wrapperFuncs,
         criteriaReset: store.criteriaReset,
+        selectedQcrCode,
         selectedQirCode,
         textClean,
         enterJudge,
+        resultBody,
         reset: store.reset,
         closeModal: store.closeModal
     };

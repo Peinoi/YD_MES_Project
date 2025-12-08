@@ -1,3 +1,10 @@
+const QCR_CODE_LIST = `
+SELECT 
+	qcr_code,
+  check_method
+FROM qcr_tbl
+`;
+
 const QC_SEARCH = `
 SELECT 
 	qir_code,
@@ -8,7 +15,7 @@ SELECT
   note,
   unit,
   result,
-  start_date
+  DATE_FORMAT(start_date, '%y-%m-%d') AS start_date
 FROM v_quality_result
 WHERE qcr_code LIKE CONCAT('%', IFNULL(?, ''), '%')
 AND prod_code LIKE CONCAT('%', IFNULL(?, ''), '%')
@@ -54,6 +61,7 @@ WHERE qir_code = ?
 `;
 
 module.exports = {
+  QCR_CODE_LIST,
   QC_SEARCH,
   QC_PENDING_LIST,
   QC_INSTRUCTION,

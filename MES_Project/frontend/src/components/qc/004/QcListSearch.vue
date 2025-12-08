@@ -2,6 +2,7 @@
 import { storeToRefs } from 'pinia';
 import { useQcResultStore } from '../../../stores/qc/qcResultStore';
 import { useQcAppService } from '../../../service/qc/qcAppService';
+import { onMounted } from 'vue';
 
 const qcService = useQcAppService();
 const qcStore = useQcResultStore();
@@ -15,30 +16,21 @@ const searchQcList = async () => {
     }
 };
 
-const searchReset = () => {
-    qcService.criteriaReset();
-};
-
-const qcrCodeList = [
-    { key: '전체', value: null },
-    { key: 'QCR-PROD-001', value: 'QCR-PROD-001' },
-    { key: 'QCR-PROD-002', value: 'QCR-PROD-002' },
-    { key: 'QCR-PROD-003', value: 'QCR-PROD-003' }
-];
-const resultList = [
-    { key: '전체', value: null },
-    { key: '합격', value: 'g2' },
-    { key: '불합격', value: 'g1' }
-];
+onMounted(async () => {
+    const result = await qcService.getSearchList();
+    if (!result.ok) {
+        alert(result.message);
+        return;
+    }
+});
 </script>
 
 <template>
     <div class="card p-4 w-full">
-        <!-- 3 x 3 -->
         <div class="grid-3col">
             <div class="cell">
                 <label>검사유형</label>
-                <Dropdown class="w-full" v-model="searchCriteria.qcrCore" :options="qcrCodeList" optionLabel="key" optionValue="value" />
+                <InputText class="w-full" v-model="searchCriteria.qcrCode" @click="qcStore.openModal" readonly />
             </div>
 
             <div class="cell">
@@ -53,12 +45,12 @@ const resultList = [
 
             <div class="cell">
                 <label>검사항목</label>
-                <InputText class="w-full" v-model="searchCriteria.qcrCode" />
+                <InputText class="w-full" v-model="searchCriteria.checkMethod" placeholder="검사유형을 선택하시면 자동으로 기입됩니다." readonly />
             </div>
 
             <div class="cell">
                 <label>결과</label>
-                <Dropdown class="w-full" v-model="searchCriteria.result" :options="resultList" optionLabel="key" optionValue="value" />
+                <Dropdown class="w-full" v-model="searchCriteria.result" :options="qcStore.searchResultList" optionLabel="key" optionValue="value" />
             </div>
 
             <div class="cell">
@@ -71,7 +63,7 @@ const resultList = [
 
             <!-- 버튼 -->
             <div class="cell btn-cell">
-                <Button label="초기화" class="p-button-secondary mr-2" @click="searchReset" />
+                <Button label="초기화" class="p-button-secondary mr-2" @click="qcService.criteriaReset" />
                 <Button label="조회" class="p-button-warning" @click="searchQcList" />
             </div>
         </div>

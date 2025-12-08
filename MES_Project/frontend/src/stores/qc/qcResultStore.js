@@ -6,7 +6,12 @@ export const useQcResultStore = defineStore('qcResult', {
         // 리스트
         qcList: [],
 
-        // 검색어
+        searchResultList: [
+            { key: '전체', value: null },
+            { key: '합격', value: 'g2' },
+            { key: '불합격', value: 'g1' }
+        ],
+
         searchCriteria: {
             qcrCode: null,
             prodCode: '',
@@ -43,6 +48,10 @@ export const useQcResultStore = defineStore('qcResult', {
         // 004
         criteriaReset() {
             this.searchCriteria = {};
+        },
+
+        openModal() {
+            this.modal.showModal = true;
         },
 
         // 005
