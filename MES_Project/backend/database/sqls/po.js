@@ -2,13 +2,16 @@ module.exports = {
   // 단일 발주서 헤더 조회
   selectPoHeaderByCode: `
     SELECT
-    purchase_code,
-    purchase_req_date,
-    stat,
-    regdate,
-    note,
-    mcode
-  FROM mpo_tbl
+     m.purchase_code,
+    m.purchase_req_date,
+    m.stat,
+    m.regdate,
+    m.note,
+    m.mcode  AS mcode,
+     e.emp_name     AS mname
+  FROM mpo_tbl m
+  join emp_tbl e
+  ON m.mcode = e.emp_code
   WHERE purchase_code = ?
 `,
 
@@ -20,7 +23,7 @@ module.exports = {
     d.unit              AS unit,
     d.deadline          AS deadline,
     d.purchase_code     AS purchase_code,
-    d.client_code       AS client_code,
+    d.client_code       AS clientCode,
     d.req_qtt           AS req_qtt,
 
     m.mat_name          AS matName,
@@ -189,7 +192,7 @@ module.exports = {
     t.purchase_code                  AS purchaseCode,
     DATE(t.purchase_req_date)        AS purchaseDate, 
     t.stat                           AS stat,         
-    t.mcode                          AS mcode,        
+    e.emp_name                       AS mcode,        
     DATE(t.regdate)                  AS regDate,        
     m.material_type_code             AS type,           
     m.mat_name                       AS matName,        
@@ -199,6 +202,8 @@ module.exports = {
   FROM mpo_tbl t
   JOIN mpo_d_tbl d
     ON t.purchase_code = d.purchase_code
+  LEFT JOIN emp_tbl e
+    ON t.mcode = e.emp_code
   LEFT JOIN mat_tbl m
     ON d.mat_code = m.mat_code
   LEFT JOIN (
@@ -310,7 +315,8 @@ module.exports = {
       0
     ) AS insInven,
 
-    c.client_name       AS clientName
+    c.client_name       AS clientName,
+    c.client_code       AS clientCode
   FROM mpr_d_tbl d
   JOIN mpr_tbl h
     ON d.mpr_code = h.mpr_code
@@ -412,4 +418,14 @@ module.exports = {
   DELETE FROM mpr_mapp_tbl
   WHERE purchase_code = ?
 `,
+  //작성자 조회
+  selectEmpListBase: `
+    SELECT 
+      e.emp_code AS empCode,
+      e.emp_name AS empName,
+      d.dept_name AS deptName
+    FROM emp_tbl e
+    LEFT JOIN dept_tbl d
+      ON e.dept_code = d.dept_code
+  `,
 };

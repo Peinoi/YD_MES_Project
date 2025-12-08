@@ -11,6 +11,7 @@
         "@primeuix/themes": "^1.0.0",
         "axios": "^1.13.2",
         "chart.js": "3.3.2",
+        "exceljs": "^4.4.0",
         "humps": "^2.0.1",
         "luxon": "^3.7.2",
         "pinia": "^3.0.4",

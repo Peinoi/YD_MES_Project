@@ -16,9 +16,9 @@ const emits = defineEmits(['update:visible', 'select']);
 const productList = ref([]);
 const selectedProduct = ref(null);
 const typeMap = {
-    J1: '봉지라면',
-    J2: '컵라면(대)',
-    J3: '컵라면(소)'
+    j1: '봉지라면',
+    j2: '컵라면(대)',
+    j3: '컵라면(소)'
 };
 
 const loadProducts = async () => {

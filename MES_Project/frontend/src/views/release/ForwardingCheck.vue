@@ -1,8 +1,13 @@
 <!-- src/views/release/ForwardingCheck.vue -->
 <script setup>
-import { reactive, ref, computed } from 'vue';
+import { reactive, ref, computed, onMounted } from 'vue';
 import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
 import axios from 'axios';
+
+// 공통코드: 제품유형 맵
+const typeMap = ref({});
+const unitMap = ref({});
+const specMap = ref({});
 
 /* ===========================
  *  검색 폼 & 결과 리스트
@@ -11,6 +16,7 @@ import axios from 'axios';
 const searchForm = reactive({
     releaseNo: '',
     productName: '',
+    productCode: '',
     qtyFrom: '',
     qtyTo: '',
     dateFrom: '',
@@ -19,51 +25,62 @@ const searchForm = reactive({
     client: ''
 });
 
-// 실제 검색 결과 (백엔드 연동 전이라 가짜 데이터/또는 나중에 세팅)
+// 실제 검색 결과 (원본: 출고번호 + 제품별 라인)
 const rows = ref([]);
 
-/* ===========================
- *  전체 체크박스
- * =========================== */
+// 출고번호별 체크 상태
+const checkedMap = reactive({});
+
+/* 🔹 출고번호 기준 그룹핑
+ *  - 같은 releaseNo끼리 묶어서 qty 합계
+ *  - 제품명: "첫 제품명 외 N개" 형태
+ */
+const groupedFilteredRows = computed(() => {
+    const map = new Map();
+
+    for (const r of rows.value) {
+        const key = r.releaseNo;
+        const qty = Number(r.qty) || 0;
+
+        if (!map.has(key)) {
+            map.set(key, {
+                ...r,
+                qty, // 합계 시작
+                productCount: 1,
+                firstProductName: r.productName
+            });
+        } else {
+            const agg = map.get(key);
+            agg.qty += qty;
+            agg.productCount += 1;
+        }
+    }
+
+    return Array.from(map.values()).map((row) => ({
+        ...row,
+        displayProductName: row.productCount > 1 ? `${row.firstProductName} 외 ${row.productCount - 1}개` : row.firstProductName
+    }));
+});
+
+/* 🔹 선택된 출고(출고번호 단위) */
+const selectedRows = computed(() => groupedFilteredRows.value.filter((r) => checkedMap[r.releaseNo]));
+
+/* 🔹 전체 체크박스 (출고번호 단위) */
 const allChecked = computed({
     get() {
-        return rows.value.length > 0 && rows.value.every((r) => r.checked);
+        const list = groupedFilteredRows.value;
+        if (!list.length) return false;
+        return list.every((r) => !!checkedMap[r.releaseNo]);
     },
     set(val) {
-        rows.value.forEach((r) => {
-            r.checked = val;
+        groupedFilteredRows.value.forEach((r) => {
+            checkedMap[r.releaseNo] = val;
         });
     }
 });
 
-/* ===========================
- *  필터링 (프런트 필터)
- * =========================== */
-const filteredRows = computed(() => {
-    return rows.value.filter((r) => {
-        // 출고번호
-        if (searchForm.releaseNo && !String(r.releaseNo).toLowerCase().includes(searchForm.releaseNo.toLowerCase())) return false;
-
-        // 제품명
-        if (searchForm.productName && !String(r.productName).toLowerCase().includes(searchForm.productName.toLowerCase())) return false;
-
-        // 수량 범위
-        if (searchForm.qtyFrom && r.qty < Number(searchForm.qtyFrom)) return false;
-        if (searchForm.qtyTo && r.qty > Number(searchForm.qtyTo)) return false;
-
-        // 출고일자 범위 (r.date 는 'YYYY-MM-DD' 가정)
-        if (searchForm.dateFrom && r.date < searchForm.dateFrom) return false;
-        if (searchForm.dateTo && r.date > searchForm.dateTo) return false;
-
-        // 출고담당자 / 거래처
-        if (searchForm.manager && !String(r.manager).toLowerCase().includes(searchForm.manager.toLowerCase())) return false;
-        if (searchForm.client && !String(r.client).toLowerCase().includes(searchForm.client.toLowerCase())) return false;
-
-        return true;
-    });
-});
-
-const resultCount = computed(() => filteredRows.value.length);
+/* 🔹 결과 건수도 그룹 기준으로 */
+const resultCount = computed(() => groupedFilteredRows.value.length);
 
 /* ===========================
  *  공통: 초기화 / 조회 / 엑셀
@@ -72,27 +89,167 @@ const resultCount = computed(() => filteredRows.value.length);
 const resetForm = () => {
     searchForm.releaseNo = '';
     searchForm.productName = '';
+    searchForm.productCode = '';
     searchForm.qtyFrom = '';
     searchForm.qtyTo = '';
     searchForm.dateFrom = '';
     searchForm.dateTo = '';
     searchForm.manager = '';
     searchForm.client = '';
+
+    // 체크박스 초기화
+    Object.keys(checkedMap).forEach((k) => delete checkedMap[k]);
+
+    // 전부 빈칸인 상태로 다시 조회 (전체조회)
+    doSearch();
 };
 
-const doSearch = () => {
-    // 나중에 실제 API 검색 붙이면 여기서 호출
-    console.log('조회 클릭', { ...searchForm });
+const doSearch = async () => {
+    try {
+        const res = await axios.get('/api/release/fwd/check', {
+            params: { ...searchForm }
+        });
+
+        const list = Array.isArray(res.data?.data) ? res.data.data : [];
+
+        rows.value = list.map((row, idx) => ({
+            id: idx,
+            ...row // releaseNo, productName, qty, date, manager, client, status
+        }));
+
+        // 기존 체크 상태 초기화
+        Object.keys(checkedMap).forEach((k) => delete checkedMap[k]);
+
+        console.log('[ForwardingCheck] 검색 결과:', rows.value);
+    } catch (err) {
+        console.error('[ForwardingCheck] 조회 실패:', err);
+        alert('출고요청 조회 중 오류가 발생했습니다.');
+    }
 };
 
-const downloadExcel = () => {
-    // 나중에 실제 엑셀 다운로드 로직 연결
-    console.log('엑셀 다운로드 클릭');
+// 엑셀 다운로드
+const downloadExcel = async () => {
+    // 1) 체크된 출고번호 기준 (출고번호 단위)
+    const target = selectedRows.value.length ? selectedRows.value : [];
+
+    if (!target.length) {
+        alert('엑셀로 내보낼 출고내역을 선택해주세요.');
+        return;
+    }
+
+    try {
+        // 2) 각 출고번호별 상세 조회
+        const allDetails = await Promise.all(
+            target.map(async (row) => {
+                const releaseNo = row.releaseNo;
+
+                const res = await axios.get(`/api/release/fwd/${releaseNo}`);
+                if (res.data?.status !== 'success' || !res.data.data) {
+                    console.warn('[Excel] 상세 없음:', releaseNo);
+                    return [];
+                }
+
+                const { header: h, lines } = res.data.data;
+
+                // 총 주문/출고수량 (상태 계산용)
+                const totalOrder = (lines || []).reduce((sum, l) => sum + (l.orderQty || 0), 0);
+                const totalRelease = (lines || []).reduce((sum, l) => sum + (l.releaseQty || 0), 0);
+                const remaining = Math.max(0, totalOrder - totalRelease);
+                const status = remaining <= 0 ? '출고완료' : '요청';
+
+                // 이 출고요청의 각 제품 라인을 엑셀용 레코드로 변환
+                return (lines || []).map((line) => {
+                    const stockBase = line.stockQty ?? line.currentStock ?? 0;
+                    const notReleased = (line.orderQty || 0) - (line.releaseQty || 0);
+
+                    return {
+                        // 🔹 출고 헤더 영역
+                        releaseNo: h.releaseCode,
+                        releaseDate: formatDate(h.releaseDate),
+                        manager: h.registrantName || h.registrantCode || row.manager,
+                        client: h.client || row.client,
+                        status,
+
+                        // 🔹 제품 상세 영역
+                        productCode: line.productCode,
+                        productName: line.productName,
+                        typeName: typeMap.value[line.type] ?? line.type,
+                        specName: specMap.value[line.spec] ?? line.spec,
+                        unitName: unitMap.value[line.unit] ?? line.unit,
+                        orderQty: line.orderQty || 0,
+                        releaseQty: line.releaseQty || 0,
+                        notReleasedQty: Math.max(0, notReleased),
+                        stockAfter: Math.max(0, stockBase - (line.releaseQty || 0)),
+                        dueDate: line.dueDate ? formatDate(line.dueDate) : ''
+                    };
+                });
+            })
+        );
+
+        // 3) 평탄화(flat)
+        const flat = allDetails.flat();
+
+        if (!flat.length) {
+            alert('엑셀로 내보낼 상세 데이터가 없습니다.');
+            return;
+        }
+
+        // 4) 헤더 정의
+        const headers = ['출고번호', '출고일자', '출고담당자', '거래처', '상태', '제품코드', '제품명', '유형', '규격', '단위', '주문수량', '출고수량', '미출고수량', '출고 후 재고', '납기일'];
+
+        // 5) 실제 데이터 행
+        const dataRows = flat.map((r) => [
+            r.releaseNo || '',
+            r.releaseDate || '',
+            r.manager || '',
+            r.client || '',
+            r.status || '',
+            r.productCode || '',
+            r.productName || '',
+            r.typeName || '',
+            r.specName || '',
+            r.unitName || '',
+            r.orderQty,
+            r.releaseQty,
+            r.notReleasedQty,
+            r.stockAfter,
+            r.dueDate || ''
+        ]);
+
+        // 6) CSV 문자열 만들기 (엑셀에서 바로 열 수 있음)
+        const escapeCell = (value) => {
+            const s = value == null ? '' : String(value);
+            if (s.includes('"') || s.includes(',') || s.includes('\n')) {
+                return `"${s.replace(/"/g, '""')}"`;
+            }
+            return s;
+        };
+
+        const csvContent = [headers, ...dataRows].map((row) => row.map(escapeCell).join(',')).join('\r\n');
+
+        // 7) Blob 만들고 다운로드 트리거
+        const blob = new Blob(['\uFEFF' + csvContent], {
+            type: 'text/csv;charset=utf-8;'
+        });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+        a.href = url;
+        a.download = `출고요청상세_${today}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        console.error('[ForwardingCheck] 엑셀 다운로드 실패:', err);
+        alert('엑셀 다운로드 중 오류가 발생했습니다.');
+    }
 };
 
 /* ===========================
  *  출고번호 모달 (출고요청 목록)
- *  - ForwardingManagement 의 출고 모달 재사용 느낌
  * =========================== */
 
 const showReleaseModal = ref(false);
@@ -104,8 +261,9 @@ const releaseColumns = [
     { field: 'releaseDate', label: '출고일자' },
     { field: 'orderCode', label: '주문번호' },
     { field: 'client', label: '거래처' },
-    { field: 'status', label: '상태' },
-    { field: 'totalQty', label: '총 출고수량' }
+    { field: 'orderQty', label: '주문수량' },
+    { field: 'totalQty', label: '총 출고수량' },
+    { field: 'status', label: '상태' }
 ];
 
 const formatDate = (d) => {
@@ -115,7 +273,7 @@ const formatDate = (d) => {
 
 const fetchReleaseList = async (keyword = '') => {
     try {
-        const res = await axios.get('/api/release/fwd', {
+        const res = await axios.get('/api/release/fwd/all', {
             params: { keyword }
         });
 
@@ -167,7 +325,6 @@ const handleCancelRelease = () => {
 
 /* ===========================
  *  출고담당자 모달 (사원 목록)
- *  - ForwardingManagement 의 직원 모달 재사용
  * =========================== */
 
 const showEmpModal = ref(false);
@@ -224,8 +381,6 @@ const handleCancelEmp = () => {
 
 /* ===========================
  *  출고제품 모달
- *  - 아직 백엔드 API 없으니 껍데기만 만들어둠
- *    (나중에 제품검색 API 연결해서 rows 채우면 됨)
  * =========================== */
 
 const showProductModal = ref(false);
@@ -234,8 +389,8 @@ const productRows = ref([]);
 
 const productColumns = [
     { field: 'productCode', label: '제품코드' },
-    { field: 'productName', label: '제품명' }
-    // 필요하면 타입/규격/단위 컬럼 추가
+    { field: 'productName', label: '제품명' },
+    { field: 'productTypeName', label: '제품유형' }
 ];
 
 const fetchProductList = async (keyword = '') => {
@@ -246,7 +401,14 @@ const fetchProductList = async (keyword = '') => {
         console.log('[ForwardingCheck] 제품 목록 응답:', res.data);
 
         const raw = res.data?.data;
-        productRows.value = Array.isArray(raw) ? raw : raw ? [raw] : [];
+        const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+
+        // 공통코드 맵을 사용해서 한글명 필드 추가
+        productRows.value = list.map((r) => ({
+            ...r,
+            // productType(코드) -> typeMap[코드] (한글 note)
+            productTypeName: typeMap.value[r.productType] ?? r.productType
+        }));
     } catch (err) {
         console.error('[ForwardingCheck] 제품 목록 조회 실패:', err);
         productRows.value = [];
@@ -266,6 +428,7 @@ const handleSearchProduct = (keyword) => {
 const handleConfirmProduct = (row) => {
     if (!row) return;
     searchForm.productName = row.productName;
+    searchForm.productCode = row.productCode;
     showProductModal.value = false;
 };
 
@@ -275,13 +438,11 @@ const handleCancelProduct = () => {
 
 /* ===========================
  *  거래처 모달
- *  - client_tbl 기반 조회용 껍데기
- *    (API 만들면 여기 연결)
  * =========================== */
 
 const showClientModal = ref(false);
 const clientKeyword = ref('');
-const clientRows = ref([]); // TODO: 실제 client 목록 API 연결
+const clientRows = ref([]);
 
 const clientColumns = [
     { field: 'clientCode', label: '거래처코드' },
@@ -322,6 +483,45 @@ const handleConfirmClient = (row) => {
 const handleCancelClient = () => {
     showClientModal.value = false;
 };
+
+// 공통 코드 조회
+const fetchCommonCodes = async () => {
+    try {
+        const res = await axios.get('/api/release/fwd/codes');
+        console.log('[ForwardingCheck] 공통코드 응답:', res.data);
+
+        if (res.data?.status === 'success' && res.data.data) {
+            const { unitMap: u, specMap: s, typeMap: t } = res.data.data;
+            typeMap.value = t || {};
+            unitMap.value = u || {};
+            specMap.value = s || {};
+        } else {
+            typeMap.value = {};
+            unitMap.value = {};
+            specMap.value = {};
+        }
+    } catch (err) {
+        console.error('[ForwardingCheck] 공통코드 조회 실패:', err);
+        typeMap.value = {};
+        unitMap.value = {};
+        specMap.value = {};
+    }
+};
+
+// 📅 날짜 인풋 클릭 시 바로 달력 열기
+const openDatePicker = (event) => {
+    const input = event.target;
+    if (input && typeof input.showPicker === 'function') {
+        input.showPicker();
+    } else {
+        input.focus();
+    }
+};
+
+onMounted(() => {
+    fetchCommonCodes();
+    doSearch();
+});
 </script>
 
 <template>
@@ -367,7 +567,8 @@ const handleCancelClient = () => {
         />
 
         <!-- 🔍 검색 조건 영역 -->
-        <section class="search-card">
+        <!-- ✅ form 으로 변경 + submit 으로 조회 -->
+        <form class="search-card" @submit.prevent="doSearch">
             <h3>출고조회</h3>
             <div class="search-grid">
                 <!-- 출고번호 -->
@@ -396,9 +597,9 @@ const handleCancelClient = () => {
                 <div class="field field-range">
                     <label>출고일자</label>
                     <div class="range-row">
-                        <input v-model="searchForm.dateFrom" type="date" class="input" />
+                        <input v-model="searchForm.dateFrom" type="date" class="input" @click="openDatePicker" />
                         <span class="range-dash">~</span>
-                        <input v-model="searchForm.dateTo" type="date" class="input" />
+                        <input v-model="searchForm.dateTo" type="date" class="input" @click="openDatePicker" />
                     </div>
                 </div>
 
@@ -416,10 +617,10 @@ const handleCancelClient = () => {
             </div>
 
             <div class="search-actions">
-                <button class="btn btn-black" @click="resetForm">초기화</button>
-                <button class="btn btn-yellow" @click="doSearch">조회</button>
+                <button type="button" class="btn btn-black" @click="resetForm">초기화</button>
+                <button type="submit" class="btn btn-yellow">조회</button>
             </div>
-        </section>
+        </form>
 
         <!-- 📋 결과 영역 -->
         <section class="result-card">
@@ -446,16 +647,26 @@ const handleCancelClient = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="!filteredRows.length">
+                        <tr v-if="!groupedFilteredRows.length">
                             <td colspan="8" class="empty">검색 결과가 없습니다.</td>
                         </tr>
 
-                        <tr v-for="row in filteredRows" :key="row.id">
+                        <tr
+                            v-for="row in groupedFilteredRows"
+                            :key="row.releaseNo"
+                            class="clickable-row"
+                            @click="
+                                $router.push({
+                                    name: 'ForwardingDetail',
+                                    params: { releaseCode: row.releaseNo }
+                                })
+                            "
+                        >
                             <td>
-                                <input v-model="row.checked" type="checkbox" />
+                                <input type="checkbox" v-model="checkedMap[row.releaseNo]" @click.stop />
                             </td>
                             <td>{{ row.releaseNo }}</td>
-                            <td>{{ row.productName }}</td>
+                            <td>{{ row.displayProductName }}</td>
                             <td class="text-right">{{ row.qty.toLocaleString() }}개</td>
                             <td>{{ row.date.replaceAll('-', '.') }}</td>
                             <td>{{ row.manager }}</td>
@@ -480,11 +691,11 @@ const handleCancelClient = () => {
     background: #f5f6fa;
     display: flex;
     flex-direction: column;
-    height: 100%; /* ✅ 부모 높이만 따라감 (100vh 강제 X) */
+    height: 100%;
     box-sizing: border-box;
-    overflow: hidden; /* ✅ 페이지 자체 스크롤 막기 */
-    flex: 1; /* ✅ 상위 flex 레이아웃 안에서 남는 높이 차지 */
-    min-height: 0; /* ✅ 내부 스크롤 영역이 제대로 계산되도록 */
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
 }
 
 /* 🔍 검색 카드 */
@@ -494,8 +705,13 @@ const handleCancelClient = () => {
     padding: 1.25rem 1.5rem 1rem;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
     margin-bottom: 1.25rem;
+    flex-shrink: 0;
+}
 
-    flex-shrink: 0; /* ✅ 높이 줄어들지 않게 고정 */
+.search-card h3 {
+    margin: 0 0 0.8rem;
+    font-size: 16px;
+    font-weight: 600;
 }
 
 .search-grid {
@@ -507,7 +723,6 @@ const handleCancelClient = () => {
 .field {
     display: flex;
     flex-direction: column;
-    font-size: 0.85rem;
 }
 
 .field-range .range-row {
@@ -521,12 +736,14 @@ const handleCancelClient = () => {
     color: #333;
 }
 
+/* 🔹 인풋 – 모달/ForwardingManagement 와 맞춤 */
 .input {
     border: 1px solid #d0d7e2;
     border-radius: 4px;
-    padding: 0.35rem 0.5rem;
-    font-size: 0.85rem;
+    padding: 10px; /* ✅ 10px 통일 */
+    font-size: 14px;
     outline: none;
+    box-sizing: border-box;
 }
 
 .input:focus {
@@ -540,7 +757,7 @@ const handleCancelClient = () => {
 }
 
 .range-dash {
-    font-size: 0.8rem;
+    font-size: 12px;
     color: #666;
 }
 
@@ -551,12 +768,12 @@ const handleCancelClient = () => {
     gap: 0.5rem;
 }
 
-/* 버튼 */
+/* 🔹 버튼 – SearchSelectModal / ForwardingManagement 와 맞춤 */
 .btn {
     border: none;
-    border-radius: 4px;
-    padding: 0.4rem 0.9rem;
-    font-size: 0.85rem;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 14px;
     cursor: pointer;
     white-space: nowrap;
 }
@@ -564,18 +781,15 @@ const handleCancelClient = () => {
 .btn-black {
     background: #000;
     color: white;
-    padding: 8px 14px;
-    border-radius: 6px;
 }
 
 .btn-yellow {
     background: #ffc94a;
-    padding: 8px 14px;
-    border-radius: 6px;
+    color: #000;
 }
 
 .btn-excel {
-    padding: 7px 16px;
+    padding: 8px 18px;
     font-size: 13px;
     border-radius: 6px;
     border: 1px solid #6cbf5a;
@@ -590,8 +804,8 @@ const handleCancelClient = () => {
     padding: 1rem 1.5rem 1.25rem;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 
-    flex: 1; /* ✅ 남은 높이 전부 차지 */
-    min-height: 0; /* ✅ 내부 스크롤 가능하게 */
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
 }
@@ -601,7 +815,7 @@ const handleCancelClient = () => {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 0.75rem;
-    font-size: 0.85rem;
+    font-size: 14px;
 }
 
 .result-count {
@@ -611,33 +825,40 @@ const handleCancelClient = () => {
 /* 📌 테이블 래퍼 – 여기만 스크롤 */
 .table-wrap {
     width: 100%;
-    flex: 1; /* ✅ result-card 안에서 남은 높이 채움 */
-    overflow-y: auto; /* ✅ 테이블만 세로 스크롤 */
+    flex: 1;
+    overflow-y: auto;
     overflow-x: auto;
 }
 
-/* 테이블 */
+/* 🔹 테이블 – SearchSelectModal 테이블 스타일과 맞추기 */
 .result-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.85rem;
+    font-size: 14px;
 }
 
 .result-table thead {
     background: #f9f9fb;
-    position: sticky; /* ✅ 스크롤 시 헤더 고정 */
+    position: sticky;
     top: 0;
     z-index: 10;
 }
 
 .result-table th,
 .result-table td {
-    padding: 0.45rem 0.6rem;
+    padding: 10px; /* ✅ 모달 테이블과 동일 패딩 */
     border: 1px solid #e0e4f0;
 }
 
 .result-table th {
     text-align: left;
+    font-weight: 600;
+}
+
+/* 기본 값은 중앙 정렬 */
+.result-table th,
+.result-table td {
+    text-align: center;
 }
 
 .text-right {
@@ -651,7 +872,16 @@ const handleCancelClient = () => {
 
 /* 출고수량 input 너비 조절 */
 .field-range.qty-range .range-row .input {
-    width: 125px; /* 🔥 원래보다 좁게 */
+    width: 130px;
+}
+
+/* 행 클릭 가능 표시 */
+.clickable-row {
+    cursor: pointer;
+}
+
+.clickable-row:hover {
+    background: #f5f7ff;
 }
 
 /* 반응형 */

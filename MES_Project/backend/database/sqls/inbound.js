@@ -60,4 +60,45 @@ module.exports = {
       qio_code, lot_num, mat_sup, mcode
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
+  //입출고 내역 조회
+  getHistoryList: `
+    SELECT * FROM (
+        -- 입고 내역
+        SELECT 
+            'IN' AS type,
+            m.minbnd_code AS id,
+            m.inbnd_date AS procDate,
+            mat.mat_code AS matCode,
+            mat.mat_name AS matName,
+            m.ord_qtt AS reqQty,
+            m.inbnd_qtt AS procQty,
+            m.unit AS unit,
+            e.emp_name AS manager,
+            'COMPLETED' AS status, -- 입고 테이블에 있으면 완료로 간주
+            '' AS remark
+        FROM minbnd_tbl m
+        JOIN mat_tbl mat ON m.mat_code = mat.mat_code
+        LEFT JOIN emp_tbl e ON m.mcode = e.emp_code
+
+        UNION ALL
+
+        -- 출고 내역
+        SELECT 
+            'OUT' AS type,
+            mo.moutbnd_code AS id,
+            mo.moutbnd_date AS procDate,
+            mat.mat_code AS matCode,
+            mat.mat_name AS matName,
+            mo.order_qtt AS reqQty,
+            mo.outbnd_qtt AS procQty,
+            mat.unit AS unit,
+            e.emp_name AS manager,
+            'COMPLETED' AS status,
+            '' AS remark
+        FROM moutbnd_tbl mo
+        JOIN mat_tbl mat ON mo.mat_code = mat.mat_code
+        LEFT JOIN emp_tbl e ON mo.emp_code = e.emp_code
+    ) AS history
+    WHERE 1=1
+  `,
 };

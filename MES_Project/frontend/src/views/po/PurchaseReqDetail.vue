@@ -12,6 +12,23 @@ const history = ref([]);
 const loading = ref(false);
 const errorMessage = ref('');
 
+const unitOptions = {
+    h1: 'kg',
+    h2: 't',
+    h3: 'L',
+    h4: 'ea',
+    h5: 'box',
+    h6: 'g',
+    h7: 'mm',
+    h8: '%',
+    h9: 'cm',
+    ha: 'N'
+};
+
+function getUnitLabel(code) {
+    return unitOptions[code] || code;
+}
+
 // 날짜 YYYY-MM-DD
 function formatDate(dateStr) {
     if (!dateStr) return '';
@@ -65,116 +82,124 @@ onMounted(fetchDetail);
 </script>
 
 <template>
-    <section class="detail-section">
-        <!-- 상단 버튼 / 타이틀 -->
-        <div class="detail-header">
-            <button type="button" class="btn-outline" @click="goBack">← 목록으로</button>
-        </div>
-
-        <!-- 에러/로딩 -->
-        <p v-if="loading" class="state-text">불러오는 중입니다...</p>
-        <p v-else-if="errorMessage" class="state-text state-text--error">
-            {{ errorMessage }}
-        </p>
-
-        <template v-else>
-            <div class="card-block">
-                <div class="section-title-bar">
-                    <span class="section-title">요청기본정보</span>
-                </div>
-
-                <table class="info-table">
-                    <colgroup>
-                        <col style="width: 15%" />
-                        <col style="width: 35%" />
-                        <col style="width: 15%" />
-                        <col style="width: 35%" />
-                    </colgroup>
-                    <tbody>
-                        <tr>
-                            <th>요청번호</th>
-                            <td>{{ header?.mprCode || '-' }}</td>
-                            <th>요청일자</th>
-                            <td>{{ formatDate(header?.reqDate) }}</td>
-                        </tr>
-                        <tr>
-                            <th>요청자</th>
-                            <td>{{ header?.requesterName || '-' }}</td>
-                            <th>요청부서</th>
-                            <td>{{ header?.deptName || '-' }}</td>
-                        </tr>
-                        <tr>
-                            <th>현재상태</th>
-                            <td colspan="3">{{ header?.statusName || '-' }}</td>
-                        </tr>
-                    </tbody>
-                </table>
+    <div class="inbound-container">
+        <section class="detail-section">
+            <!-- 상단 버튼 / 타이틀 -->
+            <div class="detail-header">
+                <button type="button" class="btn-outline" @click="goBack">← 목록으로</button>
             </div>
 
-            <div class="card-block">
-                <div class="section-title-bar">
-                    <span class="section-title">요청 자재 상세</span>
+            <!-- 에러/로딩 -->
+            <p v-if="loading" class="state-text">불러오는 중입니다...</p>
+            <p v-else-if="errorMessage" class="state-text state-text--error">
+                {{ errorMessage }}
+            </p>
+
+            <template v-else>
+                <div class="card-block">
+                    <div class="section-title-bar">
+                        <span class="section-title">요청기본정보</span>
+                    </div>
+
+                    <table class="info-table">
+                        <colgroup>
+                            <col style="width: 15%" />
+                            <col style="width: 35%" />
+                            <col style="width: 15%" />
+                            <col style="width: 35%" />
+                        </colgroup>
+                        <tbody>
+                            <tr>
+                                <th>요청번호</th>
+                                <td>{{ header?.mprCode || '-' }}</td>
+                                <th>요청일자</th>
+                                <td>{{ formatDate(header?.reqDate) }}</td>
+                            </tr>
+                            <tr>
+                                <th>요청자</th>
+                                <td>{{ header?.requesterName || '-' }}</td>
+                                <th>요청부서</th>
+                                <td>{{ header?.deptName || '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>현재상태</th>
+                                <td colspan="3">{{ header?.statusName || '-' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
 
-                <table class="detail-table">
-                    <thead>
-                        <tr>
-                            <th>제품명</th>
-                            <th>자재코드</th>
-                            <th class="text-right">수량</th>
-                            <th>단위</th>
-                            <th>공급업체</th>
-                            <th>비고</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="(row, idx) in items" :key="idx">
-                            <td>{{ row.productName || row.matName || '-' }}</td>
-                            <td>{{ row.matCode }}</td>
-                            <td class="text-right">
-                                {{ formatNumber(row.reqQtt) }}
-                            </td>
-                            <td>{{ row.unitName || row.unit }}</td>
-                            <td>{{ row.clientName }}</td>
-                            <td>{{ row.note }}</td>
-                        </tr>
-                        <tr v-if="!items.length">
-                            <td colspan="6" class="empty-cell">등록된 자재 내역이 없습니다.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                <div class="card-block">
+                    <div class="section-title-bar">
+                        <span class="section-title">요청 자재 상세</span>
+                    </div>
 
-            <div class="card-block">
-                <div class="section-title-bar">
-                    <span class="section-title">상태 변경 이력</span>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>제품명</th>
+                                <th>자재코드</th>
+                                <th class="text-right">수량</th>
+                                <th>단위</th>
+                                <th>공급업체</th>
+                                <th>비고</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(row, idx) in items" :key="idx">
+                                <td>{{ row.productName || row.matName || '-' }}</td>
+                                <td>{{ row.matCode }}</td>
+                                <td class="text-right">
+                                    {{ formatNumber(row.reqQtt) }}
+                                </td>
+                                <td>{{ getUnitLabel(row.unit) }}</td>
+                                <td>{{ row.clientName }}</td>
+                                <td>{{ row.note }}</td>
+                            </tr>
+                            <tr v-if="!items.length">
+                                <td colspan="6" class="empty-cell">등록된 자재 내역이 없습니다.</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
 
-                <table class="history-table">
-                    <thead>
-                        <tr>
-                            <th>변경일시</th>
-                            <th>상태</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="(row, idx) in history" :key="idx">
-                            <td>{{ formatDate(row.changeDate) }}</td>
-                            <td>{{ row.statusName }}</td>
-                        </tr>
-                        <tr v-if="!history.length">
-                            <td colspan="2" class="empty-cell">상태 변경 이력이 없습니다.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </template>
-    </section>
+                <div class="card-block">
+                    <div class="section-title-bar">
+                        <span class="section-title">상태 변경 이력</span>
+                    </div>
+
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>변경일시</th>
+                                <th>상태</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(row, idx) in history" :key="idx">
+                                <td>{{ formatDate(row.changeDate) }}</td>
+                                <td>{{ row.statusName }}</td>
+                            </tr>
+                            <tr v-if="!history.length">
+                                <td colspan="2" class="empty-cell">상태 변경 이력이 없습니다.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+        </section>
+    </div>
 </template>
 
 <style scoped>
+.inbound-container {
+    font-family: 'Pretendard', 'Inter', sans-serif;
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 12px;
+    height: calc(100vh - 11.5rem);
+}
 .detail-section {
-    max-width: 1100px;
     margin: 0 auto;
     padding: 24px;
     box-sizing: border-box;
@@ -187,15 +212,9 @@ onMounted(fetchDetail);
     margin-bottom: 18px;
 }
 
-.page-title {
-    font-size: 22px;
-    font-weight: 700;
-    color: #444;
-}
-
 .btn-outline {
     padding: 6px 14px;
-    font-size: 13px;
+    font-size: 14px;
     border-radius: 6px;
     border: 1px solid #ccc;
     background: #fff;
@@ -234,7 +253,7 @@ onMounted(fetchDetail);
 }
 
 .section-title {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     color: #444;
 }
@@ -249,7 +268,7 @@ onMounted(fetchDetail);
 .info-table td {
     padding: 8px 12px;
     border-bottom: 1px solid #f0f0f0;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .info-table th {
@@ -272,7 +291,7 @@ onMounted(fetchDetail);
 .history-table td {
     padding: 8px 12px;
     border-bottom: 1px solid #f0f0f0;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .detail-table thead th,

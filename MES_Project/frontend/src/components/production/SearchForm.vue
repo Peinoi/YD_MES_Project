@@ -1,27 +1,39 @@
 <script setup>
 import { reactive, defineEmits } from 'vue';
 
+const props = defineProps({
+    lineOptions: {
+        type: Array,
+        default: () => []
+    }
+});
+
 const emit = defineEmits(['search', 'reset']);
 
-// 검색 조건의 초기 상태에 'remarks' 추가
 const initialForm = {
-    startDate: '', // 기간 시작일
-    endDate: '', // 기간 종료일
-    status: '', // 상태
-    line: '', // 라인
-    productName: '', // 제품명
-    worker: '', // 작업자
-    remarks: '' // ⭐️ 비고 추가
+    startDate: '',
+    endDate: '',
+    status: '',
+    lineCode: '',
+    productName: '',
+    workOrderNo: '',
+    processType: ''
 };
 
 const searchForm = reactive({ ...initialForm });
 
-// '조회' 버튼 클릭 시: 현재 form 데이터를 부모로 전달
 const doSearch = () => {
-    emit('search', { ...searchForm });
+    emit('search', {
+        startDate: searchForm.startDate,
+        endDate: searchForm.endDate,
+        status: searchForm.status,
+        lineCode: searchForm.lineCode,
+        productName: searchForm.productName,
+        workOrderNo: searchForm.workOrderNo,
+        processType: searchForm.processType
+    });
 };
 
-// '초기화' 버튼 클릭 시: form 객체를 초기 상태로 재설정하고 부모에게 알림
 const resetForm = () => {
     Object.assign(searchForm, initialForm);
     emit('reset');
@@ -31,6 +43,7 @@ const resetForm = () => {
 <template>
     <section class="search-card">
         <div class="search-grid">
+            <!-- 기간 -->
             <div class="field field-range">
                 <label>기간</label>
                 <div class="range-row">
@@ -40,44 +53,50 @@ const resetForm = () => {
                 </div>
             </div>
 
+            <!-- 상태 -->
             <div class="field">
                 <label>상태</label>
                 <select v-model="searchForm.status" class="input">
                     <option value="">전체</option>
-                    <option value="진행중">진행중</option>
-                    <option value="대기">대기</option>
-                    <option value="완료">완료</option>
-                    <option value="중단">중단</option>
+                    <option value="v1">진행중</option>
+                    <option value="v2">작업완료</option>
+                    <option value="v3">작업보류</option>
+                    <option value="v4">작업대기</option>
                 </select>
             </div>
 
+            <!-- 라인 -->
             <div class="field">
                 <label>라인</label>
-                <select v-model="searchForm.line" class="input">
+                <select v-model="searchForm.lineCode" class="input">
                     <option value="">전체</option>
-                    <option value="A">A라인</option>
-                    <option value="B">B라인</option>
-                    <option value="C">C라인</option>
+                    <option v-for="opt in props.lineOptions" :key="opt.value" :value="opt.value">
+                        {{ opt.label }}
+                    </option>
                 </select>
             </div>
 
+            <!-- 제품명 -->
             <div class="field">
                 <label>제품명</label>
-                <input v-model="searchForm.productName" type="text" class="input" placeholder="제품명 입력" />
+                <input v-model="searchForm.productName" type="text" class="input" />
             </div>
 
+            <!-- 작업지시번호 -->
             <div class="field">
-                <label>작업자</label>
-                <input v-model="searchForm.worker" type="text" class="input" placeholder="작업자명 입력" />
+                <label>작업지시번호</label>
+                <input v-model="searchForm.workOrderNo" type="text" class="input" placeholder="작업지시번호 입력" />
             </div>
 
-            <div class="field-custom">
-                <label>비고</label>
-                <input v-model="searchForm.remarks" type="text" class="input" placeholder="비고 내용 입력" />
+            <!-- 공정유형 -->
+            <div class="field">
+                <label>공정유형</label>
+                <select v-model="searchForm.processType" class="input">
+                    <option value="">전체</option>
+                    <option value="정형">정형</option>
+                    <option value="비정형">비정형</option>
+                </select>
             </div>
-
-            <div class="field"></div>
-            <div class="field"></div>
         </div>
 
         <div class="search-actions">
@@ -86,7 +105,6 @@ const resetForm = () => {
         </div>
     </section>
 </template>
-
 <style scoped>
 /*
     스타일은 기존과 동일하게 유지됩니다.
