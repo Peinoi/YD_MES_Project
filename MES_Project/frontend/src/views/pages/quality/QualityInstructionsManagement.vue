@@ -76,7 +76,7 @@ const openModal = async (type) => {
     isModalVisible.value = true;
 };
 // 모달에서 데이터 선택 시 처리할 함수
-const handleModalConfirm = (selectedItem) => {
+const handleModalConfirm = async (selectedItem) => {
     if (!selectedItem) return;
     console.log('나이거골랐어용 이거에용', selectedItem);
     if (modalType.value === 'inspection') {
@@ -85,13 +85,32 @@ const handleModalConfirm = (selectedItem) => {
         formState.value.emp_name = selectedItem.emp_name;
         isInstructorReadOnly.value = true; // 지시자 필드를 읽기 전용으로 설정
 
+        const { qio_code, prdr_code, mpr_d_code } = selectedItem;
+        await qualityStore.loadInspectionDetails({ qio_code, prdr_code, mpr_d_code });
+
         if ((selectedItem.prdr_code != null && selectedItem.mpr_d_code == null) || (selectedItem.prdr_code == null && selectedItem.mpr_d_code != null)) {
-            if (selectedItem.prdr_code != null) {
-                console.log('형이 골라봤는데 이거 완제품이더라');
-            } else if (selectedItem.mpr_d_code != null) {
-                console.log('형이 골라봤는데 이거 원자재 더라');
+            if (selectedItem.mpr_d_code != null) {
+                formState.value.target_type = '자재';
+                formState.value.item_code = qualityStore.selectedQIO[0][0].mpr_d_code;
+                formState.value.item_name = qualityStore.selectedQIO[0][0].mat_name;
+                formState.value.item_quantity = qualityStore.selectedQIO[0][0].req_qtt;
+            } else if (selectedItem.prdr_code != null) {
+                formState.value.target_type = '제품';
+                formState.value.item_code = qualityStore.selectedQIO[0][0].prdr_code;
+                formState.value.item_name = qualityStore.selectedQIO[0][0].prod_name;
+                formState.value.item_quantity = qualityStore.selectedQIO[0][0].production_qtt;
             }
         }
+
+        selectedProducts.value = [];
+        qualityStore.selectedQIO[1].forEach((item) => {
+            selectedProducts.value.push({
+                inspection_item: item.inspection_item,
+                range_top: item.range_top,
+                range_bot: item.range_bot,
+                note: item.note
+            });
+        });
     } else if (modalType.value === 'stock') {
         formState.value.target_type = '자재';
         formState.value.item_code = selectedItem.mpr_d_code;
@@ -105,8 +124,25 @@ const handleModalConfirm = (selectedItem) => {
     }
 };
 
+// 화면 상태를 초기화하는 함수
+const resetForm = () => {
+    formState.value = {
+        qio_code: '',
+        insp_date: formatDate(new Date()), // 지시일자는 오늘 날짜로 설정
+        emp_name: '',
+        target_type: '',
+        item_code: '',
+        item_name: '',
+        item_quantity: null
+    };
+    // 지시자 필드 읽기 전용 상태 해제
+    isInstructorReadOnly.value = false;
+    // 데이터 테이블에서 선택된 항목들 초기화
+    selectedProducts.value = null;
+};
+
 // 선택된 행들을 저장할 반응형 변수
-const selectedProducts = ref();
+const selectedProducts = ref([]);
 
 // DataTable의 컬럼 정의
 const columns = [
@@ -171,7 +207,7 @@ const seveQualityInspectionOrder = () => {
             <div class="font-semibold text-xl">기본정보</div>
             <div class="flex gap-2">
                 <Button label="삭제"></Button>
-                <Button label="초기화"></Button>
+                <Button label="초기화" @click="resetForm"></Button>
                 <Button label="저장" @click="seveQualityInspectionOrder"></Button>
                 <Button label="검사지시 불러오기" @click="openModal('inspection')"></Button>
             </div>

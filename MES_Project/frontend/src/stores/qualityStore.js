@@ -119,7 +119,34 @@ export const useQualityStore = defineStore('quality', {
                 this.loading = false;
             }
         },
+        /**
+         * 검사지시 상세 정보를 불러와 스토어 상태를 업데이트합니다.
+         * @param {object} qioItem - 모달에서 선택된 검사지시 항목
+         */
+        async loadInspectionDetails(qioItem) {
+            this.loading = true;
+            this.error = null;
+            try {
+                const { qio_code, prdr_code, mpr_d_code } = qioItem;
 
+                // 1. 백엔드 API에 GET 요청을 보냅니다.
+                const response = await axios.get('/api/quality/qiodetail', {
+                    params: { qio_code, prdr_code, mpr_d_code }
+                });
+                console.log('품질검사 지시 상세정보', response.data.data);
+                console.log('받아왔습니다 드디어11111111!', response.data.data[1].length);
+
+                this.selectedQIO = response.data.data;
+
+                // const { qioDetail,mpr_d||prdr, inspectionItems(qir&& qcr list) } = response.data.data;
+            } catch (error) {
+                this.error = '검사지시 상세 정보를 불러오는 데 실패했습니다.';
+                console.error('Error fetching inspection details:', error);
+                throw error; // 컴포넌트에서 에러를 인지할 수 있도록 다시 throw
+            } finally {
+                this.loading = false;
+            }
+        },
         /**
          * 신규 품질검사기준(QCR)을 서버에 생성합니다. (POST)
          * @param {object} newQcrData - 생성할 QCR 데이터 객체
