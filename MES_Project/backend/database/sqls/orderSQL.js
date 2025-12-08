@@ -5,9 +5,14 @@ module.exports = {
   SELECT o.ord_code -- 주문번호
 	  ,o.ord_name -- 주문명
     ,o.ord_date -- 주문일자
+    ,od.ord_d_code -- 주문상세코드
+    ,od.prod_code -- 제품코드
     ,p.prod_name -- 제품명
     ,od.ord_amount -- 수량
-    ,c.client_name -- 거래처
+    ,o.mcode -- 담당자 코드
+    ,e.emp_name -- 담당자명
+    ,o.client_code -- 거래처 코드
+    ,c.client_name -- 거래처명
     ,od.delivery_date -- 납기일
     ,o.ord_stat -- 상태
     ,cc.note AS ord_stat_name -- 상태명
@@ -15,6 +20,7 @@ module.exports = {
   FROM ord_tbl o
   JOIN ord_d_tbl od ON o.ord_code = od.ord_code
   JOIN prod_tbl p ON p.prod_code = od.prod_code
+  JOIN emp_tbl e ON e.emp_code = o.mcode
   JOIN client_tbl c ON c.client_code = o.client_code
   JOIN common_code cc ON cc.com_value = o.ord_stat
   WHERE 1 = 1
@@ -35,6 +41,7 @@ module.exports = {
   AND ( ? IS NULL OR DATE(od.delivery_date) <= ? )
   /* 상태 */
   AND ( ? IS NULL OR ? = '' OR cc.note LIKE CONCAT('%', ?, '%') )
+  ORDER BY ord_code ASC
 `,
 
   // 주문 모달창 조회
@@ -42,7 +49,9 @@ module.exports = {
   SELECT o.ord_code -- 주문번호
         ,o.ord_name -- 주문명
         ,o.ord_date -- 주문일자
-        ,c.client_name -- 거래처
+        ,o.client_code -- 거래처 코드 
+        ,c.client_name -- 거래처명
+        ,o.mcode -- 거래처 담당자 코드
         ,e.emp_name -- 거래처 담당자명
         ,o.note -- 비고
   FROM ord_tbl o
@@ -57,10 +66,63 @@ module.exports = {
   AND ( ? IS NULL OR ? = '' OR c.client_name LIKE CONCAT('%', ?, '%') )
   `,
 
+  // 거래처 모달창 조회
+  selectClientSearch: `
+  SELECT client_code -- 거래처 코드 
+        ,client_name -- 거래처명
+        ,client_type -- 거래처 유형 (납품업체/공급업체)
+        ,client_mname -- 거래처 매니저명
+        ,brn
+        ,client_pnum
+  FROM client_tbl
+  WHERE 1 = 1
+  /* 거래처 코드 */
+  AND ( ? IS NULL OR ? = '' OR client_code LIKE CONCAT('%', ?, '%') )
+  /* 거래처명 */
+  AND ( ? IS NULL OR ? = '' OR client_name LIKE CONCAT('%', ?, '%') )
+  `,
+
+  // 거래처 담당자 모달창 조회
+  selectManagerSearch: `
+  SELECT emp_code -- 사원번호
+        ,emp_name -- 사원명
+        ,emp_pnum -- 연락처
+        ,emp_email -- 이메일
+  FROM emp_tbl
+  WHERE 1 = 1
+  /* 영업팀 */
+  AND dept_code = 'DEPT-1'
+  /* 시스템관리자 제외 */
+  AND emp_code != 'EMP-10000'
+  /* 사원번호 */
+  AND ( ? IS NULL OR ? = '' OR emp_code LIKE CONCAT('%', ?, '%') )
+  /* 사원명 */
+  AND ( ? IS NULL OR ? = '' OR emp_name LIKE CONCAT('%', ?, '%') )
+  `,
+
+  // 상품 모달창 조회
+  selectProductSearch: `
+  SELECT p.prod_code -- 제품코드
+        ,p.prod_name -- 제품명
+        ,p.unit -- 단위
+        ,p.spec -- 규격
+        ,p.com_value -- 제품 유형
+        ,c.note AS "com_value_name" -- 제품 유형 명
+        ,p.prod_type -- 완제품/반제품
+  FROM prod_tbl p
+  JOIN common_code c ON c.com_value = p.com_value
+  WHERE 1 = 1
+  /* 제품코드 */
+  AND ( ? IS NULL OR ? = '' OR p.prod_code LIKE CONCAT('%', ?, '%') )
+  /* 제품명 */
+  AND ( ? IS NULL OR ? = '' OR p.prod_name LIKE CONCAT('%', ?, '%') )
+  `,
+
   // 주문 정보, 제품 정보 조회
   selectOrderProduction: `
   SELECT o.ord_code -- 주문번호
         ,od.ord_d_code -- 주문상세번호
+        ,od.prod_code -- 제품코드
         ,p.prod_name -- 제품명
         ,p.com_value -- 유형: 봉지라면 or 컵라면
 		    ,p.spec -- 규격
@@ -69,6 +131,7 @@ module.exports = {
         ,od.prod_price -- 단가
         ,od.delivery_date -- 납기일
         ,od.ord_priority -- 우선순위
+        ,od.total_price -- 총액
   FROM ord_tbl o
   JOIN ord_d_tbl od ON o.ord_code = od.ord_code
   JOIN prod_tbl p ON p.prod_code = od.prod_code
@@ -175,9 +238,9 @@ module.exports = {
   WHERE ord_d_code = ?
   `,
 
-  // 주문 상세 정보 선택 삭제(저장)
-  deleteOrderDetailChoice: `
+  // 제품 정보 선택삭제(저장)
+  deleteProduct: `
   DELETE FROM ord_d_tbl
-  WHERE ord_d_code IN ( ? )
+  WHERE ord_d_code = ?
   `,
 };

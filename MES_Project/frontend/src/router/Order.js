@@ -15,6 +15,11 @@ export default [
         component: () => import('@/views/release/ForwardingCheck.vue')
     },
     {
+        path: '/Forwarding/:releaseCode',
+        name: 'ForwardingDetail',
+        component: () => import('@/views/release/ForwardingDetail.vue')
+    },
+    {
         path: '/order/list',
         name: 'OrderList',
         component: () => import('@/views/order/OrderList.vue')

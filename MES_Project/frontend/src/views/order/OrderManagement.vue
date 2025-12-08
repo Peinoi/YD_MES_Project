@@ -2,14 +2,22 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import SearchSelectModal from '@/views/order/SearchSelectModal.vue';
+import ProductSelectModal from '@/components/order/ProductSelectModal.vue';
 
 // 모달 ON/OFF
 const showOrderModal = ref(false);
+const showProductModal = ref(false);
+const showClientModal = ref(false);
+const showManagerModal = ref(false);
 
 // 모달 검색 결과
 const orderSearchList = ref([]);
+const clientSearchList = ref([]);
+const managerSearchList = ref([]);
 
-// 날짜 포맷 함수: 2025-06-23T15:00:00.000Z → 2025.06.23
+const currentProductIndex = ref(-1);
+
+// 날짜 포맷 함수 0000.00.00
 function formatDate(dateStr) {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -19,7 +27,7 @@ function formatDate(dateStr) {
     return `${y}.${m}.${day}`;
 }
 
-// 모달 검색 이벤트
+// 주문 검색
 const fetchOrderSearch = async (keyword = '') => {
     try {
         const res = await axios.get('/api/order/search', { params: { keyword } });
@@ -40,6 +48,87 @@ const fetchOrderSearch = async (keyword = '') => {
     }
 };
 
+// 거래처 검색
+const fetchClientSearch = async (keyword = '') => {
+    try {
+        const res = await axios.get('/api/order/client/search', { params: { keyword } });
+        clientSearchList.value = res.data.code === 'S200' ? res.data.data : [];
+    } catch (e) {
+        console.error('fetchClientSearch', e);
+        clientSearchList.value = [];
+    }
+};
+
+// 담당자 검색
+const fetchManagerSearch = async (keyword = '') => {
+    try {
+        const res = await axios.get('/api/order/manager/search', { params: { keyword } });
+        managerSearchList.value = res.data.code === 'S200' ? res.data.data : [];
+    } catch (e) {
+        console.error('fetchManagerSearch', e);
+        managerSearchList.value = [];
+    }
+};
+
+// 거래처 선택 이벤트
+const onClientSelect = (row) => {
+    if (!row || !row.client_code) return;
+
+    order.client_code = row.client_code;
+    order.client_name = row.client_name;
+
+    showClientModal.value = false;
+};
+
+// 담당자 선택
+const onManagerSelect = (row) => {
+    if (!row || !row.emp_code) return;
+
+    order.mcode = row.emp_code;
+    order.client_contact = row.emp_name;
+
+    showManagerModal.value = false;
+};
+
+const onProductSelect = ({ row, index }) => {
+    const idx = index;
+    if (idx === -1 || !row || !row.prod_code) return;
+
+    const p = products.value[idx];
+
+    // 제품 정보 반영
+    p.prod_code = row.prod_code || '';
+    p.prod_name = row.prod_name || '';
+
+    // DB에 들어갈 코드값
+    p.unit = row.unit || '';
+    p.spec = row.spec || '';
+    p.type = row.com_value || '';
+
+    // 화면 표시용 이름 저장하고 싶으면 별도 필드
+    p.unit_name = row.unit_name; // 화면에는 "ea" 표시
+    p.spec_name = row.spec_name;
+    p.type_name = row.com_value_name;
+
+    currentProductIndex.value = -1;
+};
+
+// 주문 기본 정보
+const order = reactive({
+    ord_code: '',
+    ord_name: '',
+    ord_date: new Date().toISOString().slice(0, 10),
+    client_name: '',
+    client_code: '',
+    client_contact: '',
+    mcode: '',
+    note: '',
+    readonly: false
+});
+
+const clientList = ref([]);
+const managerList = ref([]);
+
 // 모달에서 선택한 결과 받기
 const onOrderSelect = async (row) => {
     if (!row || !row.ord_code) return;
@@ -47,10 +136,15 @@ const onOrderSelect = async (row) => {
     // 주문 기본 정보
     order.ord_code = row.ord_code || '';
     order.ord_name = row.ord_name || '';
+
+    order.client_code = row.client_code || '';
     order.client_name = row.client_name || '';
-    order.client_contact = row.emp_name || '';
+
     order.note = row.note || '';
     order.readonly = true;
+
+    order.client_contact = row.emp_name || '';
+    order.mcode = row.mcode || '';
 
     // 제품 정보
     try {
@@ -63,16 +157,22 @@ const onOrderSelect = async (row) => {
             products.value = selectedOrderProducts.map((p) => ({
                 id: nextId++,
                 prod_name: p.prod_name || '',
-                type: p.com_value_name || '',
-                spec: p.spec_name || '',
-                unit: p.unit_name || '',
-                amount: p.ord_amount || 0,
-                unit_price: p.prod_price || 0,
+                type: p.com_value || '',
+                type_name: p.com_value_name || '',
+                spec: p.spec || '',
+                spec_name: p.spec_name || '',
+                unit: p.unit || '',
+                unit_name: p.unit_name || '',
+                ord_amount: p.ord_amount || 0,
+                prod_price: p.prod_price || 0,
                 delivery_date: p.delivery_date ? p.delivery_date.slice(0, 10) : '',
-                priority: p.ord_priority || '',
+                ord_priority: p.ord_priority || '',
+                total_price: p.total_price || 0,
+                prod_code: p.prod_code || '', // 제품 저장을 위해 필요
+                ord_d_code: p.ord_d_code || '', // 상세 수정을 위해 필요
                 _selected: false,
                 get total() {
-                    return (Number(this.amount) || 0) * (Number(this.unit_price) || 0);
+                    return (Number(this.ord_amount) || 0) * (Number(this.prod_price) || 0);
                 }
             }));
 
@@ -92,20 +192,6 @@ const onOrderSelect = async (row) => {
     }
 };
 
-// 주문 기본 정보
-const order = reactive({
-    ord_code: '',
-    ord_name: '',
-    ord_date: new Date().toISOString().slice(0, 10),
-    client_name: '',
-    client_contact: '',
-    note: '',
-    readonly: false
-});
-
-const clientList = ref([]);
-const managerList = ref([]);
-
 // 제품 목록: 기본 4행
 const products = ref([createEmptyProduct(1), createEmptyProduct(2), createEmptyProduct(3), createEmptyProduct(4)]);
 let nextProductId = 5;
@@ -115,20 +201,26 @@ function createEmptyProduct(id) {
         id,
         prod_name: '',
         type: '',
-        spec: 0,
+        type_name: '',
+        spec: '',
+        spec_name: '',
         unit: '',
-        amount: 0,
-        unit_price: 0,
+        unit_name: '',
+        ord_amount: 0,
+        prod_price: 0,
         delivery_date: '',
-        priority: '',
+        ord_priority: '',
+        total_price: 0,
+        prod_code: '', // 제품 코드
+        ord_d_code: '', // 주문 상세 코드
         _selected: false,
         get total() {
-            return (Number(this.amount) || 0) * (Number(this.unit_price) || 0);
+            return (Number(this.ord_amount) || 0) * (Number(this.prod_price) || 0);
         }
     };
 }
 
-const totalSum = computed(() => products.value.reduce((acc, p) => acc + Number(p.amount || 0) * Number(p.unit_price || 0), 0));
+const totalSum = computed(() => products.value.reduce((acc, p) => acc + Number(p.ord_amount || 0) * Number(p.prod_price || 0), 0));
 
 // 초기 데이터
 const fetchClientList = async () => {
@@ -152,6 +244,8 @@ const fetchManagerList = async () => {
 watch(showOrderModal, (val) => {
     if (val) {
         fetchOrderSearch(''); // 빈 문자열 전달하면 전체 목록
+        // 체크박스 초기화
+        orderSearchList.value = orderSearchList.value.map((row) => ({ ...row, _selected: false }));
     }
 });
 
@@ -165,11 +259,18 @@ function addProduct() {
     products.value.push(createEmptyProduct(nextProductId++));
 }
 
+const removedProductIds = ref([]);
+
 function removeSelectedProducts() {
+    // 삭제 대상 필터링
+    const toRemove = products.value.filter((p) => p._selected && p.ord_d_code);
+    // ord_d_code만 removedProductIds에 저장
+    removedProductIds.value.push(...toRemove.map((p) => p.ord_d_code));
+    // 화면에서 선택 제품 제거
     products.value = products.value.filter((p) => !p._selected);
+    // 최소 1행 남기기
     if (products.value.length === 0) products.value.push(createEmptyProduct(nextProductId++));
 }
-
 function toggleSelectAll(ev) {
     const checked = ev.target.checked;
     products.value.forEach((p) => (p._selected = checked));
@@ -179,50 +280,152 @@ const allSelected = computed(() => products.value.length > 0 && products.value.e
 
 function recalcRow(idx) {
     const p = products.value[idx];
-    p.amount = Number(p.amount) || 0;
-    p.unit_price = Number(p.unit_price) || 0;
+    p.ord_amount = Number(p.ord_amount) || 0;
+    p.prod_price = Number(p.prod_price) || 0;
 }
 
 function resetForm() {
     order.ord_code = '';
     order.ord_name = '';
     order.client_name = '';
+    order.client_code = '';
     order.client_contact = '';
+    order.mcode = '';
     order.note = '';
     order.readonly = false;
     products.value = [createEmptyProduct(nextProductId++), createEmptyProduct(nextProductId++), createEmptyProduct(nextProductId++), createEmptyProduct(nextProductId++)];
 }
 
-function saveOrder() {
-    const payload = {
-        order: { ...order },
-        products: products.value.map((p) => ({
-            prod_name: p.prod_name,
-            type: p.type,
-            amount: p.amount,
-            unit_price: p.unit_price,
-            delivery_date: p.delivery_date,
-            priority: p.priority
-        }))
-    };
-    console.log('저장 payload', payload);
-    // axios.post('/api/order/save', payload) ...
-    alert('저장 동작(샘플): 콘솔 확인');
+// 거래처 모달 열기
+function openClientSearch() {
+    fetchClientSearch('').then(() => {
+        // 모달 열기 전에 선택 상태 초기화
+        clientSearchList.value = clientSearchList.value.map((row) => ({ ...row, _selected: false }));
+        showClientModal.value = true;
+    });
 }
 
-function deleteOrder() {
-    if (!order.ord_code) {
+// 담당자 모달 열기
+function openManagerSearch() {
+    fetchManagerSearch('').then(() => {
+        // 모달 열기 전에 선택 상태 초기화
+        managerSearchList.value = managerSearchList.value.map((row) => ({ ...row, _selected: false }));
+        showManagerModal.value = true;
+    });
+}
+
+async function saveOrder() {
+    try {
+        // 백엔드 필수 값 검증 (프론트에서도 1차 검증)
+        const missingOrderFields = [];
+        if (!order.ord_name) missingOrderFields.push('주문명');
+        if (!order.ord_date) missingOrderFields.push('주문일자');
+        if (!order.client_code) missingOrderFields.push('거래처');
+        if (!order.mcode) missingOrderFields.push('담당자');
+
+        if (missingOrderFields.length > 0) {
+            alert(`❌ 주문 기본 정보가 누락되었습니다.\n누락 항목: ${missingOrderFields.join(', ')}`);
+            return;
+        }
+
+        // 입력된 제품만 필터링 (빈 행 제외)
+        const filledProducts = products.value.filter((p) => p.prod_name || p.ord_amount || p.prod_price || p.delivery_date);
+
+        // 최소 1개 제품 체크
+        if (filledProducts.length === 0) {
+            alert('❌ 최소 1개의 제품은 입력해야 합니다.');
+            return;
+        }
+
+        // 필수 컬럼 체크
+        for (const p of filledProducts) {
+            const missingFields = [];
+            if (!p.unit) missingFields.push('단위');
+            if (!p.ord_amount) missingFields.push('수량');
+            if (!p.prod_price) missingFields.push('단가');
+            if (!p.delivery_date) missingFields.push('납기일');
+            if (!p.prod_code) missingFields.push('제품 코드');
+
+            if (missingFields.length > 0) {
+                alert(`❌ 제품 "${p.prod_name || '(이름 없음)'}"의 필수 정보가 누락되었습니다.\n누락 항목: ${missingFields.join(', ')}`);
+                return;
+            }
+        }
+
+        // payload 구성
+        const orderDetailList = filledProducts.map((p) => ({
+            ord_d_code: p.ord_d_code,
+            unit: p.unit,
+            spec: p.spec,
+            ord_amount: p.ord_amount,
+            prod_price: p.prod_price,
+            delivery_date: p.delivery_date,
+            ord_priority: p.ord_priority || 0,
+            total_price: p.total,
+            prod_code: p.prod_code
+        }));
+
+        const payload = {
+            order: {
+                ord_code: order.ord_code,
+                ord_name: order.ord_name,
+                ord_date: order.ord_date,
+                ord_stat: 'a1',
+                note: order.note,
+                mcode: order.mcode,
+                client_code: order.client_code
+            },
+            orderDetailList, // 화면에 남은 제품
+            removedProductIds: removedProductIds.value // 삭제된 제품 코드
+        };
+
+        console.log('저장 payload', payload);
+
+        const res = await axios.post('/api/order', payload);
+
+        if (res.data.code === 'S200') {
+            alert('저장되었습니다.');
+            resetForm();
+        } else {
+            alert('저장 실패');
+        }
+    } catch (err) {
+        console.error('saveOrder failed', err);
+        alert('주문 저장 중 오류가 발생했습니다. 콘솔을 확인하세요.');
+    }
+}
+
+// 주문 삭제
+async function deleteOrder() {
+    const ord_code = order.ord_code;
+
+    if (!ord_code) {
         alert('삭제할 주문번호가 없습니다.');
         return;
     }
-    if (!confirm('정말 삭제하시겠습니까?')) return;
-    // axios.delete(`/api/order/${order.ord_code}`) ...
-    alert('삭제 동작(샘플)');
+    if (!confirm(`${ord_code} 주문을 삭제하시겠습니까?`)) return;
+
+    try {
+        const res = await axios.delete(`/api/order/${ord_code}`);
+
+        if (res.data.code === 'S200') {
+            alert(`삭제되었습니다.`);
+            // 삭제 후 폼 초기화
+            resetForm();
+        } else {
+            alert(`주문 삭제에 실패했습니다: ${res.data.message || '알 수 없는 오류'}`);
+        }
+    } catch (err) {
+        console.error('deleteOrder failed', err);
+        alert('주문 삭제 중 오류가 발생했습니다. 콘솔을 확인하세요.');
+    }
 }
 
 function openProductSearch(idx) {
-    const name = prompt('검색 제품명을 입력하세요');
-    if (name) products.value[idx].prod_name = name;
+    // 1. 현재 선택된 행의 인덱스를 저장
+    currentProductIndex.value = idx;
+
+    showProductModal.value = true;
 }
 
 function formatCurrency(v) {
@@ -237,10 +440,10 @@ function formatCurrency(v) {
             <div class="card-header">
                 <h3>주문기본정보</h3>
                 <div class="actions">
-                    <button class="btn danger" @click="deleteOrder">삭제</button>
-                    <button class="btn ghost" @click="resetForm">초기화</button>
-                    <button class="btn" @click="saveOrder">저장</button>
-                    <button class="btn outline" @click="showOrderModal = true">주문정보 불러오기</button>
+                    <button type="button" class="btn danger" @click="deleteOrder">삭제</button>
+                    <button type="button" class="btn ghost" @click="resetForm">초기화</button>
+                    <button type="button" class="btn" @click="saveOrder">저장</button>
+                    <button type="button" class="btn outline" @click="showOrderModal = true">주문정보 불러오기</button>
                 </div>
             </div>
 
@@ -258,22 +461,16 @@ function formatCurrency(v) {
                     <input v-model="order.ord_date" type="date" />
 
                     <label>거래처</label>
-                    <select v-model="order.client_name">
-                        <option value="">거래처를 선택해주세요.</option>
-                        <option v-for="c in clientList" :key="c.clientCode" :value="c.clientName">
-                            {{ c.clientName }}
-                        </option>
-                    </select>
+                    <div style="display: flex; gap: 6px; flex: 1">
+                        <input type="text" v-model="order.client_name" @click="openClientSearch" readonly />
+                    </div>
                 </div>
 
                 <div class="form-row">
                     <label>거래처담당자</label>
-                    <select v-model="order.client_contact">
-                        <option value=""></option>
-                        <option v-for="manager in managerList" :key="manager.emp_code" :value="manager.emp_name">
-                            {{ manager.emp_name }}
-                        </option>
-                    </select>
+                    <div style="display: flex; gap: 6px; flex: 1">
+                        <input type="text" v-model="order.client_contact" @click="openManagerSearch" readonly />
+                    </div>
 
                     <label>비고</label>
                     <input v-model="order.note" type="text" />
@@ -311,33 +508,33 @@ function formatCurrency(v) {
                         <td class="center"><input type="checkbox" v-model="p._selected" /></td>
                         <td>
                             <div class="prod-name">
-                                <input type="text" :value="p.prod_name.slice(0, 3)" @input="p.prod_name = $event.target.value" />
+                                <input type="text" v-model="p.prod_name" @click="openProductSearch(idx)" readonly />
                                 <button class="icon" @click="openProductSearch(idx)" title="제품 검색">🔍</button>
                             </div>
                         </td>
-                        <td><input v-model="p.type" type="text" placeholder="분류명" /></td>
-                        <td><input v-model="p.spec" type="number" placeholder="규격" /></td>
-                        <td><input v-model="p.unit" type="text" placeholder="단위" /></td>
+                        <td><input v-model="p.type_name" type="text" placeholder="분류명" readonly /></td>
+                        <td><input v-model="p.spec_name" type="text" placeholder="규격" readonly /></td>
+                        <td><input v-model="p.unit_name" type="text" placeholder="단위" readonly /></td>
                         <td class="num-cell">
                             <div class="num-wrap">
-                                <input v-model.number="p.amount" type="number" min="0" @input="recalcRow(idx)" />
+                                <input v-model.number="p.ord_amount" type="number" min="0" @input="recalcRow(idx)" />
                                 <span>개</span>
                             </div>
                         </td>
                         <td class="num-cell">
                             <div class="num-wrap">
-                                <input v-model.number="p.unit_price" type="number" min="0" @input="recalcRow(idx)" />
+                                <input v-model.number="p.prod_price" type="number" min="0" @input="recalcRow(idx)" />
                                 <span>원</span>
                             </div>
                         </td>
                         <td><input v-model="p.delivery_date" type="date" /></td>
                         <td>
-                            <select v-model.number="p.priority">
+                            <select v-model.number="p.ord_priority">
                                 <option value=""></option>
                                 <option v-for="n in 3" :key="n" :value="n - 1">{{ n - 1 }}</option>
                             </select>
                         </td>
-                        <td class="right">{{ formatCurrency(p.total) }}</td>
+                        <td class="left">{{ formatCurrency(p.total) }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -365,6 +562,55 @@ function formatCurrency(v) {
             rowKey="ord_code"
             @search="fetchOrderSearch"
             @confirm="onOrderSelect"
+        />
+
+        <!-- <SearchSelectModal
+            v-model="showProductModal"
+            searchPlaceholder="제품명 또는 제품코드를 입력해주세요."
+            :columns="[
+                { field: 'prod_code', label: '제품코드' },
+                { field: 'prod_name', label: '제품명' },
+                { field: 'com_value_name', label: '제품유형' }
+            ]"
+            :rows="productSearchList"
+            rowKey="prod_code"
+            @search="fetchProductSearch"
+            @confirm="onProductSelect"
+        /> -->
+
+        <ProductSelectModal v-model="showProductModal" :currentIndex="currentProductIndex" @select="onProductSelect" />
+
+        <!-- 거래처 선택 모달 -->
+        <SearchSelectModal
+            v-model="showClientModal"
+            searchPlaceholder="거래처명 또는 거래처 코드를 입력해주세요."
+            :columns="[
+                { field: 'client_code', label: '거래처 코드' },
+                { field: 'client_name', label: '거래처명' },
+                { field: 'client_type_name', label: '거래처 유형' },
+                { field: 'client_mname', label: '담당자' },
+                { field: 'client_pnum', label: '전화번호' }
+            ]"
+            :rows="clientSearchList"
+            rowKey="client_code"
+            @search="fetchClientSearch"
+            @confirm="onClientSelect"
+        />
+
+        <!-- 담당자 선택 모달 -->
+        <SearchSelectModal
+            v-model="showManagerModal"
+            searchPlaceholder="담당자 이름 또는 담당자 코드를 입력해주세요."
+            :columns="[
+                { field: 'emp_code', label: '사원 코드' },
+                { field: 'emp_name', label: '이름' },
+                { field: 'emp_pnum', label: '전화번호' },
+                { field: 'emp_email', label: '이메일' }
+            ]"
+            :rows="managerSearchList"
+            rowKey="emp_code"
+            @search="fetchManagerSearch"
+            @confirm="onManagerSelect"
         />
     </div>
 </template>
@@ -403,13 +649,30 @@ function formatCurrency(v) {
 
 /* 버튼 */
 .btn {
-    background: #2563eb;
-    color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
     border: none;
     cursor: pointer;
-    font-size: 15px;
+    transition: 0.2s;
+}
+
+.btn.primary {
+    background: #2d8cf0;
+    color: white;
+}
+
+.btn.primary:hover {
+    background: #1769c2;
+}
+
+.btn.danger {
+    background: #ff4d4f;
+    color: white;
+}
+
+.btn.danger:hover {
+    background: #d9363e;
 }
 
 .btn.small {
@@ -429,8 +692,14 @@ function formatCurrency(v) {
     border: 1px solid #c7ddff;
 }
 
-.btn.danger {
-    background: #ef4444;
+.btn-line {
+    background: none;
+    border: 1px solid #888;
+    color: #555;
+}
+
+.btn-line:hover {
+    background: #f0f0f0;
 }
 
 /* 기본 정보 폼 */
@@ -511,8 +780,8 @@ function formatCurrency(v) {
 }
 
 /* 숫자·총액 정렬 */
-.product-table td.right {
-    text-align: right;
+.product-table td.left {
+    text-align: left;
 }
 
 /* 제품명 row 정렬 */

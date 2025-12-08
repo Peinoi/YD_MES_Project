@@ -1,30 +1,35 @@
 import { defineStore } from 'pinia';
-import { getPendingList, getInstruction, saveQcResult } from '../../service/qc/qcService';
 
 export const useQcResultStore = defineStore('qcResult', {
     state: () => ({
-        basic: {
-            qirCode: '',
-            qirEmpCode: '',
-            startDate: '',
-            endDate: '',
-            defectQty: '',
-            note: ''
+        // 004
+        // 리스트
+        qcList: [],
+
+        searchResultList: [
+            { key: '전체', value: null },
+            { key: '합격', value: 'g2' },
+            { key: '불합격', value: 'g1' }
+        ],
+
+        searchCriteria: {
+            qcrCode: null,
+            prodCode: '',
+            prodName: '',
+            checkMethod: '',
+            result: null,
+            startDate: null
         },
 
-        instruction: {
-            qioCode: '',
-            prodName: '',
-            qcrCode: '',
-            inspVol: '',
-            checkMethod: '',
-            rangeTop: '',
-            rangeBot: '',
-            unit: ''
-        },
+        // 005
+        // 기본정보
+        basic: {},
+
+        // 지시정보
+        instruction: {},
 
         modal: {
-            resultSelectVisible: false,
+            showModal: false,
             resultRows: [],
             selectedRow: null
         },
@@ -33,51 +38,29 @@ export const useQcResultStore = defineStore('qcResult', {
         resultItems: [],
 
         // 모달에서 선택한 코드
-        selectedQir: ''
+        selectedQir: '',
+
+        // 초기화 유무
+        isReset: true
     }),
 
     actions: {
-        async loadPendingList() {
-            try {
-                const res = await getPendingList();
-                this.modal.resultRows = res.data;
-                // 모달 열기
-                this.modal.resultSelectVisible = true;
-            } catch (err) {
-                console.error('loadResultList() 오류:', err);
-            }
+        // 004
+        criteriaReset() {
+            this.searchCriteria = {};
         },
 
-        async loadInstruction() {
-            const result = await getInstruction(this.selectedQir);
-            this.basic = result.data[0];
-            this.instruction = result.data[0];
-            this.resultItems = result.data;
+        openModal() {
+            this.modal.showModal = true;
         },
 
-        async saveResult() {
-            const payload = {
-                basic: this.basic,
-                instruction: this.instruction,
-                items: this.resultItems
-            };
-            await saveQcResult(payload);
+        // 005
+        closeModal() {
+            this.modal.showModal = false;
         },
 
-        openResultModal(rows) {
-            this.modal.resultRows = rows;
-            this.modal.resultSelectVisible = true;
-        },
-
-        closeResultModal() {
-            this.modal.resultSelectVisible = false;
-        },
-
-        selectedQirCode() {
-            this.selectedQir = this.modal.selectedRow?.qirCode;
-            this.basic.qirCode = this.selectedQir;
-            this.basic.qirEmpCode = 'seung01';
-            this.closeResultModal();
+        reset() {
+            this.$reset();
         }
     }
 });
