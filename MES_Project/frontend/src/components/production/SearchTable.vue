@@ -28,16 +28,21 @@ const downloadExcel = () => emit('download');
 
 // 🔥 행 클릭 시 상세 페이지로 이동 (전체 원본 데이터 포함)
 const goDetail = (row) => {
-    if (!row.original) {
-        console.warn('row.original 데이터가 없습니다.');
-        return;
-    }
+    console.log('🔥 클릭한 row:', row);
+
+    // original이 있으면 original 사용, 없으면 row 자체 사용
+    const dataToSend = row.original || row;
+
+    console.log('🔥 전달할 데이터:', dataToSend);
+
+    // 🔥 Base64 인코딩으로 URL 안전하게 전달
+    const base64Data = btoa(encodeURIComponent(JSON.stringify(dataToSend)));
 
     router.push({
         name: 'productionPlanDetail',
-        params: { id: row.workOrderNo },
+        params: { id: row.workOrderNo || row['작업지시번호'] },
         query: {
-            data: JSON.stringify(row.original) // 🔥 전체 원본 데이터 전달
+            d: base64Data // 🔥 짧은 키 이름 + Base64 인코딩
         }
     });
 };
@@ -73,17 +78,17 @@ const goDetail = (row) => {
                         <td colspan="8" class="empty">검색 결과가 없습니다.</td>
                     </tr>
 
-                    <tr v-for="row in props.rows" :key="row.id" @click="goDetail(row)" class="clickable-row">
+                    <tr v-for="row in props.rows" :key="row.id || row['작업지시번호']" @click="goDetail(row)" class="clickable-row">
                         <td>
                             <input v-model="row.checked" type="checkbox" @click.stop />
                         </td>
-                        <td>{{ row.workOrderNo }}</td>
-                        <td>{{ row.productName }}</td>
-                        <td>{{ row.lineCode || '-' }}</td>
-                        <td>{{ row.processType }}</td>
-                        <td>{{ row.startTime }}</td>
-                        <td>{{ row.statusLabel }}</td>
-                        <td>{{ row.plannedCompletion }}</td>
+                        <td>{{ row.workOrderNo || row['작업지시번호'] }}</td>
+                        <td>{{ row.productName || row['제품명'] }}</td>
+                        <td>{{ row.lineCode || row['작업라인코드'] || '-' }}</td>
+                        <td>{{ row.processType || '정형' }}</td>
+                        <td>{{ row.startTime || row['작업시작일시'] }}</td>
+                        <td>{{ row.statusLabel || row['상태'] }}</td>
+                        <td>{{ row.plannedCompletion || row['예상완료일시'] }}</td>
                     </tr>
                 </tbody>
             </table>

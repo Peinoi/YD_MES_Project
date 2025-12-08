@@ -14,6 +14,15 @@ const props = defineProps({
     workOrderData: {
         type: Object,
         default: () => ({})
+    },
+    // 🔥 부모에서 받을 defaultInfoData 추가
+    defaultInfoData: {
+        type: Object,
+        default: () => ({
+            workOrderNo: '',
+            productionPlanNo: '',
+            planDate: ''
+        })
     }
 });
 
@@ -87,8 +96,41 @@ onMounted(() => {
     if (!formData.value.planDate) formData.value.planDate = getToday();
 });
 
+// 🔥 부모에서 받은 defaultInfoData를 formData에 반영
+watch(
+    () => props.defaultInfoData,
+    (newVal) => {
+        console.log('🔥 DefaultInfo - defaultInfoData 받음:', newVal);
+
+        // 🔥 모든 값이 빈 문자열이면 자동 생성 (등록 모드)
+        const isEmpty = !newVal.workOrderNo && !newVal.productionPlanNo && !newVal.planDate;
+
+        if (isEmpty) {
+            console.log('✅ 등록 모드 - 자동 번호 생성');
+            formData.value.workOrderNo = generateWorkOrderNo();
+            formData.value.productionPlanNo = generateProductionPlanNo();
+            formData.value.planDate = getToday();
+        } else {
+            console.log('✅ 조회 모드 - 받은 데이터 사용');
+            // 부모에서 값이 들어오면 우선 사용
+            if (newVal.workOrderNo) {
+                formData.value.workOrderNo = newVal.workOrderNo;
+            }
+            if (newVal.productionPlanNo) {
+                formData.value.productionPlanNo = newVal.productionPlanNo;
+            }
+            if (newVal.planDate) {
+                formData.value.planDate = newVal.planDate;
+            }
+        }
+
+        console.log('✅ formData 업데이트 완료:', formData.value);
+    },
+    { deep: true, immediate: true }
+);
+
 // -------------------------------------
-// 📌 부모 → DefaultInfo 자동 업데이트
+// 📌 부모 → DefaultInfo 자동 업데이트 (workOrderData)
 // -------------------------------------
 watch(
     () => props.workOrderData,
