@@ -13,7 +13,11 @@ const model = ref([
                 to: '/',
                 items: [
                     {
-                        label: '제품 및 BOM 등록',
+                        label: '제품 등록',
+                        to: '/add-product'
+                    },
+                    {
+                        label: 'BOM 등록',
                         to: '/baseinfo/bom'
                     },
                     {
