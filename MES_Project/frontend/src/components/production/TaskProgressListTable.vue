@@ -52,14 +52,14 @@ const formatStat = (stat) => {
     return value;
 };
 const formatDate = (dateString) => {
-    if (!dateString) return "";
+    if (!dateString) return '';
 
     const d = new Date(dateString);
     const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
 
     return `${y}-${m}-${day} ${hh}:${mm}`;
 };
@@ -87,6 +87,7 @@ const downloadExcel = () => {
                         <th>작업지시번호</th>
                         <th>제품명</th>
                         <th>라인</th>
+                        <th>유형</th>
                         <th>시작일시</th>
                         <th>종료일시</th>
                         <th>상태</th>
@@ -104,6 +105,7 @@ const downloadExcel = () => {
                         <td>{{ row.code }}</td>
                         <td>{{ row.name }}</td>
                         <td>{{ row.line }}</td>
+                        <td>{{ row.process_type }}</td>
                         <td>{{ formatDate(row.start) }}</td>
                         <td>{{ formatDate(row.end) }}</td>
                         <td>{{ formatStat(row.stat) }}</td>
@@ -155,7 +157,10 @@ const downloadExcel = () => {
 tr {
     cursor: pointer;
 }
-
+tr:hover {
+    background-color: gray;
+    color: white;
+}
 .result-table {
     width: 100%;
     border-collapse: collapse;

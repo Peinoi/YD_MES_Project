@@ -1,63 +1,47 @@
-<script setup></script>
+<script setup>
+import axios from 'axios';
+import { ref, onBeforeMount } from 'vue';
+
+const props = defineProps({
+    selectedEq: {
+        type: String,
+        default: null
+    }
+});
+
+const emit = defineEmits(['select-eq']);
+
+let list = ref([]);
+
+const getlist = async () => {
+    const result = await axios.get(`/api/productionwork/work/availableequipmentlist`);
+    const filterList = result.data.data.result.filter((item) => {
+        // w1 : 사용 가능, w2 : 사용 중, w3 : 고장, w4 : 수리중, w5 : 점검중
+        // 사용 가능(w1)만 노출
+        return item.stat === 'w1';
+    });
+    list.value = filterList;
+};
+
+const selectEq = (eq) => {
+    emit('select-eq', eq.eq_code);
+};
+
+onBeforeMount(() => {
+    getlist();
+});
+</script>
 
 <template>
     <div class="basic-info-card p-5">
         <div class="header-section flex justify-between items-center mb-5 pb-2 border-b-2 border-b-gray-300">
-            <h5 class="text-xl font-bold text-gray-800">기본 정보</h5>
+            <h5 class="text-xl font-bold text-gray-800">사용 가능 설비</h5>
         </div>
 
-        <div class="form-grid grid grid-cols-2 bg-white border-t-4 border-yellow-500">
-            <div class="grid-row border-b border-r">
-                <label class="label-col">공정유형</label>
-                <div class="input-col">
-                    <input type="text" readonly class="input-readonly" />
-                </div>
-            </div>
-
-            <div class="grid-row border-b">
-                <label class="label-col">제품명</label>
-                <div class="input-col">
-                    <input type="text" readonly class="input-readonly" />
-                </div>
-            </div>
-
-            <div class="grid-row border-r">
-                <label class="label-col">생산계획</label>
-                <div class="input-col">
-                    <input type="text" readonly class="input-readonly" />
-                </div>
-            </div>
-            <div class="grid-row border-b">
-                <label class="label-col">작업자</label>
-                <div class="input-col">
-                    <input type="text" readonly class="input-readonly" />
-                </div>
-            </div>
-
-            <div class="grid-row border-r">
-                <label class="label-col">작업일자</label>
-                <div class="input-col">
-                    <input type="text" readonly class="input-readonly" />
-                </div>
-            </div>
-            <div class="grid-row border-b">
-                <label class="label-col">시작일시</label>
-                <div class="input-col">
-                    <input type="text" readonly class="input-readonly" />
-                </div>
-            </div>
-
-            <div class="grid-row border-r">
-                <label class="label-col">종료일시</label>
-                <div class="input-col">
-                    <input type="text" readonly class="input-readonly" />
-                </div>
-            </div>
-            <div class="grid-row border-b">
-                <label class="label-col">비고</label>
-                <div class="input-col">
-                    <input type="text" readonly class="input-readonly" />
-                </div>
+        <div class="form-grid">
+            <div class="card-Box" v-for="value in list" :key="value.eq_code" :class="{ selected: value.eq_code === props.selectedEq }" @click="selectEq(value)">
+                <span class="eq-code">{{ value.eq_code }}</span>
+                <span class="eq-name">{{ value.eq_name }}</span>
             </div>
         </div>
     </div>
@@ -73,30 +57,40 @@
 
 .form-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(6, 1fr);
+    gap: 15px;
+    padding: 10px 0;
 }
-.grid-row {
-    display: grid;
-    grid-template-columns: 130px 1fr;
-    min-height: 45px;
-}
-.label-col {
+
+.card-Box {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 2px solid #f59e0b;
+    border-radius: 8px;
+    padding: 12px 15px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: center;
-    background-color: #f0f0f0;
-    font-weight: 600;
-}
-.input-col {
-    display: flex;
     align-items: center;
-    padding: 6px 12px;
+    gap: 6px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    font-weight: bolder;
 }
-.input-readonly {
-    width: 100%;
-    border: 1px solid #d1d5db;
-    padding: 4px 8px;
-    border-radius: 4px;
-    background-color: #f9f9f9;
+
+.card-Box.selected {
+    border-color: #1d4ed8;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.eq-code {
+    font-size: 14px;
+    font-weight: 700;
+    color: #92400e;
+}
+.eq-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #78350f;
 }
 </style>

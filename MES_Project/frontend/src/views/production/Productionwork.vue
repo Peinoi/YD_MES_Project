@@ -14,7 +14,7 @@ const getWorkList = async () => {
         return;
     }
 
-    const result = await axios.get(`/api/work/list/${workInfo.value.prdrcode}`);
+    const result = await axios.get(`/api/productionwork/work/list/${workInfo.value.prdrcode}`);
     workList.value = result.data.data.result;
 };
 const goList = () => {
@@ -22,6 +22,10 @@ const goList = () => {
 };
 
 const goIrregularWork = () => {
+    workStore.setIrregularData({
+        work: workInfo.value,
+        details: workList.value
+    });
     router.push('IrregularWorkProgress');
 };
 
@@ -52,7 +56,7 @@ const formatDate = (dateString) => {
     return `${y}-${m}-${day} ${hh}:${mm}`;
 };
 onBeforeMount(() => {
-    workStore.restoreSelectedWork(); // 새로고침 대응
+    workStore.restoreIrregularData(); // 새로고침 대응
     getWorkList();
 });
 </script>
@@ -93,7 +97,6 @@ onBeforeMount(() => {
 
             <div v-for="process in workList" :key="process.prdr_d_code" class="process-card text-gray-800 text-sm">
                 <div class="process-detail font-medium">{{ process['공정명'] }}</div>
-
                 <div class="process-detail progress-cell">
                     <div class="progress-wrap">
                         <div :class="['progress-track', { 'track-green': process['진행률'] === 100 }, { 'track-yellow': process['진행률'] > 0 && process['진행률'] < 100 }, { 'track-gray': process['진행률'] === 0 }]">
@@ -248,6 +251,7 @@ $grid-layout: 1.2fr 2.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr;
     font-weight: bold;
     font-size: 13px;
     text-align: center;
+    cursor: pointer;
 }
 button {
     width: 150px;

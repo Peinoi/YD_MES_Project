@@ -1,6 +1,12 @@
 //backend/database/production/production_work.js
 module.exports = {
-  // 공통 코드 note 가져오기
+  //실적 조회
+  prdr_info: `
+    SELECT 
+	max(prdr_code)
+    FROM prdr_tbl;
+  `,
+  // 작업 공정
   work: `
   SELECT 
     pd.prdr_d_code,
@@ -25,20 +31,27 @@ WHERE
 ORDER BY 
     ppd.no, pd.start_date;
 `,
+  // 작업진행목록
   task_all: `
-    select 
-	wk.wko_code as code,
-    prod_name as name,
-    wk.line_code as line,
-    wk.start_date as start,
-    wk.end_date as end,
-    wk.stat as stat,
-    prdr.prdr_code as prdrcode
-from
-    wko_tbl wk INNER JOIN prod_tbl prod on wk.prod_code = prod.prod_code
-    INNER JOIN prdr_tbl prdr on prdr.work_order_code = wk.wko_code
-    ORDER BY wk.wko_code asc;
+    SELECT 
+    wk.wko_code AS code,
+    prod.prod_name AS name,
+    wk.line_code AS line,
+    wk.start_date AS start,
+    wk.end_date AS end,
+    wk.stat AS stat,
+    prdr.prdr_code AS prdrcode,
+    CASE 
+        WHEN pp.po_type = 'p2' THEN '정형'
+        ELSE '비정형'
+    END AS process_type
+FROM wko_tbl wk 
+    INNER JOIN prod_tbl prod ON wk.prod_code = prod.prod_code
+    INNER JOIN prdr_tbl prdr ON prdr.work_order_code = wk.wko_code
+    LEFT JOIN prod_proc_tbl pp ON pp.prod_code = prod.prod_code 
+ORDER BY wk.wko_code ASC;
     `,
+  // 생산실적
   work_performance: `
 SELECT 
     prdr.prdr_code AS code,
@@ -66,5 +79,66 @@ GROUP BY
     li.line_code,
     co.note
 ORDER BY prdr.prdr_code DESC;
+`,
+
+  //사용 가능 설비
+  //   -- w1 : 사용 가능, w2 : 사용 중
+  availableEquipment: `
+    select 
+	eq_code,
+	eq_name,
+    is_used,
+    stat
+ from eq_tbl;
+`,
+  // 설비 사용 상태 업데이트
+  availableEquipmentUpdate: `
+    update eq_tbl 
+    set stat = ? 
+    where eq_code = ?;
+`,
+  // 실적 상태 업데이트
+  //b1 : 대기중, b2 : 생산중, b3 : 생산완료, b4 : 생산일시정지, b5 : 가동중지
+  prdrUpdate: `
+    update prdr_tbl 
+    set stat = ? 
+    where prdr_code = ?;
+`,
+  // 실적 등록
+  prdrInsert: `
+    insert into
+    prdr_tbl(
+    prdr_code,
+    start_date,
+    note,
+    work_order_code,
+    emp_code,
+    prod_code,
+    perform_rate,
+    stat,
+    ord_qtt
+    )
+    values (?,now(),?,?,?,?,0,'b1',?);
+`,
+  // 작업 종료
+  prdrEnd: `
+    update prdr_tbl 
+    set 
+    end_date = ? ,
+    total_time = ?,
+    production_qtt = ?,
+    perform_rate = ?,
+    stat = ? 
+    where prdr_code = ?;
+`,
+  update_process_rate: `
+  UPDATE prdr_d_tbl
+  SET proc_rate = ?, start_date = ?
+  WHERE prdr_d_code = ?;
+`,
+  update_process_end: `
+  UPDATE prdr_d_tbl
+  SET proc_rate = 100, end_date = ?
+  WHERE prdr_d_code = ?;
 `,
 };

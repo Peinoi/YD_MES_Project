@@ -1,36 +1,55 @@
-<script setup></script>
+<script setup>
+import { computed } from 'vue';
+const props = defineProps({
+    work: Object,
+    detail: Array,
+    currentIndex: {
+        type: Number,
+        default: 0
+    },
+    currentRate: {
+        type: Number,
+        default: 0
+    }
+});
+
+const currentRow = computed(() => {
+    return props.detail?.[props.currentIndex] ?? {};
+});
+</script>
 
 <template>
     <div class="basic-info-card p-5">
         <div class="header-section flex justify-between items-center mb-5 pb-2 border-b-2 border-b-gray-300">
-            <h5 class="text-xl font-bold text-gray-800">생산 정보</h5>
+            <h5 class="text-xl font-bold text-gray-800">생산 정보 (현재 공정: {{ currentRow?.공정명 || '-' }})</h5>
         </div>
 
-        <div class="form-grid grid grid-cols-2 bg-white border-t-4 border-yellow-500">
+        <div class="form-grid">
             <div class="grid-row border-b border-r">
                 <label class="label-col">지시량</label>
                 <div class="input-col">
-                    <input type="text" readonly class="input-readonly" />
+                    <input type="text" readonly class="input-readonly" :value="(currentRow?.지시량 ?? 0) + ' 개'" />
                 </div>
             </div>
 
             <div class="grid-row border-b">
                 <label class="label-col">불량</label>
                 <div class="input-col">
-                    <input type="text" readonly class="input-readonly" />
+                    <input type="text" readonly class="input-readonly" :value="(currentRow?.불량 ?? 0) + ' 개'" />
                 </div>
             </div>
 
             <div class="grid-row border-r">
                 <label class="label-col">생산량</label>
                 <div class="input-col">
-                    <input type="text" readonly class="input-readonly" />
+                    <input type="text" readonly class="input-readonly" :value="(currentRow?.생산량 ?? 0) + ' 개'" />
                 </div>
             </div>
+
             <div class="grid-row border-b">
                 <label class="label-col">진행률</label>
                 <div class="input-col">
-                    <input type="text" readonly class="input-readonly" />
+                    <input type="text" readonly class="input-readonly" :value="props.currentRate + ' %'" />
                 </div>
             </div>
         </div>
