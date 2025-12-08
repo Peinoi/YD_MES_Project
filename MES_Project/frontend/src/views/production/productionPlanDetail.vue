@@ -190,7 +190,7 @@ const fetchWorkData = async (params = {}) => {
 onMounted(() => {
     console.log('📍 onMounted 실행');
     console.log('📍 route.path:', route.path);
-    console.log('📍 route.query:', route.query);
+    console.log('📍 route.query:', route.loadDetailFromQuery);
     loadDetailFromQuery(); // query 데이터 먼저 로드
     fetchWorkData();
 });
