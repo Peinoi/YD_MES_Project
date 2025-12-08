@@ -1,6 +1,6 @@
 <!-- src/views/release/ForwardingCheck.vue -->
 <script setup>
-import { reactive, ref, computed, onMounted } from 'vue';
+import { reactive, ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
 import axios from 'axios';
 
@@ -518,9 +518,34 @@ const openDatePicker = (event) => {
     }
 };
 
+// 🔑 전역 Enter 키로 조회 실행
+const handleGlobalEnter = (e) => {
+    if (e.key !== 'Enter') return;
+
+    // 입력 가능한 요소에 포커스가 있을 때는 건들지 않음 (폼 기본 동작 유지)
+    const tag = (e.target?.tagName || '').toLowerCase();
+    if (['input', 'textarea', 'select', 'button'].includes(tag)) return;
+
+    // 모달 열려 있을 때는 조회 막기 (모달 검색 엔터랑 헷갈리지 않게)
+    if (showReleaseModal.value || showProductModal.value || showEmpModal.value || showClientModal.value) {
+        return;
+    }
+
+    e.preventDefault();
+    doSearch();
+};
+
 onMounted(() => {
     fetchCommonCodes();
     doSearch();
+
+    // 🔹 전역 Enter 리스너 등록
+    window.addEventListener('keydown', handleGlobalEnter);
+});
+
+onBeforeUnmount(() => {
+    // 🔹 컴포넌트 사라질 때 꼭 제거
+    window.removeEventListener('keydown', handleGlobalEnter);
 });
 </script>
 
@@ -570,7 +595,7 @@ onMounted(() => {
         <!-- ✅ form 으로 변경 + submit 으로 조회 -->
         <form class="search-card" @submit.prevent="doSearch">
             <h3>출고조회</h3>
-            <div class="search-grid">
+            <div class="search-grid" @keydown.enter.prevent="doSearch">
                 <!-- 출고번호 -->
                 <div class="field">
                     <label>출고번호</label>
