@@ -43,7 +43,7 @@ router.get("/es", async (req, res, next) => {
 });
 
 // 4. GET /api/quality/qio - qio_tbl목록 전체 조회
-router.get("/qio", async (req, res, next) => {
+router.get("/qios", async (req, res, next) => {
   try {
     const orders = await qualityService.getQIOList();
     res.json({ code: "Q200", data: orders });

@@ -16,6 +16,7 @@ export const useQualityStore = defineStore('quality', {
         qualityEmployeeList: [], // 품질팀 사원 목록
 
         // 사용자가 선택한 항목
+        selectedQIO: null,
         selectedPrdr: null,
         selectedMpr_d: null,
 
@@ -27,6 +28,7 @@ export const useQualityStore = defineStore('quality', {
     // 2. getters: state를 기반으로 계산된 값을 반환합니다. (예: computed)
     getters: {
         hasQCRData: (state) => state.qcrList.length > 0,
+        hasQIOData: (state) => state.qioList.length > 0,
         hasPrdrData: (state) => state.prdrList.length > 0,
         hasEmployeeManager: (state) => state.qualityEmployeeList.length > 0,
         getEmployeeManagers: (state) => state.qualityEmployeeList.filter((item) => item.emp_job_id === 'm1')
@@ -53,6 +55,20 @@ export const useQualityStore = defineStore('quality', {
                 const response = await axios.get('/api/quality/qcrs');
                 console.log(response.data.data);
                 this.qcrList = response.data.data; // 받아온 데이터로 state 업데이트
+            } catch (error) {
+                this.error = '데이터를 불러오는 데 실패했습니다.';
+                console.error('Error fetching QCR list:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
+        async fetchQIOList() {
+            this.loading = true;
+            this.error = null;
+            try {
+                const response = await axios.get('/api/quality/qios');
+                console.log(response.data.data);
+                this.qioList = response.data.data; // 받아온 데이터로 state 업데이트
             } catch (error) {
                 this.error = '데이터를 불러오는 데 실패했습니다.';
                 console.error('Error fetching QCR list:', error);

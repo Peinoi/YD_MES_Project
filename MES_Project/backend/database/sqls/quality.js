@@ -61,7 +61,18 @@ ON cc.com_value = emp.emp_job_id -- emp_job_id // m1 = 관리자, m2 사원
 WHERE emp.dept_code = 'DEPT-5'
 `,
   findAllQIO: `
-  SELECT *
-  FROM qio_tbl
+  SELECT qio.qio_code
+  , qio.emp_code
+  , qio.insp_date
+  , qio.prdr_code
+  , qio.mpr_d_code
+  , qio.insp_vol
+  , qio.qio_date
+  , emp.emp_name
+  FROM qio_tbl qio
+  JOIN emp_tbl emp
+  ON emp.emp_code = qio.emp_code
+  WHERE emp.dept_code = 'DEPT-5'
+  AND emp.emp_job_id = 'm1';
 `,
 };
