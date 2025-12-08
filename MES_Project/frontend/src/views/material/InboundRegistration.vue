@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { useToast } from 'primevue/usetoast';
-import inboundApi from '@/api/inbound';
+import materialApi from '@/api/materialApi';
 import CommonSearchModal from '@/components/common/CommonSearchModal.vue';
 const toast = useToast();
 
@@ -36,7 +36,7 @@ const openSearch = (type) => {
 
     if (type === 'MAT') {
         modalConfig.value.title = '자재 검색';
-        modalConfig.value.api = () => inboundApi.getMaterialList();
+        modalConfig.value.api = () => materialApi.getMaterialList();
         modalConfig.value.columns = [
             { field: 'matCode', header: '자재코드' },
             { field: 'matName', header: '자재명' },
@@ -45,7 +45,7 @@ const openSearch = (type) => {
         ];
     } else if (type === 'CLIENT') {
         modalConfig.value.title = '공급업체 검색';
-        modalConfig.value.api = () => inboundApi.getClientList();
+        modalConfig.value.api = () => materialApi.getClientList();
         modalConfig.value.columns = [
             { field: 'clientCode', header: '업체코드' },
             { field: 'clientName', header: '업체명' },
@@ -53,7 +53,7 @@ const openSearch = (type) => {
         ];
     } else if (type === 'EMP') {
         modalConfig.value.title = '담당자 검색';
-        modalConfig.value.api = () => inboundApi.getEmpList();
+        modalConfig.value.api = () => materialApi.getEmpList();
         modalConfig.value.columns = [
             { field: 'empCode', header: '사번' },
             { field: 'empName', header: '성명' },
@@ -63,7 +63,7 @@ const openSearch = (type) => {
         modalConfig.value.title = '발주정보 불러오기';
         // [수정] API 응답 데이터 구조에 맞춰 실제 데이터 배열을 반환하도록 수정
         modalConfig.value.api = async () => {
-            const response = await inboundApi.getOrderList();
+            const response = await materialApi.getOrderList();
             const formattedData = (response.data.data || []).map((row) => ({
                 ...row,
                 purchaseDate: row.purchaseDate ? String(row.purchaseDate).slice(0, 10) : ''
@@ -100,7 +100,7 @@ const handleSelect = async (data) => {
             return;
         }
         try {
-            const response = await inboundApi.getOrderDetail(data.purchaseCode);
+            const response = await materialApi.getOrderDetail(data.purchaseCode);
             const detailData = response.data.data;
             const items = detailData.items || [];
 
@@ -202,7 +202,7 @@ const submitRegistration = async () => {
     try {
         // 3. API 호출
         // 백엔드에서 기대하는 포맷에 맞춰 데이터 전송 (여기서는 { items: [...] } 형태로 가정)
-        const response = await inboundApi.registerInbound({
+        const response = await materialApi.registerInbound({
             items: inboundList.value,
             regDate: new Date() // 필요 시 전송 시점 시간 추가
         });

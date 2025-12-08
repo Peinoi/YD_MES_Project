@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
-import inboundApi from '@/api/inbound';
+import materialApi from '@/api/materialApi';
+import { formatDate, truncateText, getStockStatusLabel, getStockStatusDotClass } from '@/utils/formatters';
 
 const toast = useToast();
 
@@ -34,7 +35,7 @@ const search = async () => {
             status: filters.value.status === 'ALL' ? null : filters.value.status
         };
 
-        const response = await inboundApi.getStockList(params);
+        const response = await materialApi.getStockList(params);
         materialList.value = response.data || [];
 
         if (materialList.value.length === 0) {
@@ -61,7 +62,7 @@ const search = async () => {
 // 2) 자재 상세 정보 조회
 const selectMaterial = async (item) => {
     try {
-        const response = await inboundApi.getStockDetail(item.code);
+        const response = await materialApi.getStockDetail(item.code);
         selected.value = response.data;
     } catch (err) {
         console.error(err);
@@ -82,45 +83,6 @@ const resetFilters = () => {
         status: 'ALL'
     };
     search();
-};
-
-// ------------------------------------------------------------------
-// [Helper]
-// ------------------------------------------------------------------
-// 텍스트 말줄임표 처리
-const truncateText = (text, maxLength) => {
-    if (!text) return '';
-    if (text.length > maxLength) {
-        return text.substring(0, maxLength) + '...';
-    }
-    return text;
-};
-
-// 날짜/시간 포맷팅 (YYYY-MM-DD)
-const formatDateTime = (isoString) => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
-
-const getStatusLabel = (status) => status;
-
-const getStatusDotClass = (status) => {
-    switch (status) {
-        case '정상':
-            return 'status-normal';
-        case '부족':
-            return 'status-insufficient';
-        case '과다':
-            return 'status-excess';
-        case '발주 필요':
-            return 'status-reorder';
-        default:
-            return 'status-unknown';
-    }
 };
 
 // 초기 로딩
@@ -174,8 +136,8 @@ onMounted(() => {
                     <Column header="재고 상태" headerClass="center-header" bodyClass="text-center">
                         <template #body="{ data }">
                             <div class="status-chip justify-center">
-                                <span class="status-dot" :class="getStatusDotClass(data.status)"></span>
-                                <span class="status-text">{{ getStatusLabel(data.status) }}</span>
+                                <span class="status-dot" :class="getStockStatusDotClass(data.status)"></span>
+                                <span class="status-text">{{ getStockStatusLabel(data.status) }}</span>
                             </div>
                         </template>
                     </Column>
@@ -205,11 +167,11 @@ onMounted(() => {
                         <div class="flex-center">
                             <span class="info-label mr-1">재고 상태:</span>
                             <div class="status-chip">
-                                <span class="status-dot" :class="getStatusDotClass(selected.status)"></span>
-                                <span class="status-text">{{ getStatusLabel(selected.status) }}</span>
+                                <span class="status-dot" :class="getStockStatusDotClass(selected.status)"></span>
+                                <span class="status-text">{{ getStockStatusLabel(selected.status) }}</span>
                             </div>
                         </div>
-                        <div><span class="info-label">최근 입고일:</span> {{ formatDateTime(selected.lastInput) }}</div>
+                        <div><span class="info-label">최근 입고일:</span> {{ formatDate(selected.lastInput) }}</div>
                     </div>
 
                     <h3 class="section-title border-yellow">상세 재고 (공급업체별)</h3>
@@ -220,7 +182,7 @@ onMounted(() => {
                         </Column>
                         <Column field="date" header="입고일" headerClass="center-header" bodyClass="text-center">
                             <template #body="{ data }">
-                                {{ formatDateTime(data.date) }}
+                                {{ formatDate(data.date) }}
                             </template>
                         </Column>
                         <Column field="lot" header="LOT번호" headerClass="center-header" bodyClass="text-center" />
@@ -230,7 +192,7 @@ onMounted(() => {
                     <DataTable :value="selected.history" size="small" class="text-sm" rowHover>
                         <Column field="date" header="일시" headerClass="center-header" bodyClass="text-center">
                             <template #body="{ data }">
-                                {{ formatDateTime(data.date) }}
+                                {{ formatDate(data.date) }}
                             </template>
                         </Column>
                         <Column field="type" header="구분" headerClass="center-header" bodyClass="text-center">

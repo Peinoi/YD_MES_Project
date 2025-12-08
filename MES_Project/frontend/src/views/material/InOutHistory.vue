@@ -2,8 +2,9 @@
 import { ref, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useRouter } from 'vue-router';
-import inboundApi from '@/api/inbound'; // API 모듈 Import
+import materialApi from '@/api/materialApi'; // API 모듈 Import
 import * as XLSX from 'xlsx'; // 엑셀 다운로드 기능
+import { formatDate as formatDateDisplay, getHistoryTypeLabel, getHistoryTypeSeverity, getHistoryStatusLabel } from '@/utils/formatters';
 
 const toast = useToast();
 const router = useRouter();
@@ -57,7 +58,7 @@ const onSearch = async () => {
         };
 
         // API 호출
-        const response = await inboundApi.getHistoryList(params);
+        const response = await materialApi.getHistoryList(params);
 
         // 응답 데이터 바인딩
         historyList.value = response.data || [];
@@ -105,14 +106,14 @@ const exportToExcel = () => {
     const filename = `자재_입출고_내역_${year}${month}${day}.xlsx`;
 
     const dataToExport = historyList.value.map((item) => ({
-        구분: getTypeLabel(item.type),
+        구분: getHistoryTypeLabel(item.type),
         처리일자: formatDateDisplay(item.procDate),
         자재코드: item.matCode,
         자재명: item.matName,
         요청수량: item.reqQty,
         처리수량: item.procQty,
         단위: item.unit,
-        처리상태: getStatusLabel(item.status),
+        처리상태: getHistoryStatusLabel(item.status),
         담당자: item.manager,
         비고: item.remark
     }));
@@ -128,27 +129,6 @@ const exportToExcel = () => {
     worksheet['!cols'] = colWidths;
 
     XLSX.writeFile(workbook, filename);
-};
-
-// ------------------------------------------------------------------
-// [Util] UI Helpers
-// ------------------------------------------------------------------
-const getTypeLabel = (type) => (type === 'IN' ? '입고' : '출고');
-const getTypeSeverity = (type) => (type === 'IN' ? 'success' : 'warn');
-
-const getStatusLabel = (status) => {
-    const map = { COMPLETED: '완료', PENDING: '대기', CANCELLED: '취소' };
-    return map[status] || status;
-};
-
-// 날짜 표시용 포맷팅 (YYYY-MM-DD)
-const formatDateDisplay = (isoString) => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
 };
 
 // ------------------------------------------------------------------
@@ -251,7 +231,7 @@ onMounted(() => {
 
                 <Column field="type" header="구분" sortable headerClass="center-header" bodyClass="text-center" style="width: 6rem">
                     <template #body="{ data }">
-                        <Tag :value="getTypeLabel(data.type)" :severity="getTypeSeverity(data.type)" rounded />
+                        <Tag :value="getHistoryTypeLabel(data.type)" :severity="getHistoryTypeSeverity(data.type)" rounded />
                     </template>
                 </Column>
 
@@ -283,7 +263,7 @@ onMounted(() => {
                     <template #body="{ data }">
                         <div class="status-chip justify-center">
                             <span class="status-dot" :class="`status-${data.status?.toLowerCase()}`"></span>
-                            <span class="status-text">{{ getStatusLabel(data.status) }}</span>
+                            <span class="status-text">{{ getHistoryStatusLabel(data.status) }}</span>
                         </div>
                     </template>
                 </Column>
