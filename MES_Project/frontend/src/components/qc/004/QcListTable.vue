@@ -1,4 +1,5 @@
 <script setup>
+import * as XLSX from 'xlsx';
 import { storeToRefs } from 'pinia';
 import { useQcResultStore } from '../../../stores/qc/qcResultStore';
 import { useQcAppService } from '../../../service/qc/qcAppService';
@@ -6,6 +7,17 @@ import { useQcAppService } from '../../../service/qc/qcAppService';
 const qcService = useQcAppService();
 const qcStore = useQcResultStore();
 const { qcList } = storeToRefs(qcStore);
+
+function downloadExcel() {
+    if (!qcList.value.length) {
+        alert('다운로드할 데이터가 없습니다.');
+        return;
+    }
+    const worksheet = XLSX.utils.json_to_sheet(qcList.value);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '검사결과');
+    XLSX.writeFile(workbook, '품질검사결과.xlsx');
+}
 </script>
 
 <template>
@@ -13,7 +25,7 @@ const { qcList } = storeToRefs(qcStore);
         <div class="table-header">
             <span class="font-bold">검색 결과 {{ qcList.length }}건</span>
 
-            <Button label="엑셀 다운로드" icon="pi pi-file-excel" class="p-button-success" />
+            <Button label="엑셀 다운로드" icon="pi pi-file-excel" class="p-button-success" @click="downloadExcel" />
         </div>
         <div v-if="qcList.length === 0" class="no-result">조회된 결과가 없습니다.</div>
         <DataTable v-else :value="qcList" dataKey="id" paginator :rows="10" showGridlines size="small">
