@@ -7,6 +7,7 @@ const purchaseCode = ref('');
 const showPOModal = ref(false);
 const showMateModal = ref(false);
 const showReqModal = ref(false);
+const showEmpModal = ref(false);
 
 // 선택 행 기억
 const activeMateRow = ref(null);
@@ -35,6 +36,13 @@ const ReqColumns = [
     { field: 'matName', label: '자재명' }
 ];
 
+//작성자 모달 컬럼
+const empColumns = [
+    { field: 'empCode', label: '사원번호' },
+    { field: 'empName', label: '사원명' },
+    { field: 'deptName', label: '부서명' }
+];
+
 const typeOptions = {
     t1: '원자재',
     t2: '부자재'
@@ -61,6 +69,7 @@ const statusOptions = {
 const orderRows = ref([]);
 const mateRows = ref([]);
 const reqRows = ref([]);
+const empRows = ref([]);
 
 //발주정보 모달 목록 불러오기
 const fetchOrderList = async (keyword = '') => {
@@ -105,6 +114,17 @@ const fetchReqList = async (keyword = '') => {
     }));
 };
 
+// 사원 목록 불러오기
+const fetchEmpList = async (keyword = '') => {
+    const res = await axios.get('/api/poder/emp/list', {
+        params: {
+            keyword: keyword || null
+        }
+    });
+
+    empRows.value = res.data.data || [];
+};
+
 //발주정보 모달 열기
 const openOrderModal = async () => {
     await fetchOrderList();
@@ -124,6 +144,11 @@ const openReqModal = async () => {
     showReqModal.value = true;
 };
 
+const openEmpModal = async () => {
+    await fetchEmpList();
+    showEmpModal.value = true;
+};
+
 // 오늘날짜, 형식변환
 function getToday() {
     return new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
@@ -134,7 +159,8 @@ const orderDate = ref(getToday()); // regdate
 const purchaseDate = ref(getToday()); // purchase_req_date
 
 // 헤더 필드
-const writerCode = ref('EMP-10003');
+const writerCode = ref('');
+const writerName = ref('');
 const note = ref('');
 const status = ref('c1');
 const reqNo = ref(''); // 자재구매요청서번호
@@ -194,7 +220,7 @@ const savePo = async () => {
     const today = getToday();
 
     const header = {
-        purchase_code: null, // 신규 등록
+        purchase_code: purchaseCode.value || null,
         purchase_req_date: purchaseDate.value || today, // 발주제안일
         stat: status.value,
         regdate: orderDate.value || today, // 시스템 등록일
@@ -249,7 +275,8 @@ const deletePo = async () => {
         orderDate.value = getToday();
         status.value = 'c1';
         note.value = '';
-        writerCode.value = 'EMP-10003';
+        writerCode.value = '';
+        writerName.value = '';
         reqNo.value = '';
         materials.value = [createRow(), createRow(), createRow()];
         allChecked.value = false;
@@ -268,7 +295,8 @@ const resetForm = () => {
     orderDate.value = getToday();
     status.value = 'c1';
     note.value = '';
-    writerCode.value = 'EMP-10003';
+    writerCode.value = '';
+    writerName.value = '';
     reqNo.value = '';
 
     // 자재 테이블 초기화
@@ -298,7 +326,8 @@ const handleConfirmOrder = async (selectedRow) => {
 
         status.value = data.header.stat || 'c1';
         note.value = data.header.note || '';
-        writerCode.value = data.header.mcode || 'EMP-10003';
+        writerCode.value = data.header.mcode || '';
+        writerName.value = data.header.mname || data.header.mcode || '';
         reqNo.value = data.header.mpr_code || '';
 
         // 3) 상세(자재 목록) 매핑
@@ -318,7 +347,8 @@ const handleConfirmOrder = async (selectedRow) => {
                 stock: item.curInven ?? '', // 현재고
                 lackQty: item.insInven ?? '', // 부족수량
                 dueDate: item.deadline ? String(item.deadline).slice(0, 10) : '',
-                vendor: item.clientName || item.client_code || ''
+                vendor: item.clientName || item.client_code || '',
+                vendorCode: item.clientCode || null
             }));
         } else {
             // 상세가 0건이면 빈 행 1~3개 만들어서 보여주기
@@ -399,7 +429,8 @@ const handleConfirmReq = async (selectedRow) => {
                 stock: item.curInven ?? '',
                 lackQty: item.insInven ?? '',
                 dueDate: item.deadline ? String(item.deadline).slice(0, 10) : '',
-                vendor: item.clientName || item.mat_sup || ''
+                vendor: item.clientName || item.mat_sup || '',
+                vendorCode: item.clientCode || null
             }));
         } else {
             materials.value = [createRow(), createRow(), createRow()];
@@ -432,123 +463,184 @@ const handleMateSearch = async (keyword) => {
 const handleReqSearch = async (keyword) => {
     await fetchReqList(keyword);
 };
+
+// 작성자 모달 닫기
+const handleCancelEmp = () => {
+    showEmpModal.value = false;
+};
+
+// 작성자 선택
+const handleConfirmEmp = (selectedRow) => {
+    if (!selectedRow || !selectedRow.empCode) {
+        alert('작성자를 선택해 주세요.');
+        return;
+    }
+
+    writerCode.value = selectedRow.empCode;
+    writerName.value = selectedRow.empName || '';
+
+    showEmpModal.value = false;
+};
+
+// 작성자 모달 검색
+const handleEmpSearch = async (keyword) => {
+    await fetchEmpList(keyword);
+};
 </script>
 
 <template>
-    <section class="p-2 mx-auto">
-        <!-- 발주 기본정보 -->
-        <div class="card-block">
-            <div class="section-header">
-                <h3 class="section-title">발주 기본정보</h3>
+    <div class="inbound-container">
+        <section class="p-2 mx-auto">
+            <!-- 발주 기본정보 -->
+            <div class="card-block">
+                <div class="section-header">
+                    <h3 class="section-title">발주 기본정보</h3>
 
-                <div class="btn-row">
-                    <button class="btn-red" @click="deletePo">삭제</button>
-                    <button class="btn-black" @click="resetForm">초기화</button>
-                    <button class="btn-blue" @click="savePo">저장</button>
-                    <button class="btn-green" @click="openOrderModal">발주정보 불러오기</button>
+                    <div class="btn-row">
+                        <button class="btn-red" @click="deletePo">삭제</button>
+                        <button class="btn-black" @click="resetForm">초기화</button>
+                        <button class="btn-blue" @click="savePo">저장</button>
+                        <button class="btn-green" @click="openOrderModal">발주정보 불러오기</button>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-item">
+                        <label>발주서번호</label>
+                        <InputText v-model="purchaseCode" class="input" disabled />
+                    </div>
+
+                    <div class="form-item">
+                        <label>발주제안일</label>
+                        <Calendar v-model="purchaseDate" :showIcon="true" dateFormat="yy-mm-dd" placeholder="연도-월-일" class="po-header-calendar" />
+                    </div>
+
+                    <div class="form-item">
+                        <label>작성자</label>
+                        <InputText v-model="writerName" class="input" readonly placeholder="작성자 선택" @click="openEmpModal" />
+                    </div>
+
+                    <div class="form-item">
+                        <label>발주상태</label>
+                        <InputText :value="getStatusLabel(status)" class="input" disabled />
+                    </div>
+
+                    <div class="form-item">
+                        <label>자재구매요청서번호</label>
+                        <InputText v-model="reqNo" class="input" disabled />
+                    </div>
+
+                    <div class="form-item">
+                        <label>비고</label>
+                        <InputText v-model="note" class="input" />
+                    </div>
                 </div>
             </div>
 
-            <div class="form-grid">
-                <div class="form-item">
-                    <label>발주서번호</label>
-                    <input type="text" class="input" v-model="purchaseCode" disabled />
-                </div>
+            <!-- 자재 상세목록 -->
+            <div class="card-block mt-6">
+                <div class="section-header">
+                    <h3 class="section-title">자재 상세목록</h3>
 
-                <div class="form-item">
-                    <label>발주제안일</label>
-                    <input type="date" class="input" v-model="purchaseDate" />
+                    <div class="btn-row">
+                        <button class="btn-blue" @click="addRow">자재추가</button>
+                        <button class="btn-red" @click="deleteSelected">자재삭제</button>
+                        <button class="btn-green" @click="openReqModal">자재구매요청서 불러오기</button>
+                    </div>
                 </div>
+                <div class="table-scroll">
+                    <table class="nice-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" v-model="allChecked" @change="toggleAll" /></th>
+                                <th>자재명</th>
+                                <th>자재유형</th>
+                                <th>자재코드</th>
+                                <th>단위</th>
+                                <th>필요수량</th>
+                                <th>현재고</th>
+                                <th>부족수량</th>
+                                <th>입고납기일</th>
+                                <th>공급업체</th>
+                            </tr>
+                        </thead>
 
-                <div class="form-item">
-                    <label>작성자</label>
-                    <select class="input" v-model="writerCode">
-                        <option>EMP-10003</option>
-                        <option>EMP-10004</option>
-                        <option>EMP-10001</option>
-                    </select>
-                </div>
+                        <tbody>
+                            <tr v-for="row in materials" :key="row.id">
+                                <td>
+                                    <input type="checkbox" v-model="row.checked" />
+                                </td>
 
-                <div class="form-item">
-                    <label>발주상태</label>
-                    <input type="text" class="input" :value="getStatusLabel(status)" disabled />
-                </div>
+                                <td>
+                                    <InputText class="cell-input" v-model="row.name" readonly placeholder="자재 선택" @click="openMateModal(row)" />
+                                </td>
 
-                <div class="form-item">
-                    <label>자재구매요청서번호</label>
-                    <input type="text" class="input" disabled v-model="reqNo" />
-                </div>
+                                <td>
+                                    <InputText class="cell-input" :value="getTypeLabel(row.type)" disabled />
+                                </td>
 
-                <div class="form-item">
-                    <label>비고</label>
-                    <input type="text" class="input" v-model="note" />
+                                <td>
+                                    <InputText class="cell-input" v-model="row.code" disabled />
+                                </td>
+
+                                <td>
+                                    <InputText class="cell-input" :value="getUnitLabel(row.unit)" disabled />
+                                </td>
+
+                                <td>
+                                    <InputText class="cell-input" type="number" v-model.number="row.needQty" :min="0" />
+                                </td>
+
+                                <td>
+                                    <InputText class="cell-input" type="number" v-model.number="row.stock" disabled />
+                                </td>
+
+                                <td>
+                                    <InputText class="cell-input" type="number" v-model.number="row.lackQty" disabled />
+                                </td>
+
+                                <td>
+                                    <Calendar v-model="row.dueDate" dateFormat="yy-mm-dd" class="cell-calendar" showIcon />
+                                </td>
+
+                                <td>
+                                    <InputText class="cell-input" v-model="row.vendor" disabled />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- 자재 상세목록 -->
-        <div class="card-block mt-10">
-            <div class="section-header">
-                <h3 class="section-title">자재 상세목록</h3>
+        <SearchSelectModal v-model="showPOModal" :columns="orderColumns" :rows="orderRows" row-key="purchaseCode" search-placeholder="발주서번호를 입력해주세요." @confirm="handleConfirmOrder" @cancel="handleCancelOrder" @search="handleOrderSearch" />
 
-                <div class="btn-row">
-                    <button class="btn-blue" @click="addRow">자재추가</button>
-                    <button class="btn-red" @click="deleteSelected">자재삭제</button>
-                    <button class="btn-green" @click="openReqModal">자재구매요청서 불러오기</button>
-                </div>
-            </div>
+        <SearchSelectModal
+            v-model="showMateModal"
+            :columns="mateColumns"
+            :rows="mateRows"
+            row-key="matCode"
+            search-placeholder="자재명 또는 자재코드를 입력해주세요."
+            @confirm="handleConfirmMate"
+            @cancel="handleCancelMate"
+            @search="handleMateSearch"
+        />
 
-            <table class="nice-table">
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" v-model="allChecked" @change="toggleAll" /></th>
-                        <th>자재명</th>
-                        <th>자재유형</th>
-                        <th>자재코드</th>
-                        <th>단위</th>
-                        <th>필요수량</th>
-                        <th>현재고</th>
-                        <th>부족수량</th>
-                        <th>입고납기일</th>
-                        <th>공급업체</th>
-                    </tr>
-                </thead>
+        <SearchSelectModal v-model="showReqModal" :columns="ReqColumns" :rows="reqRows" row-key="mprCode" search-placeholder="자재구매요청번호를 입력해주세요." @confirm="handleConfirmReq" @cancel="handleCancelReq" @search="handleReqSearch" />
 
-                <tbody>
-                    <tr v-for="row in materials" :key="row.id">
-                        <td>
-                            <input type="checkbox" v-model="row.checked" />
-                        </td>
-
-                        <td>
-                            <input class="cell-input" v-model="row.name" @click="openMateModal(row)" readonly placeholder="자재 선택" />
-                        </td>
-                        <td><input class="cell-input" :value="getTypeLabel(row.type)" disabled /></td>
-                        <td>
-                            <input class="cell-input" v-model="row.code" disabled />
-                        </td>
-
-                        <td>
-                            <input class="cell-input" :value="getUnitLabel(row.unit)" disabled />
-                        </td>
-
-                        <td><input class="cell-input" type="number" v-model="row.needQty" /></td>
-                        <td><input class="cell-input" type="number" v-model="row.stock" disabled /></td>
-                        <td><input class="cell-input" type="number" v-model="row.lackQty" disabled /></td>
-
-                        <td><input class="cell-input" type="date" v-model="row.dueDate" /></td>
-                        <td><input class="cell-input" v-model="row.vendor" disabled /></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
-    <SearchSelectModal v-model="showPOModal" :columns="orderColumns" :rows="orderRows" row-key="purchaseCode" search-placeholder="발주서번호를 입력해주세요." @confirm="handleConfirmOrder" @cancel="handleCancelOrder" @search="handleOrderSearch" />
-    <SearchSelectModal v-model="showMateModal" :columns="mateColumns" :rows="mateRows" row-key="matCode" search-placeholder="자재명 또는 자재코드를 입력해주세요." @confirm="handleConfirmMate" @cancel="handleCancelMate" @search="handleMateSearch" />
-    <SearchSelectModal v-model="showReqModal" :columns="ReqColumns" :rows="reqRows" row-key="mprCode" search-placeholder="자재구매요청번호를 입력해주세요." @confirm="handleConfirmReq" @cancel="handleCancelReq" @search="handleReqSearch" />
+        <SearchSelectModal v-model="showEmpModal" :columns="empColumns" :rows="empRows" row-key="empCode" search-placeholder="사원번호 또는 사원명을 입력해주세요." @confirm="handleConfirmEmp" @cancel="handleCancelEmp" @search="handleEmpSearch" />
+    </div>
 </template>
 
 <style scoped>
+.inbound-container {
+    font-family: 'Pretendard', 'Inter', sans-serif;
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 12px;
+    height: calc(100vh - 11.5rem);
+}
+
 /* 전체 카드 틀 */
 .card-block {
     padding: 20px;
@@ -556,18 +648,18 @@ const handleReqSearch = async (keyword) => {
     border: 1px solid #e5e5e5;
     border-radius: 8px;
 }
+
 .section-header {
     display: flex;
     justify-content: space-between;
-    align-items: center; /* 세로 중앙정렬 */
-    margin-bottom: 16px; /* 아래 여백 */
+    align-items: center;
+    margin-bottom: 10px;
 }
 
 /* 섹션 제목 */
 .section-title {
     font-size: 18px;
     font-weight: 700;
-    margin-bottom: 18px;
     color: #444;
     display: inline-block;
 }
@@ -576,7 +668,7 @@ const handleReqSearch = async (keyword) => {
 .form-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 18px;
+    gap: 14px 24px;
 }
 
 .form-full {
@@ -590,11 +682,57 @@ const handleReqSearch = async (keyword) => {
     display: block;
 }
 
+/* 공통 InputText 스타일 */
 .input {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
+    height: 40px;
+    padding: 0 12px;
     border-radius: 6px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+.po-header-calendar {
+    width: 100%;
+}
+
+/* 캘린더 래퍼(전체) */
+:deep(.po-header-calendar.p-calendar) {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* 인풋 부분 */
+:deep(.po-header-calendar .p-inputtext) {
+    flex: 1 1 auto;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 6px 0 0 6px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+/* 아이콘 버튼 부분 */
+:deep(.po-header-calendar .p-datepicker-trigger) {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 0 6px 6px 0;
+    border: 1px solid #ccc;
+    border-left: 0;
+    box-sizing: border-box;
+}
+
+/* disabled 스타일 */
+:deep(.p-inputtext:disabled),
+:deep(.p-inputtext.p-disabled) {
+    background-color: hsla(0, 0%, 50%, 0.048);
+    color: #555;
+    border-color: #ddd;
+    opacity: 1;
 }
 
 /* 버튼 라인 */
@@ -632,18 +770,41 @@ const handleReqSearch = async (keyword) => {
     border-radius: 6px;
 }
 
-/* ---------- 테이블 ---------- */
+/* ===== 테이블 ===== */
+.table-scroll {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
 .nice-table {
     width: 100%;
     border-collapse: collapse;
-    border: 1px solid #ddd;
+    table-layout: fixed;
+}
+
+.nice-table thead {
+    background: #faf7e8;
+}
+
+.nice-table thead,
+.nice-table tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+
+.nice-table tbody {
+    display: block;
+    max-height: 265px;
+    overflow-y: auto;
 }
 
 .nice-table th {
-    background: #faf7e8;
     border-bottom: 1px solid #ddd;
     padding: 10px;
     font-size: 14px;
+    text-align: left;
 }
 
 .nice-table td {
@@ -651,10 +812,99 @@ const handleReqSearch = async (keyword) => {
     border-bottom: 1px solid #eee;
 }
 
+/* 셀 인풋 공통 */
 .cell-input {
     width: 100%;
+    height: 34px;
     padding: 6px;
     border: 1px solid #ccc;
     border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 13px;
+}
+
+:deep(.cell-calendar.p-calendar) {
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+:deep(.cell-calendar .p-inputtext) {
+    width: 100%;
+    height: 34px;
+    padding: 0 8px;
+    border-radius: 4px 0 0 4px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    font-size: 13px;
+}
+
+:deep(.cell-calendar .p-datepicker-trigger) {
+    height: 34px;
+    border-radius: 0 4px 4px 0;
+    border: 1px solid #ccc;
+    border-left: 0;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+/* 1: 체크박스 */
+.nice-table th:nth-child(1),
+.nice-table td:nth-child(1) {
+    width: 4%;
+}
+
+/* 2: 자재명 */
+.nice-table th:nth-child(2),
+.nice-table td:nth-child(2) {
+    width: 18%;
+}
+
+/* 3: 자재유형 */
+.nice-table th:nth-child(3),
+.nice-table td:nth-child(3) {
+    width: 10%;
+}
+
+/* 4: 자재코드 */
+.nice-table th:nth-child(4),
+.nice-table td:nth-child(4) {
+    width: 14%;
+}
+
+/* 5: 단위 */
+.nice-table th:nth-child(5),
+.nice-table td:nth-child(5) {
+    width: 5%;
+}
+
+/* 6: 필요수량 */
+.nice-table th:nth-child(6),
+.nice-table td:nth-child(6) {
+    width: 10%;
+}
+
+/* 7: 현재고 */
+.nice-table th:nth-child(7),
+.nice-table td:nth-child(7) {
+    width: 10%;
+}
+
+/* 8: 부족수량 */
+.nice-table th:nth-child(8),
+.nice-table td:nth-child(8) {
+    width: 10%;
+}
+
+/* 9: 입고납기일 */
+.nice-table th:nth-child(9),
+.nice-table td:nth-child(9) {
+    width: 10%;
+}
+
+/* 10: 공급업체 */
+.nice-table th:nth-child(10),
+.nice-table td:nth-child(10) {
+    width: 9%;
 }
 </style>

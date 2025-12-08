@@ -1,6 +1,12 @@
 const { getConnection } = require("../database/mapper.js");
 const sqlList = require("../database/sqlList.js");
 
+function safeJSON(v) {
+  return JSON.parse(
+    JSON.stringify(v, (_, x) => (typeof x === "bigint" ? Number(x) : x))
+  );
+}
+
 // 단일 발주 조회
 async function getPoByCode(purchaseCode) {
   const conn = await getConnection();
@@ -508,6 +514,33 @@ async function getMprDetailItems(mprCode) {
     conn.release();
   }
 }
+
+//작성자 목록 조회
+async function getEmpList(keyword = "") {
+  const conn = await getConnection();
+  try {
+    let query = sqlList.selectEmpListBase;
+    const params = [];
+
+    if (keyword) {
+      const like = `%${keyword}%`;
+      query += `
+        WHERE 
+          e.emp_code LIKE ?
+          OR e.emp_name LIKE ?
+          OR d.dept_name LIKE ?`;
+      params.push(like, like, like);
+    }
+
+    query += " ORDER BY e.emp_code";
+
+    const rows = await conn.query(query, params);
+    return safeJSON(rows);
+  } finally {
+    conn.release();
+  }
+}
+
 module.exports = {
   getPoByCode,
   savePo,
@@ -524,4 +557,5 @@ module.exports = {
   getMprRequestItemList,
   getMprDetailHeader,
   getMprDetailItems,
+  getEmpList,
 };
