@@ -38,6 +38,20 @@ const clientColumns = [
     { field: 'clientTypeLabel', label: '거래처유형' }
 ];
 
+// 상태 옵션
+const statusOption = ref([
+    { label: '전체', value: null },
+    { label: '요청완료', value: 'c1' },
+    { label: '입고완료', value: 'c2' }
+]);
+
+// 유형 옵션
+const typeOption = ref([
+    { label: '전체', value: null },
+    { label: '원자재', value: 't1' },
+    { label: '부자재', value: 't2' }
+]);
+
 const clientTypeOptions = {
     l1: '납품업체',
     l2: '공급업체'
@@ -275,159 +289,161 @@ fetchOrderList().then(() => {
 </script>
 
 <template>
-    <section class="p-2 mx-auto filter-section">
-        <!--  검색 영역 -->
-        <div class="card-block filter-block">
-            <h3 class="section-title">발주 검색</h3>
-            <div class="filter-grid">
-                <!-- 1행 -->
-                <div class="form-item">
-                    <label>발주서번호</label>
-                    <input class="input" v-model="filters.orderNo" readonly placeholder="발주서 선택" @click="openOrderSelectModal" />
-                </div>
+    <div class="inbound-container">
+        <section class="p-2 mx-auto filter-section">
+            <!--  검색 영역 -->
+            <div class="card-block filter-block">
+                <h3 class="section-title">발주 검색</h3>
+                <div class="filter-grid">
+                    <!-- 1행 -->
+                    <div class="form-item">
+                        <label>발주서번호</label>
+                        <InputText v-model="filters.orderNo" readonly placeholder="발주서 선택" @click="openOrderSelectModal" />
+                    </div>
 
-                <div class="form-item">
-                    <label>자재유형</label>
-                    <select class="input" v-model="filters.materialType">
-                        <option value="">전체</option>
-                        <option value="t1">원자재</option>
-                        <option value="t2">부자재</option>
-                    </select>
-                </div>
+                    <div class="form-item">
+                        <label>자재유형</label>
+                        <Dropdown v-model="filters.materialType" :options="typeOption" optionLabel="label" optionValue="value" placeholder="전체" showClear class="dropdown-input" />
+                    </div>
 
-                <div class="form-item form-range">
-                    <label>발주제안일</label>
-                    <div class="range-row">
-                        <input type="date" class="input" v-model="filters.reqDateFrom" />
-                        <span class="range-dash">~</span>
-                        <input type="date" class="input" v-model="filters.reqDateTo" />
+                    <div class="form-item form-range">
+                        <label>발주제안일</label>
+                        <div class="range-row">
+                            <Calendar v-model="filters.reqDateFrom" showIcon dateFormat="yy-mm-dd" placeholder="연도-월-일" class="calendar-input" />
+                            <span class="range-dash">~</span>
+                            <Calendar v-model="filters.reqDateTo" showIcon dateFormat="yy-mm-dd" placeholder="연도-월-일" class="calendar-input" />
+                        </div>
+                    </div>
+
+                    <!-- 2행 -->
+                    <div class="form-item">
+                        <label>공급업체</label>
+                        <InputText v-model="filters.vendor" readonly placeholder="공급업체 선택" @click="openClientModal" />
+                    </div>
+
+                    <div class="form-item form-range">
+                        <label>필요수량</label>
+                        <div class="range-row">
+                            <InputNumber v-model="filters.qtyFrom" placeholder="최소" class="input-number" :min="0" />
+                            <span class="range-dash">~</span>
+                            <InputNumber v-model="filters.qtyTo" placeholder="최대" class="input-number" :min="0" />
+                        </div>
+                    </div>
+
+                    <div class="form-item form-range">
+                        <label>입고납기일</label>
+                        <div class="range-row">
+                            <Calendar v-model="filters.dueDateFrom" showIcon dateFormat="yy-mm-dd" placeholder="연도-월-일" class="calendar-input" />
+                            <span class="range-dash">~</span>
+                            <Calendar v-model="filters.dueDateTo" showIcon dateFormat="yy-mm-dd" placeholder="연도-월-일" class="calendar-input" />
+                        </div>
+                    </div>
+
+                    <!-- 3행 -->
+                    <div class="form-item">
+                        <label>발주상태</label>
+                        <Dropdown v-model="filters.status" :options="statusOption" optionLabel="label" optionValue="value" placeholder="전체" showClear class="dropdown-input" />
+                    </div>
+
+                    <div class="form-item form-actions">
+                        <button class="btn-black" @click="onReset">초기화</button>
+                        <button class="btn-yellow" @click="onSearch">조회</button>
                     </div>
                 </div>
+            </div>
 
-                <!-- 2행 -->
-                <div class="form-item">
-                    <label>공급업체</label>
-                    <input class="input" v-model="filters.vendor" readonly placeholder="공급업체 선택" @click="openClientModal" />
-                </div>
+            <!--  검색 결과 + 엑셀 다운로드 -->
+            <div class="result-block mt-6">
+                <div class="result-header">
+                    <h3 class="section-title">발주 목록</h3>
 
-                <div class="form-item form-range">
-                    <label>필요수량</label>
-                    <div class="range-row">
-                        <input type="number" class="input" v-model.number="filters.qtyFrom" placeholder="최소" />
-                        <span class="range-dash">~</span>
-                        <input type="number" class="input" v-model.number="filters.qtyTo" placeholder="최대" />
+                    <div class="result-info">
+                        검색 결과 <span class="highlight">{{ tableRows.length }}</span
+                        >건
                     </div>
+                    <Button label="엑셀 다운로드" icon="pi pi-file-excel" class="btn-excel" @click="downloadExcel" />
                 </div>
+                <div class="table-scroll">
+                    <table class="nice-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px">
+                                    <input type="checkbox" v-model="allChecked" @change="toggleAll" />
+                                </th>
+                                <th>발주서번호</th>
+                                <th>발주제안일</th>
+                                <th>자재유형</th>
+                                <th>자재명</th>
+                                <th>공급업체</th>
+                                <th>필요수량</th>
+                                <th>입고납기일</th>
+                                <th>발주상태</th>
+                                <th>작성자</th>
+                                <th>등록일자</th>
+                            </tr>
+                        </thead>
 
-                <div class="form-item form-range">
-                    <label>입고납기일</label>
-                    <div class="range-row">
-                        <input type="date" class="input" v-model="filters.dueDateFrom" />
-                        <span class="range-dash">~</span>
-                        <input type="date" class="input" v-model="filters.dueDateTo" />
-                    </div>
-                </div>
+                        <tbody>
+                            <tr v-for="row in tableRows" :key="row.id">
+                                <td>
+                                    <input type="checkbox" v-model="row.checked" />
+                                </td>
+                                <td>{{ row.purchaseCode }}</td>
+                                <td>{{ row.purchaseDate }}</td>
+                                <td>{{ getTypeLabel(row.type) }}</td>
+                                <td>{{ row.matName }}</td>
+                                <td>{{ row.clientName }}</td>
+                                <td class="text-right">
+                                    {{ formatNumber(row.req_qtt) }}
+                                </td>
+                                <td>{{ row.deadLine }}</td>
+                                <td>{{ getStatusLabel(row.stat) }}</td>
+                                <td>{{ row.mcode }}</td>
+                                <td>{{ row.regDate }}</td>
+                            </tr>
 
-                <!-- 3행 -->
-                <div class="form-item">
-                    <label>발주상태</label>
-                    <select class="input" v-model="filters.status">
-                        <option value="">전체</option>
-                        <option value="c1">요청완료</option>
-                        <option value="c2">입고완료</option>
-                    </select>
-                </div>
-
-                <div class="form-item form-actions">
-                    <button class="btn-black" @click="onReset">초기화</button>
-                    <button class="btn-yellow" @click="onSearch">조회</button>
+                            <tr v-if="!tableRows.length">
+                                <td colspan="11" class="empty-cell">조회 결과가 없습니다.</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!--  검색 결과 + 엑셀 다운로드 -->
-        <div class="result-block mt-6">
-            <div class="result-header">
-                <h3 class="section-title">발주 목록</h3>
+        <SearchSelectModal
+            v-model="showClientModal"
+            :columns="clientColumns"
+            :rows="clientRows"
+            row-key="clientCode"
+            search-placeholder="공급업체명을 입력하세요."
+            @search="handleClientSearch"
+            @confirm="handleConfirmClient"
+            @cancel="handleCancelClient"
+        />
 
-                <div class="result-info">
-                    검색 결과 <span class="highlight">{{ tableRows.length }}</span
-                    >건
-                </div>
-                <button class="btn-excel" @click="downloadExcel">엑셀 다운로드</button>
-            </div>
-            <div class="table-scroll">
-                <table class="nice-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 40px">
-                                <input type="checkbox" v-model="allChecked" @change="toggleAll" />
-                            </th>
-                            <th>발주서번호</th>
-                            <th>발주제안일</th>
-                            <th>자재유형</th>
-                            <th>자재명</th>
-                            <th>공급업체</th>
-                            <th>필요수량</th>
-                            <th>입고납기일</th>
-                            <th>발주상태</th>
-                            <th>작성자</th>
-                            <th>등록일자</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        <tr v-for="row in tableRows" :key="row.id">
-                            <td>
-                                <input type="checkbox" v-model="row.checked" />
-                            </td>
-                            <td>{{ row.purchaseCode }}</td>
-                            <td>{{ row.purchaseDate }}</td>
-                            <td>{{ getTypeLabel(row.type) }}</td>
-                            <td>{{ row.matName }}</td>
-                            <td>{{ row.clientName }}</td>
-                            <td class="text-right">
-                                {{ formatNumber(row.req_qtt) }}
-                            </td>
-                            <td>{{ row.deadLine }}</td>
-                            <td>{{ getStatusLabel(row.stat) }}</td>
-                            <td>{{ row.mcode }}</td>
-                            <td>{{ row.regDate }}</td>
-                        </tr>
-
-                        <tr v-if="!tableRows.length">
-                            <td colspan="11" class="empty-cell">조회 결과가 없습니다.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
-    <SearchSelectModal
-        v-model="showClientModal"
-        :columns="clientColumns"
-        :rows="clientRows"
-        row-key="clientCode"
-        search-placeholder="공급업체명을 입력하세요."
-        @search="handleClientSearch"
-        @confirm="handleConfirmClient"
-        @cancel="handleCancelClient"
-    />
-
-    <SearchSelectModal
-        v-model="showPOModal"
-        :columns="orderColumns"
-        :rows="orderRows"
-        row-key="purchaseCode"
-        search-placeholder="발주서번호를 입력해주세요."
-        @confirm="handleConfirmOrderSelect"
-        @cancel="handleCancelOrderSelect"
-        @search="handleOrderSearch"
-    />
+        <SearchSelectModal
+            v-model="showPOModal"
+            :columns="orderColumns"
+            :rows="orderRows"
+            row-key="purchaseCode"
+            search-placeholder="발주서번호를 입력해주세요."
+            @confirm="handleConfirmOrderSelect"
+            @cancel="handleCancelOrderSelect"
+            @search="handleOrderSearch"
+        />
+    </div>
 </template>
 
 <style scoped>
+.inbound-container {
+    font-family: 'Pretendard', 'Inter', sans-serif;
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 12px;
+    height: calc(100vh - 11.5rem);
+}
+
 .filter-section {
     max-width: 100%;
     overflow-x: hidden;
@@ -457,7 +473,7 @@ fetchOrderList().then(() => {
 .filter-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px 24px;
+    gap: 12px 24px;
 }
 
 .form-item {
@@ -467,7 +483,7 @@ fetchOrderList().then(() => {
 }
 
 .form-item label {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     margin-bottom: 6px;
     color: #444;
@@ -478,12 +494,57 @@ fetchOrderList().then(() => {
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 6px;
+    box-sizing: border-box;
 }
 
-.range-row .input {
+:deep(.p-inputtext) {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+.range-row .calendar-input {
     flex: 1 1 0;
     min-width: 0;
-    width: auto; /* 부모 .input 의 width:100% 덮어쓰기 */
+}
+
+:deep(.dropdown-input.p-select) {
+    width: 100%;
+    height: 40px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    padding: 0;
+}
+
+:deep(.dropdown-input .p-select-label) {
+    flex: 1;
+    padding: 0 12px;
+    font-size: 14px;
+    line-height: 40px;
+    border: none;
+}
+
+:deep(.dropdown-input .p-select-dropdown) {
+    width: 32px;
+    height: 100%;
+    border-left: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+:deep(.p-inputnumber .p-inputtext) {
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
 }
 
 .form-range .range-row {
@@ -493,7 +554,7 @@ fetchOrderList().then(() => {
 }
 
 .range-dash {
-    font-size: 13px;
+    font-size: 14px;
     color: #777;
 }
 
@@ -523,6 +584,7 @@ fetchOrderList().then(() => {
     border-radius: 8px;
     padding: 16px 20px 20px;
     background: #fff;
+    height: auto;
 }
 
 .result-header {
@@ -543,10 +605,9 @@ fetchOrderList().then(() => {
 
 .btn-excel {
     padding: 7px 16px;
-    font-size: 13px;
+    font-size: 14px;
     border-radius: 6px;
     border: 1px solid #6cbf5a;
-    background: #f4fff2;
     cursor: pointer;
 }
 
@@ -560,7 +621,7 @@ fetchOrderList().then(() => {
 .nice-table th,
 .nice-table td {
     padding: 8px 10px;
-    font-size: 13px;
+    font-size: 14px;
     border-bottom: 1px solid #eee;
 }
 
@@ -580,7 +641,7 @@ fetchOrderList().then(() => {
 }
 
 .table-scroll {
-    max-height: 360px;
+    max-height: 315px;
     overflow-y: auto;
     overflow-x: hidden;
     border-radius: 6px;

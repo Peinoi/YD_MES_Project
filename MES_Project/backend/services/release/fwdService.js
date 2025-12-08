@@ -9,12 +9,25 @@ const commonService = require("../commonService.js");
 
 // 출고 화면에서 쓸 공통코드 묶음 조회
 async function getForwardingCommonCodes() {
-  // group_value 는 너네 common_code 테이블 기준으로 맞춰줘
-  const [unitList, specList, typeList] = await Promise.all([
+  // group_value 는 common_code 테이블 기준
+  const [
+    unitList, // 단위: 0H
+    specOList, // 규격: 봉지라면 포장 0O
+    specXList, // 규격: 컵라면(대) 0X
+    specYList, // 규격: 컵라면(소) 0Y
+    specZList, // 규격: 완제품 규격 0Z
+    typeList, // 유형: 완제품 유형 0J
+  ] = await Promise.all([
     commonService.getNoteList("0H"), // 단위
-    commonService.getNoteList("0O"), // 규격
-    commonService.getNoteList("0I"), // 유형
+    commonService.getNoteList("0O"), // 규격(봉지)
+    commonService.getNoteList("0X"), // 규격(컵 대)
+    commonService.getNoteList("0Y"), // 규격(컵 소)
+    commonService.getNoteList("0Z"), // 규격(완제품)
+    commonService.getNoteList("0J"), // 제품 유형
   ]);
+
+  // 🔹 규격은 4개 그룹을 하나로 합치기
+  const specList = [...specOList, ...specXList, ...specYList, ...specZList];
 
   const toMap = (list) =>
     Object.fromEntries(list.map((row) => [row.com_value, row.note]));
@@ -23,6 +36,8 @@ async function getForwardingCommonCodes() {
     unitMap: toMap(unitList),
     specMap: toMap(specList),
     typeMap: toMap(typeList),
+
+    // 필요 시 드롭다운 등에 쓸 수 있게 원본 리스트도 같이 넘겨둠
     unitList,
     specList,
     typeList,
@@ -168,6 +183,54 @@ async function getReleaseList(params = {}) {
   }
 }
 
+// 출고요청 전체 목록 조회 (모달)
+async function getReleaseListAll(params = {}) {
+  const {
+    keyword = "",
+    fromDate = "",
+    toDate = "",
+    client = "",
+    status = "",
+  } = params;
+
+  const where = [];
+  const values = [];
+
+  if (keyword) {
+    where.push(
+      "(orq.out_req_code LIKE ? OR orq.ord_code LIKE ? OR c.client_name LIKE ?)"
+    );
+    const like = `%${keyword}%`;
+    values.push(like, like, like);
+  }
+
+  if (fromDate) {
+    where.push("orq.out_req_date >= ?");
+    values.push(fromDate);
+  }
+
+  if (toDate) {
+    where.push("orq.out_req_date <= ?");
+    values.push(toDate);
+  }
+
+  if (client) {
+    where.push("c.client_name LIKE ?");
+    values.push(`%${client}%`);
+  }
+
+  const whereSQL = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const listSql = fwdSQL.SELECT_RELEASE_LIST_ALL.replace("/*WHERE*/", whereSQL);
+
+  const conn = await db.getConnection();
+  try {
+    const rows = await conn.query(listSql, values);
+    return rows;
+  } finally {
+    conn.release();
+  }
+}
+
 /**
  * 출고요청 상세 조회 (헤더 + 라인)
  * 라우터: GET /api/release/fwd/:releaseCode
@@ -193,10 +256,13 @@ async function getReleaseDetail(releaseCode) {
       orderCode: h.orderCode,
       client: h.client,
       remark: h.remark,
+      orderRemark: h.orderRemark,
       status: h.status,
       orderDate: h.orderDate,
       registrantCode: h.registrantCode,
       registrantName: h.registrantName,
+      orderManagerCode: h.order_manager_code,
+      orderManagerName: h.order_manager_name,
     };
 
     const lineRows = await conn.query(fwdSQL.SELECT_RELEASE_LINES, [
@@ -269,6 +335,107 @@ async function getClientList(keyword = "") {
     const rows = await conn.query(fwdSQL.SELECT_CLIENT_LIST, [kw, kw]);
     console.log("[getClientList] rows.length =", rows.length);
     return rows; // [{ clientCode, clientName, ... }]
+  } finally {
+    conn.release();
+  }
+}
+
+/* ===========================
+ *  출고요청 조회 (ForwardingCheck)
+ *  라우터: GET /api/release/fwd/check
+ *  query: releaseNo, productName, qtyFrom, qtyTo, dateFrom, dateTo, manager, client
+ * =========================== */
+async function getForwardingCheckList(params = {}) {
+  const {
+    releaseNo = "",
+    productName = "",
+    productCode = "", // 🔹 프론트에서 같이 넘겨주는 코드
+    qtyFrom = "",
+    qtyTo = "",
+    dateFrom = "",
+    dateTo = "",
+    manager = "",
+    client = "",
+  } = params;
+
+  const where = [];
+  const values = [];
+
+  // 출고번호
+  if (releaseNo) {
+    where.push("orq.out_req_code LIKE ?");
+    values.push(`%${releaseNo}%`);
+  }
+
+  // 🔹 제품 조건: "이 출고요청(orq.out_req_code)에 이 제품이 하나라도 있냐?"
+  //    - productCode가 있으면 코드로 체크
+  //    - 없고 productName만 있으면 이름 LIKE로 체크
+  if (productCode) {
+    where.push(`
+      EXISTS (
+        SELECT 1
+        FROM out_req_d_tbl ord2
+        WHERE ord2.out_req_code = orq.out_req_code
+          AND ord2.prod_code = ?
+      )
+    `);
+    values.push(productCode);
+  } else if (productName) {
+    where.push(`
+      EXISTS (
+        SELECT 1
+        FROM out_req_d_tbl ord2
+        JOIN prod_tbl p2
+          ON p2.prod_code = ord2.prod_code
+        WHERE ord2.out_req_code = orq.out_req_code
+          AND p2.prod_name LIKE ?
+      )
+    `);
+    values.push(`%${productName}%`);
+  }
+
+  // 수량
+  if (qtyFrom !== "" && qtyFrom != null) {
+    where.push("ord.out_req_d_amount >= ?");
+    values.push(Number(qtyFrom));
+  }
+  if (qtyTo !== "" && qtyTo != null) {
+    where.push("ord.out_req_d_amount <= ?");
+    values.push(Number(qtyTo));
+  }
+
+  // 일자
+  if (dateFrom) {
+    where.push("orq.out_req_date >= ?");
+    values.push(dateFrom);
+  }
+  if (dateTo) {
+    where.push("orq.out_req_date <= ?");
+    values.push(dateTo);
+  }
+
+  // 담당자 / 거래처
+  if (manager) {
+    where.push("e.emp_name LIKE ?");
+    values.push(`%${manager}%`);
+  }
+  if (client) {
+    where.push("c.client_name LIKE ?");
+    values.push(`%${client}%`);
+  }
+
+  const whereSQL = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const listSql = fwdSQL.SELECT_FORWARDING_CHECK_LIST.replace(
+    "/*WHERE*/",
+    whereSQL
+  );
+
+  const conn = await db.getConnection();
+  try {
+    const rows = await conn.query(listSql, values);
+    console.log("[getForwardingCheckList] rows.length =", rows.length);
+    // 👉 여기 rows는 "조건에 맞는 출고전표의 모든 제품 라인"
+    return rows; // [{ releaseNo, productName, qty, date, manager, client, status }]
   } finally {
     conn.release();
   }
@@ -493,4 +660,6 @@ module.exports = {
   getForwardingCommonCodes,
   getProductList,
   getClientList,
+  getForwardingCheckList,
+  getReleaseListAll,
 };

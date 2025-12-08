@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 const props = defineProps({
     modelValue: { type: Boolean, default: false },
@@ -13,6 +13,20 @@ const emit = defineEmits(['update:modelValue', 'search', 'confirm', 'cancel']);
 
 const keyword = ref('');
 const selectedKey = ref(null);
+
+watch(
+    () => props.modelValue,
+    (isShowing) => {
+        if (isShowing) {
+            // 모달이 열릴 때마다 검색어와 선택 키 초기화
+            keyword.value = '';
+            selectedKey.value = null; // 👈 이게 핵심!
+
+            // 추가: 모달이 열릴 때 초기 전체 검색 수행 (선택 사항)
+            // emit('search', '');
+        }
+    }
+);
 
 const close = () => emit('update:modelValue', false);
 const onSearch = () => emit('search', keyword.value);

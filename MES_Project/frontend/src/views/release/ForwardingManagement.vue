@@ -35,7 +35,8 @@ const orderColumns = [
     { field: 'orderNo', label: '주문번호' },
     { field: 'orderDate', label: '주문일자' },
     { field: 'orderName', label: '주문명' },
-    { field: 'client', label: '거래처' }
+    { field: 'client', label: '거래처' },
+    { field: 'remainingQty', label: '미출고수량' }
 ];
 
 // 백엔드에서 채워질 주문 리스트
@@ -91,6 +92,15 @@ const releaseColumns = [
 const releaseRows = ref([]);
 const releaseKeyword = ref('');
 
+// 오늘 날짜 (YYYY-MM-DD) 포맷
+const getToday = () => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
 // 출고 목록 조회 API
 const fetchReleaseList = async (keyword = '') => {
     try {
@@ -143,7 +153,7 @@ const handleSearchRelease = (keyword) => {
 const basicInfo = reactive({
     releaseCode: '',
     orderCode: '',
-    releaseDate: '',
+    releaseDate: getToday(),
     orderDate: '',
     client: '',
     registrant: '', // 사원코드(emp_code)
@@ -434,7 +444,7 @@ const onDelete = async () => {
 const onReset = () => {
     basicInfo.releaseCode = '';
     basicInfo.orderCode = '';
-    basicInfo.releaseDate = '';
+    basicInfo.releaseDate = getToday();
     basicInfo.orderDate = '';
     basicInfo.client = '';
     // basicInfo.registrant 는 유지 (담당자는 계속 동일하게 쓸 수 있게)
@@ -506,6 +516,7 @@ const onSave = async () => {
     }
 };
 
+// 공통 코드 조회
 const fetchCommonCodes = async () => {
     try {
         const res = await axios.get('/api/release/fwd/codes');
@@ -589,22 +600,22 @@ const fetchCommonCodes = async () => {
                     <input v-model="basicInfo.orderCode" type="text" class="form-input" placeholder="주문코드" disabled />
                 </div>
 
-                <!-- 출고일자 -->
+                <!-- 출고요청일 -->
                 <div class="form-field col-2">
-                    <label class="form-label">출고일자</label>
-                    <input v-model="basicInfo.releaseDate" type="date" class="form-input" />
+                    <label class="form-label">출고요청일</label>
+                    <input v-model="basicInfo.releaseDate" type="date" class="form-input" disabled />
                 </div>
 
                 <!-- 주문일자 -->
                 <div class="form-field col-2">
                     <label class="form-label">주문일자</label>
-                    <input v-model="basicInfo.orderDate" type="date" class="form-input" />
+                    <input v-model="basicInfo.orderDate" type="date" class="form-input" disabled />
                 </div>
 
                 <!-- 거래처 -->
                 <div class="form-field col-2">
                     <label class="form-label">거래처</label>
-                    <input v-model="basicInfo.client" type="text" class="form-input" placeholder="거래처" />
+                    <input v-model="basicInfo.client" type="text" class="form-input" placeholder="거래처" disabled />
                 </div>
 
                 <!-- 등록자 (인풋 + 모달 오픈) -->
@@ -719,10 +730,11 @@ const fetchCommonCodes = async () => {
     gap: 0.5rem;
 }
 
+/* 버튼 – 모달 버튼이랑 사이즈 맞춤 */
 .btn {
     border: none;
     padding: 10px 20px;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 14px;
     cursor: pointer;
     white-space: nowrap;
@@ -731,29 +743,21 @@ const fetchCommonCodes = async () => {
 .btn-red {
     background: #ff6b6b;
     color: white;
-    padding: 8px 14px;
-    border-radius: 6px;
 }
 
 .btn-black {
     background: #000;
     color: white;
-    padding: 8px 14px;
-    border-radius: 6px;
 }
 
 .btn-blue {
     background: #4ea3ff;
     color: white;
-    padding: 8px 14px;
-    border-radius: 6px;
 }
 
 .btn-outline-green {
     background: #4ecb79;
     color: white;
-    padding: 8px 14px;
-    border-radius: 6px;
 }
 
 .forward-card {
@@ -786,6 +790,7 @@ const fetchCommonCodes = async () => {
     display: inline-block;
 }
 
+/* 폼 영역 – 인풋도 모달이랑 느낌 맞춤 */
 .form-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -814,8 +819,8 @@ const fetchCommonCodes = async () => {
 .form-textarea {
     border: 1px solid #d0d7e2;
     border-radius: 4px;
-    padding: 10px;
-    font-size: 0.85rem;
+    padding: 10px; /* 🔹 모달 검색 인풋과 동일 */
+    font-size: 14px;
     outline: none;
 }
 
@@ -846,10 +851,11 @@ const fetchCommonCodes = async () => {
     overflow-y: auto;
 }
 
+/* 🔹 테이블 스타일 – SearchSelectModal 테이블과 최대한 통일 */
 .forward-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.85rem;
+    font-size: 14px; /* 모달 테이블과 동일 */
 }
 
 .forward-table thead {
@@ -858,7 +864,7 @@ const fetchCommonCodes = async () => {
 
 .forward-table th,
 .forward-table td {
-    padding: 0.5rem 0.6rem;
+    padding: 10px; /* 모달 테이블과 동일 */
     border: 1px solid #e0e4f0;
     text-align: left;
 }
@@ -876,19 +882,33 @@ const fetchCommonCodes = async () => {
     color: #888;
 }
 
-/* 출고수량 입력 */
+/* 출고수량 입력 – 테이블 셀 크기에 맞게 */
 .qty-input {
     width: 80px;
-    padding: 4px 6px;
+    padding: 6px 8px;
     border: 1px solid #cbd5e1;
     border-radius: 4px;
     text-align: right;
-    font-size: 0.8rem;
+    font-size: 13px;
 }
 
 .qty-input:focus {
     outline: none;
     border-color: #1976d2;
+}
+
+/* 기본 값은 중앙 정렬 */
+.result-table th,
+.result-table td,
+.forward-table th,
+.forward-table td {
+    text-align: center;
+}
+
+/* 숫자 전용 클래스는 오른쪽 */
+.num,
+.text-right {
+    text-align: right !important;
 }
 
 /* 반응형 - 좁은 화면에서 여백/레이아웃 조정 */

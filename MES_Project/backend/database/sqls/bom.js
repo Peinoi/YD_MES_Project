@@ -77,4 +77,21 @@ UNION ALL
     unit,
     loss_rate
 ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  deleteBomMat: `DELETE FROM bom_mat
+WHERE bom_code = ?
+AND mat_code = ?`,
+  all_bom_mat: `
+        SELECT 
+            bt.prod_code,
+            bm.bom_code,
+            bm.mat_code,
+            bm.mat_name,
+            bm.mat_type,
+            bm.req_qtt,
+            bm.unit,
+            bm.loss_rate
+        FROM bom_mat bm
+        JOIN bom_tbl bt ON bm.bom_code = bt.bom_code
+        ORDER BY bt.prod_code, bm.mat_code
+    `,
 };
