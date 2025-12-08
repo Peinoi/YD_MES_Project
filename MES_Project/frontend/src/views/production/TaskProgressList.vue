@@ -1,5 +1,5 @@
 <script setup>
-// TaskProgressListSearch.vue
+// TaskProgressList.vue
 import { ref, computed, onBeforeMount } from 'vue';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
@@ -9,9 +9,13 @@ import SearchTable from '../../components/production/TaskProgressListTable.vue';
 let taskList = ref([]);
 
 const getTaskList = async () => {
-    let result = await axios.get(`/api/work/task`).catch((err) => console.log('작업진행도 리스트' + err));
+    let result = await axios.get(`/api/productionwork/work/task`).catch((err) => console.log('작업진행도 리스트' + err));
     const res = result.data.data.result;
-    taskList.value = JSON.parse(JSON.stringify(res));
+    //작업 완료는 표시 안함
+    const filterList = JSON.parse(JSON.stringify(res)).filter((item) => {
+        return item.stat == 'v3' ? false : true;
+    });
+    taskList.value = filterList;
     console.log(taskList.value);
 };
 

@@ -1,5 +1,5 @@
 <script setup>
-// Productionwork.vue 
+// Productionwork.vue
 import { onBeforeMount, ref, computed } from 'vue';
 import axios from 'axios';
 import { useWorkStore } from '@/stores/workStore.js';
@@ -10,16 +10,25 @@ const workInfo = computed(() => workStore.selectedWork);
 let workList = ref([]);
 const getWorkList = async () => {
     if (!workInfo.value || !workInfo.value.prdrcode) {
-        console.error("필요한 작업 코드(prdrcode)가 없습니다:", workInfo.value);
+        console.error('필요한 작업 코드(prdrcode)가 없습니다:', workInfo.value);
         return;
     }
 
-    const result = await axios.get(`/api/work/list/${workInfo.value.prdrcode}`);
+    const result = await axios.get(`/api/productionwork/work/list/${workInfo.value.prdrcode}`);
     workList.value = result.data.data.result;
 };
 const goList = () => {
     router.push('TaskProgressList');
-}
+};
+
+const goIrregularWork = () => {
+    workStore.setIrregularData({
+        work: workInfo.value,
+        details: workList.value
+    });
+    router.push('IrregularWorkProgress');
+};
+
 const getProgressText = (process) => {
     // 진행률이 0이면 '대기중'을 표시
     if (process['진행률'] === 0) {
@@ -34,9 +43,20 @@ const getProgressText = (process) => {
 const formatQuantity = (value) => {
     return value ? `${value}(개)` : '';
 };
+const formatDate = (dateString) => {
+    if (!dateString) return '';
 
+    const d = new Date(dateString);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+
+    return `${y}-${m}-${day} ${hh}:${mm}`;
+};
 onBeforeMount(() => {
-    workStore.restoreSelectedWork(); // 새로고침 대응
+    workStore.restoreIrregularData(); // 새로고침 대응
     getWorkList();
 });
 </script>
@@ -77,7 +97,6 @@ onBeforeMount(() => {
 
             <div v-for="process in workList" :key="process.prdr_d_code" class="process-card text-gray-800 text-sm">
                 <div class="process-detail font-medium">{{ process['공정명'] }}</div>
-
                 <div class="process-detail progress-cell">
                     <div class="progress-wrap">
                         <div :class="['progress-track', { 'track-green': process['진행률'] === 100 }, { 'track-yellow': process['진행률'] > 0 && process['진행률'] < 100 }, { 'track-gray': process['진행률'] === 0 }]">
@@ -92,11 +111,11 @@ onBeforeMount(() => {
                         </span>
                     </div>
                 </div>
-                <div id="eq-box" class="process-detail text-gray-600 font-light">{{ process['설비코드'] }} - {{ process['설비'] }}</div>
+                <div id="eq-box" @click="goIrregularWork()" class="process-detail text-gray-600 font-light">{{ process['설비코드'] }} - {{ process['설비'] }}</div>
 
-                <div class="process-detail text-center">{{ process['시작일시'] || '' }}</div>
+                <div class="process-detail text-center">{{ formatDate(process['시작일시'] || '') }}</div>
 
-                <div class="process-detail text-center">{{ process['종료일시'] || '' }}</div>
+                <div class="process-detail text-center">{{ formatDate(process['종료일시'] || '') }}</div>
 
                 <div class="process-detail text-right">{{ formatQuantity(process['지시량']) }}</div>
 
@@ -224,7 +243,7 @@ $grid-layout: 1.2fr 2.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr;
     text-align: right;
 }
 
-#eq-box{
+#eq-box {
     background-color: rgb(172, 170, 170);
     border-radius: 5px;
     padding: 5px;
@@ -232,13 +251,14 @@ $grid-layout: 1.2fr 2.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr;
     font-weight: bold;
     font-size: 13px;
     text-align: center;
+    cursor: pointer;
 }
-button{
+button {
     width: 150px;
     padding: 10px;
     border-radius: 5px;
     cursor: pointer;
-} 
+}
 /* ------------------------------------------------ */
 /* 조건 2 & 3: input[type="range"]를 사용하지 않고 div/span으로 진행률 바를 구현했으므로, 
    만약 input[type="range"]를 사용한다면 아래 코드를 추가하여 핸들을 제거할 수 있습니다. 

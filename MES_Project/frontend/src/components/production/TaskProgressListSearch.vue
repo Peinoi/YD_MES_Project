@@ -6,11 +6,11 @@ const emit = defineEmits(['search', 'reset']);
 
 // 검색 조건의 초기 상태에 'remarks' 추가
 const initialForm = {
-    code: "", // 작업지시번호
-    name: "",// 제품명
-    line: "",// 라인
-    start: "",// 시작일자
-    stat: ""// 상태
+    code: '', // 작업지시번호
+    name: '', // 제품명
+    line: '', // 라인
+    start: '', // 시작일자
+    stat: '' // 상태
 };
 
 const searchForm = reactive({ ...initialForm });

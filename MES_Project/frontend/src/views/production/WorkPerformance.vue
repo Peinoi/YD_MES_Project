@@ -9,7 +9,7 @@ import SearchTable from '../../components/production/WorkPerformanceTable.vue';
 let performanceList = ref([]);
 
 const getPerformanceList = async () => {
-    let result = await axios.get(`/api/work/performance`).catch((err) => console.log('작업진행도 리스트' + err));
+    let result = await axios.get(`/api/productionwork/work/performance`).catch((err) => console.log('작업진행도 리스트' + err));
     const res = result.data.data.result;
     performanceList.value = JSON.parse(JSON.stringify(res));
     console.log(performanceList.value);
@@ -50,7 +50,7 @@ const downloadExcel = () => {
         불량수량: row.notqtt,
         LOT번호: row.lotnum,
         라인번호: row.linecode,
-        상태: row.stat,
+        상태: row.stat
     }));
 
     // 워크시트/워크북 생성
@@ -62,7 +62,6 @@ const downloadExcel = () => {
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     XLSX.writeFile(wb, `생산실적_${today}.xlsx`);
 };
-
 
 // 📌 4. 필터링 로직 수정 (새로운 필드명 반영)
 const filteredRows = computed(() => {
@@ -77,7 +76,7 @@ const filteredRows = computed(() => {
         if (end && rowDate > end) return false; // 2025-06-25 > 2025-06-24 -> true, 제외됨
 
         if (s.name && !r.name.includes(s.name)) return false;
-        if (s.linecode && !r.linecode.includes(s.linecode)) return false; 
+        if (s.linecode && !r.linecode.includes(s.linecode)) return false;
         if (s.stat && r.stat !== s.stat) return false;
         if (s.order_num && !r.order_num.includes(s.order_num)) return false;
         if (s.lotnum && !r.lotnum.includes(s.lotnum)) return false;
@@ -87,17 +86,17 @@ const filteredRows = computed(() => {
 });
 
 const getDateString = (str) => {
-    if (!str) return "";
-    
+    if (!str) return '';
+
     // Date 객체 생성: UTC 문자열을 기준으로 로컬 시간대 Date 객체를 생성합니다.
     const date = new Date(str);
-    
+
     // 로컬 시간대(KST)를 기준으로 YYYY-MM-DD 형식의 문자열을 생성합니다.
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    
-     return `${year}-${month}-${day}`;
+
+    return `${year}-${month}-${day}`;
 };
 
 onBeforeMount(() => {

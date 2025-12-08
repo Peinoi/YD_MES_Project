@@ -29,7 +29,7 @@ app.use(`/quality`, qualityRouter);
 app.use(`/order`, orderRouter);
 app.use(`/release/fwd`, fwdRouter);
 app.use(`/process`, processRouter);
-app.use(`/`, production_workRouter);
+app.use(`/productionwork`, production_workRouter);
 app.use("/qc", qcRouter);
 app.use(`/inbound`, inboundRouter);
 app.use(`/baseinfo/bom`, bomRouter);
