@@ -56,7 +56,7 @@ const formatDate = (dateString) => {
     return `${y}-${m}-${day} ${hh}:${mm}`;
 };
 onBeforeMount(() => {
-    workStore.restoreIrregularData(); // 새로고침 대응
+    workStore.restoreSelectedWork(); // 새로고침 대응
     getWorkList();
 });
 </script>

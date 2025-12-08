@@ -118,5 +118,19 @@ router.put("/work/prdrend/:code", async (req, res, next) => {
     next(err);
   }
 });
-
+//재고 차감
+router.put("/work/deductmaterials", async (req, res, next) => {
+  try {
+    const { prdr_code, prod_name, final_qty, wko_code } = req.body;
+    const result = await production_workServices.deductMaterialsTransaction({
+      prdr_code,
+      prod_name,
+      final_qty,
+      wko_code,
+    });
+    res.json({ code: "S200", data: result });
+  } catch (err) {
+    next(err);
+  }
+});
 module.exports = router;

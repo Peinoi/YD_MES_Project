@@ -141,4 +141,29 @@ ORDER BY prdr.prdr_code DESC;
   SET proc_rate = 100, end_date = ?
   WHERE prdr_d_code = ?;
 `,
+
+  // 자재 소비량 계산을 위한 BOM 조회 쿼리 추가
+  get_consumed_materials: `
+    SELECT
+        bm.mat_code,
+        (bm.req_qtt * ? * (1 + IFNULL(bm.loss_rate, 0) / 100)) AS consumed_qtt
+    FROM bom_tbl bt
+    INNER JOIN prod_tbl pt ON bt.prod_code = pt.prod_code
+    INNER JOIN bom_mat bm ON bt.bom_code = bm.bom_code
+    WHERE pt.prod_name = ?
+      AND bt.is_used = 'f2'
+      AND bm.mat_code LIKE 'MAT-%'; 
+      -- 👈 추가: mat_code가 'MAT-'로 시작하는 항목만 필터링하여 중간 제품(PROD-) 제외
+`,
+  // 재고 차감 쿼리 (mat_stock_tbl은 가정)
+  update_stock_deduct: `
+    UPDATE mat_stock_tbl 
+    SET stock_qtt = stock_qtt - ?  -- ? = 차감 수량 (Consumed QTT)
+    WHERE mat_code = ?;            -- ? = 자재 코드 (MAT_CODE)
+`,
+  // 재고 이동 이력 기록 쿼리 (stock_hist_tbl은 가정)
+  insert_stock_history: `
+    INSERT INTO stock_hist_tbl (mat_code, hist_type, qtt, wko_code, hist_date)
+    VALUES (?, 'O', ?, ?, NOW()); -- 'O' = Outbound(출고), ?=MAT_CODE, ?=QTT, ?=WKO_CODE
+`,
 };

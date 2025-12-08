@@ -50,13 +50,18 @@ const totalSeconds = computed(() => {
 // prdrInsert 호출 (실적 등록)
 // NOTE: 실제로는 prdr_code, work_order_code, emp_code, prod_code, ord_qtt 를 모두 채워야 함
 const callPrdrInsert = async () => {
+    //코드 생성
     const prdr = await axios.get('/api/productionwork/work/prdrmax');
-    const prdr_Value = JSON.parse(JSON.stringify(prdr.data.data.result[0]));
-    console.log(prdr_Value);
+    const prdr_Value = prdr.data.data.result[0]['max(prdr_code)'];
+    const [prefix, num] = prdr_Value.split('-');
+    const nextNum = Number(num) + 1;
 
+    const code = `${prefix}-${String(nextNum).padStart(3, '0')}`;
+    console.log(code);
+    //----------------------
     // // 예시: 필요한 값은 상황에 맞게 수정
     // const payload = {
-    //     prdr_code: '', // 실적코드 (규칙에 맞게 생성하거나 백엔드에서 생성)
+    //     prdr_code: code, // 실적코드 (규칙에 맞게 생성하거나 백엔드에서 생성)
     //     note: '',
     //     work_order_code: work.value.code,
     //     emp_code: 'EMP-001',
@@ -175,29 +180,59 @@ const completeCurrentProcess = async () => {
 
 // 작업 종료 버튼
 const endWork = async () => {
-    if (!isFinishedAll.value) {
-        alert('최종 공정 완료 후 작업 종료가 가능합니다.');
-        return;
-    }
+    // if (!isFinishedAll.value) {
+    //     alert('최종 공정 완료 후 작업 종료가 가능합니다.');
+    //     return;
+    // }
 
     workEndTime.value = new Date();
 
-    // 생산량, 진행도 등은 실제 비즈니스 룰에 맞게 계산
-    const finalQty = details.value[details.value.length - 1]?.생산량 || 0;
+    // 최종 생산량 가져오기 (마지막 공정의 생산량)
+    const finalProcess = details.value[details.value.length - 1];
+    // const finalQty = finalProcess?.생산량 || 0;
+    const finalQty = 3;
+    // 최종 생산에 사용된 제품 코드 및 WKO 코드 확보
+    const prodName = work.value.name; // work.value에는 prod_code가 있어야 함 (가정)
+    const wkoCode = work.value.code;
+    const prdrCode = work.value.prdrcode;
+    console.log('제품 코드 : ' + prodName + '생산량 : ' + finalQty);
+    console.log(wkoCode + prdrCode);
+    if (!finalQty || !prodName) {
+        alert('생산량 또는 제품 정보가 부족하여 재고 차감/작업 종료를 진행할 수 없습니다.');
+        return;
+    }
 
-    // prdrEnd 호출
-    await axios.put(`/api/productionwork/work/prdrend/${work.value.prdrcode}`, {
-        end_date: workEndTime.value,
-        total_time: totalSeconds.value, // 단위(초/분)는 백엔드 설계에 맞게
-        qtt: finalQty,
-        rate: 100,
-        stat: 'b3' // 생산 완료
-    });
+    // 1. 재고 차감 트랜잭션 호출 (가장 중요)
+    try {
+        // [추가된 로직]
+        await axios.put(`/api/productionwork/work/deductmaterials`, {
+            prdr_code: prdrCode,
+            prod_name: prodName,
+            final_qty: finalQty,
+            wko_code: wkoCode
+        });
+        // -----------------
+    } catch (error) {
+        console.error('재고 차감 중 오류 발생:', error);
+        alert('재고 차감 처리 중 오류가 발생했습니다. 관리자에게 문의하세요.');
+        // 오류가 발생하면 이후 로직을 건너뛸 수 있음
+        return;
+    }
 
-    // 설비 상태: 사용 가능(w1)로 변경
-    await updateEquipmentStat('w1');
+    // // 2. 실적 마스터 업데이트 (total_time, production_qtt 등 기록)
+    // await axios.put(`/api/productionwork/work/prdrend/${prdrCode}`, {
+    //     // prdrcode 사용
+    //     end_date: workEndTime.value,
+    //     total_time: totalSeconds.value,
+    //     qtt: finalQty,
+    //     rate: 100,
+    //     stat: 'b3' // 생산 완료 (재고 차감 트랜잭션에서 처리되었을 수도 있으나, 안전하게 다시 호출)
+    // });
 
-    alert('작업이 종료되었습니다.');
+    // // 3. 설비 상태: 사용 가능(w1)로 변경
+    // await updateEquipmentStat('w1');
+
+    // alert('작업이 종료되었으며, 자재 재고가 차감되었습니다.');
 };
 
 // 언마운트 시 타이머 정리
