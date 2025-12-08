@@ -6,10 +6,14 @@ import SearchSelectModal from '@/views/order/SearchSelectModal.vue';
 // 모달 ON/OFF
 const showOrderModal = ref(false);
 const showProductModal = ref(false);
+const showClientModal = ref(false);
+const showManagerModal = ref(false);
 
 // 모달 검색 결과
 const orderSearchList = ref([]);
 const productSearchList = ref([]);
+const clientSearchList = ref([]);
+const managerSearchList = ref([]);
 
 const currentProductIndex = ref(-1);
 
@@ -44,6 +48,51 @@ const fetchOrderSearch = async (keyword = '') => {
     }
 };
 
+// 거래처 검색
+const fetchClientSearch = async (keyword = '') => {
+    try {
+        const res = await axios.get('/api/order/client/search', { params: { keyword } });
+        clientSearchList.value = res.data.code === 'S200' ? res.data.data : [];
+    } catch (e) {
+        console.error('fetchClientSearch', e);
+        clientSearchList.value = [];
+    }
+};
+
+// 담당자 검색
+const fetchManagerSearch = async (keyword = '') => {
+    try {
+        const res = await axios.get('/api/order/manager/search', { params: { keyword } });
+        managerSearchList.value = res.data.code === 'S200' ? res.data.data : [];
+    } catch (e) {
+        console.error('fetchManagerSearch', e);
+        managerSearchList.value = [];
+    }
+};
+
+// 거래처 선택 이벤트
+const onClientSelect = (row) => {
+    if (!row || !row.clientCode) return;
+    order.client_code = row.client_code;
+    order.client_name = row.client_name;
+
+    // 담당자 초기화
+    order.mcode = '';
+    order.client_contact = '';
+
+    showClientModal.value = false;
+};
+
+// 담당자 선택
+const onManagerSelect = (row) => {
+    if (!row || !row.emp_code) return;
+
+    order.mcode = row.emp_code;
+    order.client_contact = row.emp_name;
+
+    showManagerModal.value = false;
+};
+
 const fetchProductSearch = async (keyword = '') => {
     try {
         // 엔드포인트 수정: /api/order/product/search
@@ -54,10 +103,16 @@ const fetchProductSearch = async (keyword = '') => {
             productSearchList.value = (res.data.data || []).map((p) => ({
                 prod_code: p.prod_code,
                 prod_name: p.prod_name,
-                com_value_name: p.com_value_name, // 모달 컬럼에 필요
-                unit: p.unit, // 상세 테이블에 반영
-                spec: p.spec, // 상세 테이블에 반영
-                type: p.com_value_name // type 컬럼에 com_value_name 사용
+
+                // 코드값 (DB 저장용)
+                unit: p.unit,
+                spec: p.spec,
+                com_value: p.com_value,
+
+                // 화면 표시용
+                unit_name: p.unit_name, // 상세 테이블에 반영
+                spec_name: p.spec_name, // 상세 테이블에 반영
+                com_value_name: p.com_value_name // 모달 컬럼에 필요
             }));
         } else {
             productSearchList.value = [];
@@ -74,16 +129,21 @@ const onProductSelect = (row) => {
 
     const p = products.value[idx];
 
-    // 🚩 필수 정보: 제품 코드, 제품명
     p.prod_code = row.prod_code || '';
     p.prod_name = row.prod_name || '';
 
-    // 🚩 상세 정보: 유형, 규격, 단위 (API 결과 반영)
-    p.type = row.com_value_name || ''; // DB의 com_value_name을 유형(type)으로 사용
-    p.spec = row.spec || '';
+    // DB에 들어갈 코드값
     p.unit = row.unit || '';
+    p.spec = row.spec || '';
+    p.type = row.com_value || '';
 
-    // 수량이나 단가는 초기화하지 않음
+    // 화면 표시용 이름 저장하고 싶으면 별도 필드
+    p.unit_name = row.unit_name; // 화면에는 "ea" 표시
+    p.spec_name = row.spec_name;
+    p.type_name = row.com_value_name;
+
+    // 선택 상태 초기화
+    p._selected = false;
 
     // 모달 닫기 및 인덱스 초기화
     showProductModal.value = false;
@@ -113,16 +173,15 @@ const onOrderSelect = async (row) => {
     // 주문 기본 정보
     order.ord_code = row.ord_code || '';
     order.ord_name = row.ord_name || '';
+
+    order.client_code = row.client_code || '';
     order.client_name = row.client_name || '';
-    order.client_contact = row.emp_name || '';
+
     order.note = row.note || '';
     order.readonly = true;
 
-    // 거래처 코드 (client_code)와 담당자 코드 (mcode)를 찾아서 저장
-    const selectedClient = clientList.value.find((c) => c.clientName === row.client_name);
-    const selectedManager = managerList.value.find((m) => m.emp_name === row.emp_name);
-    order.client_code = selectedClient?.client_code || '';
-    order.mcode = selectedManager?.emp_code || '';
+    order.client_contact = row.emp_name || '';
+    order.mcode = row.mcode || '';
 
     // 제품 정보
     try {
@@ -135,9 +194,12 @@ const onOrderSelect = async (row) => {
             products.value = selectedOrderProducts.map((p) => ({
                 id: nextId++,
                 prod_name: p.prod_name || '',
-                type: p.com_value_name || '',
-                spec: p.spec_name || '',
-                unit: p.unit_name || '',
+                type: p.com_value || '',
+                type_name: p.com_value_name || '',
+                spec: p.spec || '',
+                spec_name: p.spec_name || '',
+                unit: p.unit || '',
+                unit_name: p.unit_name || '',
                 ord_amount: p.ord_amount || 0,
                 prod_price: p.prod_price || 0,
                 delivery_date: p.delivery_date ? p.delivery_date.slice(0, 10) : '',
@@ -176,8 +238,11 @@ function createEmptyProduct(id) {
         id,
         prod_name: '',
         type: '',
+        type_name: '',
         spec: '',
+        spec_name: '',
         unit: '',
+        unit_name: '',
         ord_amount: 0,
         prod_price: 0,
         delivery_date: '',
@@ -216,6 +281,8 @@ const fetchManagerList = async () => {
 watch(showOrderModal, (val) => {
     if (val) {
         fetchOrderSearch(''); // 빈 문자열 전달하면 전체 목록
+        // 체크박스 초기화
+        orderSearchList.value = orderSearchList.value.map((row) => ({ ...row, _selected: false }));
     }
 });
 
@@ -229,11 +296,18 @@ function addProduct() {
     products.value.push(createEmptyProduct(nextProductId++));
 }
 
+const removedProductIds = ref([]);
+
 function removeSelectedProducts() {
+    // 삭제 대상 필터링
+    const toRemove = products.value.filter((p) => p._selected && p.ord_d_code);
+    // ord_d_code만 removedProductIds에 저장
+    removedProductIds.value.push(...toRemove.map((p) => p.ord_d_code));
+    // 화면에서 선택 제품 제거
     products.value = products.value.filter((p) => !p._selected);
+    // 최소 1행 남기기
     if (products.value.length === 0) products.value.push(createEmptyProduct(nextProductId++));
 }
-
 function toggleSelectAll(ev) {
     const checked = ev.target.checked;
     products.value.forEach((p) => (p._selected = checked));
@@ -259,36 +333,74 @@ function resetForm() {
     products.value = [createEmptyProduct(nextProductId++), createEmptyProduct(nextProductId++), createEmptyProduct(nextProductId++), createEmptyProduct(nextProductId++)];
 }
 
+// ⭐️ 새로운 함수 추가: 거래처 모달 열기
+function openClientSearch() {
+    fetchClientSearch('').then(() => {
+        // 모달 열기 전에 선택 상태 초기화 (SearchSelectModal 내부에 selectedKey 초기화 로직이 있으므로 필수 아님)
+        clientSearchList.value = clientSearchList.value.map((row) => ({ ...row, _selected: false }));
+        showClientModal.value = true;
+    });
+}
+
+// ⭐️ 새로운 함수 추가: 담당자 모달 열기
+function openManagerSearch() {
+    fetchManagerSearch('').then(() => {
+        // 모달 열기 전에 선택 상태 초기화
+        managerSearchList.value = managerSearchList.value.map((row) => ({ ...row, _selected: false }));
+        showManagerModal.value = true;
+    });
+}
+
 async function saveOrder() {
     try {
-        // 1. 필수 코드 값 찾기 및 설정
-        const selectedClient = clientList.value.find((c) => c.clientName === order.client_name);
-        const selectedManager = managerList.value.find((m) => m.emp_name === order.client_contact);
-
-        // 주문에 필요한 코드값 설정
-        order.client_code = selectedClient?.clientCode || '';
-        order.mcode = selectedManager?.emp_code || '';
-
         // 백엔드 필수 값 검증 (프론트에서도 1차 검증)
-        if (!order.ord_name || !order.ord_date || !order.mcode || !order.client_code) {
-            alert('❌ 주문명, 주문일자, 거래처, 담당자는 필수 입력 항목입니다.');
+        const missingOrderFields = [];
+        if (!order.ord_name) missingOrderFields.push('주문명');
+        if (!order.ord_date) missingOrderFields.push('주문일자');
+        if (!order.client_code) missingOrderFields.push('거래처');
+        if (!order.mcode) missingOrderFields.push('담당자');
+
+        if (missingOrderFields.length > 0) {
+            alert(`❌ 주문 기본 정보가 누락되었습니다.\n누락 항목: ${missingOrderFields.join(', ')}`);
             return;
         }
 
-        // 제품 상세 리스트 생성
-        const orderDetailList = products.value
-            .filter((p) => p.prod_name && Number(p.ord_amount) > 0) // 제품명 있는 행만 저장
-            .map((p) => ({
-                ord_d_code: p.ord_d_code,
-                unit: p.unit,
-                spec: p.spec,
-                ord_amount: p.ord_amount,
-                prod_price: p.prod_price,
-                delivery_date: p.delivery_date,
-                ord_priority: p.ord_priority || 0,
-                total_price: p.total,
-                prod_code: p.prod_code
-            }));
+        // 입력된 제품만 필터링 (빈 행 제외)
+        const filledProducts = products.value.filter((p) => p.prod_name || p.ord_amount || p.prod_price || p.delivery_date);
+
+        // 최소 1개 제품 체크
+        if (filledProducts.length === 0) {
+            alert('❌ 최소 1개의 제품은 입력해야 합니다.');
+            return;
+        }
+
+        // 필수 컬럼 체크
+        for (const p of filledProducts) {
+            const missingFields = [];
+            if (!p.unit) missingFields.push('단위');
+            if (!p.ord_amount) missingFields.push('수량');
+            if (!p.prod_price) missingFields.push('단가');
+            if (!p.delivery_date) missingFields.push('납기일');
+            if (!p.prod_code) missingFields.push('제품 코드');
+
+            if (missingFields.length > 0) {
+                alert(`❌ 제품 "${p.prod_name || '(이름 없음)'}"의 필수 정보가 누락되었습니다.\n누락 항목: ${missingFields.join(', ')}`);
+                return;
+            }
+        }
+
+        // payload 구성
+        const orderDetailList = filledProducts.map((p) => ({
+            ord_d_code: p.ord_d_code,
+            unit: p.unit,
+            spec: p.spec,
+            ord_amount: p.ord_amount,
+            prod_price: p.prod_price,
+            delivery_date: p.delivery_date,
+            ord_priority: p.ord_priority || 0,
+            total_price: p.total,
+            prod_code: p.prod_code
+        }));
 
         const payload = {
             order: {
@@ -300,7 +412,8 @@ async function saveOrder() {
                 mcode: order.mcode,
                 client_code: order.client_code
             },
-            orderDetailList
+            orderDetailList, // 화면에 남은 제품
+            removedProductIds: removedProductIds.value // 삭제된 제품 코드
         };
 
         console.log('저장 payload', payload);
@@ -349,9 +462,15 @@ function openProductSearch(idx) {
     // 1. 현재 선택된 행의 인덱스를 저장
     currentProductIndex.value = idx;
 
-    // 2. 모달 열고 검색 시작 (빈 문자열 전달 시 전체 목록 불러옴)
-    fetchProductSearch('');
-    showProductModal.value = true;
+    // 1. 모달 열기 전에 검색 API 호출
+    fetchProductSearch('').then(() => {
+        // 모달 열기 전에 새로운 배열 생성
+        const resetList = productSearchList.value.map((p) => ({ ...p, _selected: false }));
+        productSearchList.value = resetList;
+
+        // 모달 열기
+        showProductModal.value = true;
+    });
 }
 
 function formatCurrency(v) {
@@ -387,22 +506,18 @@ function formatCurrency(v) {
                     <input v-model="order.ord_date" type="date" />
 
                     <label>거래처</label>
-                    <select v-model="order.client_name">
-                        <option value="">거래처를 선택해주세요.</option>
-                        <option v-for="c in clientList" :key="c.clientCode" :value="c.clientName">
-                            {{ c.clientName }}
-                        </option>
-                    </select>
+                    <div style="display: flex; gap: 6px; flex: 1">
+                        <input type="text" v-model="order.client_name" readonly />
+                        <button class="btn small" @click="openClientSearch">검색</button>
+                    </div>
                 </div>
 
                 <div class="form-row">
                     <label>거래처담당자</label>
-                    <select v-model="order.client_contact">
-                        <option value=""></option>
-                        <option v-for="manager in managerList" :key="manager.emp_code" :value="manager.emp_name">
-                            {{ manager.emp_name }}
-                        </option>
-                    </select>
+                    <div style="display: flex; gap: 6px; flex: 1">
+                        <input type="text" v-model="order.client_contact" readonly />
+                        <button class="btn small" @click="openManagerSearch">검색</button>
+                    </div>
 
                     <label>비고</label>
                     <input v-model="order.note" type="text" />
@@ -444,9 +559,9 @@ function formatCurrency(v) {
                                 <button class="icon" @click="openProductSearch(idx)" title="제품 검색">🔍</button>
                             </div>
                         </td>
-                        <td><input v-model="p.type" type="text" placeholder="분류명" /></td>
-                        <td><input v-model="p.spec" type="number" placeholder="규격" /></td>
-                        <td><input v-model="p.unit" type="text" placeholder="단위" /></td>
+                        <td><input v-model="p.type_name" type="text" placeholder="분류명" readonly /></td>
+                        <td><input v-model="p.spec_name" type="text" placeholder="규격" readonly /></td>
+                        <td><input v-model="p.unit_name" type="text" placeholder="단위" readonly /></td>
                         <td class="num-cell">
                             <div class="num-wrap">
                                 <input v-model.number="p.ord_amount" type="number" min="0" @input="recalcRow(idx)" />
@@ -508,6 +623,39 @@ function formatCurrency(v) {
             rowKey="prod_code"
             @search="fetchProductSearch"
             @confirm="onProductSelect"
+        />
+
+        <!-- 거래처 선택 모달 -->
+        <SearchSelectModal
+            v-model="showClientModal"
+            searchPlaceholder="거래처 이름 또는 코드로 검색"
+            :columns="[
+                { field: 'client_code', label: '거래처 코드' },
+                { field: 'client_name', label: '거래처명' },
+                { field: 'client_type_name', label: '거래처 유형' },
+                { field: 'client_mname', label: '담당자' },
+                { field: 'client_pnum', label: '전화번호' }
+            ]"
+            :rows="clientSearchList"
+            rowKey="client_code"
+            @search="fetchClientSearch"
+            @confirm="onClientSelect"
+        />
+
+        <!-- 담당자 선택 모달 -->
+        <SearchSelectModal
+            v-model="showManagerModal"
+            searchPlaceholder="담당자 이름 또는 코드로 검색"
+            :columns="[
+                { field: 'emp_code', label: '사원 코드' },
+                { field: 'emp_name', label: '이름' },
+                { field: 'emp_pnum', label: '전화번호' },
+                { field: 'emp_email', label: '이메일' }
+            ]"
+            :rows="managerSearchList"
+            rowKey="emp_code"
+            @search="fetchManagerSearch"
+            @confirm="onManagerSelect"
         />
     </div>
 </template>

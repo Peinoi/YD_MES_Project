@@ -5,6 +5,7 @@ module.exports = {
   SELECT o.ord_code -- 주문번호
 	  ,o.ord_name -- 주문명
     ,o.ord_date -- 주문일자
+    ,od.prod_code -- 제품코드
     ,p.prod_name -- 제품명
     ,od.ord_amount -- 수량
     ,o.mcode -- 담당자 코드
@@ -46,7 +47,9 @@ module.exports = {
   SELECT o.ord_code -- 주문번호
         ,o.ord_name -- 주문명
         ,o.ord_date -- 주문일자
-        ,c.client_name -- 거래처
+        ,o.client_code -- 거래처 코드 
+        ,c.client_name -- 거래처명
+        ,o.mcode -- 거래처 담당자 코드
         ,e.emp_name -- 거래처 담당자명
         ,o.note -- 비고
   FROM ord_tbl o
@@ -59,6 +62,40 @@ module.exports = {
   AND ( ? IS NULL OR ? = '' OR o.ord_name LIKE CONCAT('%', ?, '%') )
   /* 거래처 */
   AND ( ? IS NULL OR ? = '' OR c.client_name LIKE CONCAT('%', ?, '%') )
+  `,
+
+  // 거래처 모달창 조회
+  selectClientSearch: `
+  SELECT client_code -- 거래처 코드 
+        ,client_name -- 거래처명
+        ,client_type -- 거래처 유형 (납품업체/공급업체)
+        ,client_mname -- 거래처 매니저명
+        ,brn
+        ,client_pnum
+  FROM client_tbl
+  WHERE 1 = 1
+  /* 거래처 코드 */
+  AND ( ? IS NULL OR ? = '' OR client_code LIKE CONCAT('%', ?, '%') )
+  /* 거래처명 */
+  AND ( ? IS NULL OR ? = '' OR client_name LIKE CONCAT('%', ?, '%') )
+  `,
+
+  // 거래처 담당자 모달창 조회
+  selectManagerSearch: `
+  SELECT emp_code -- 사원번호
+        ,emp_name -- 사원명
+        ,emp_pnum -- 연락처
+        ,emp_email -- 이메일
+  FROM emp_tbl
+  WHERE 1 = 1
+  /* 영업팀 */
+  AND dept_code = 'DEPT-1'
+  /* 시스템관리자 제외 */
+  AND emp_code != 'EMP-10000'
+  /* 사원번호 */
+  AND ( ? IS NULL OR ? = '' OR emp_code LIKE CONCAT('%', ?, '%') )
+  /* 사원명 */
+  AND ( ? IS NULL OR ? = '' OR emp_name LIKE CONCAT('%', ?, '%') )
   `,
 
   // 상품 모달창 조회
@@ -83,6 +120,7 @@ module.exports = {
   selectOrderProduction: `
   SELECT o.ord_code -- 주문번호
         ,od.ord_d_code -- 주문상세번호
+        ,od.prod_code -- 제품코드
         ,p.prod_name -- 제품명
         ,p.com_value -- 유형: 봉지라면 or 컵라면
 		    ,p.spec -- 규격
@@ -195,6 +233,12 @@ module.exports = {
      ,ord_priority = ?
      ,total_price = ?
      ,prod_code = ?
+  WHERE ord_d_code = ?
+  `,
+
+  // 제품 정보 선택삭제(저장)
+  deleteProduct: `
+  DELETE FROM ord_d_tbl
   WHERE ord_d_code = ?
   `,
 };

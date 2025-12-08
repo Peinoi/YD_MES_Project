@@ -45,6 +45,40 @@ router.get("/search", async (req, res, next) => {
   }
 });
 
+// GET /order/client/search - 거래처 모달창 조회
+router.get("/client/search", async (req, res, next) => {
+  try {
+    // 쿼리스트링에서 검색 조건 받기
+    const filters = {
+      client_code: req.query.client_code || null,
+      client_name: req.query.client_name || null,
+    };
+
+    const searchs = await orderService.getClientSearch(filters);
+
+    res.json({ code: "S200", data: searchs });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
+// GET /order/manager/search - 거래처 담당자 모달창 조회
+router.get("/manager/search", async (req, res, next) => {
+  try {
+    // 쿼리스트링에서 검색 조건 받기
+    const filters = {
+      emp_code: req.query.emp_code || null,
+      emp_name: req.query.emp_name || null,
+    };
+
+    const searchs = await orderService.getManagerSearch(filters);
+
+    res.json({ code: "S200", data: searchs });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
 // GET /order/product/search - 상품 모달창 조회
 router.get("/product/search", async (req, res, next) => {
   try {
