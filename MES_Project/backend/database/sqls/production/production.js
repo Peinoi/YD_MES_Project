@@ -28,8 +28,7 @@ const planCheck = `
 const updatePrdp = `
 UPDATE prdp_tbl
 SET 
-    due_date = ?, 
-    prdp_name = ?
+    due_date = ? 
 WHERE 
     prdp_code = ?;
 `;

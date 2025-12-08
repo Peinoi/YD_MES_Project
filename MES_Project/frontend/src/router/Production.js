@@ -26,6 +26,11 @@ const productionRouter = [
                 path: 'taskprogresslist',
                 name: 'TaskProgressList',
                 component: () => import('@/views/production/TaskProgressList.vue')
+            },
+            {
+                path: 'irregularworkprogress',
+                name: 'IrregularWorkProgress',
+                component: () => import('@/views/production/IrregularWorkProgress.vue')
             }
         ]
     }

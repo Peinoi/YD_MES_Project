@@ -44,8 +44,103 @@ JOIN mat_tbl mat
 ON mat.mat_code = mpr_d.mat_code
 WHERE mpr_d_code NOT IN (SELECT mpr_d_code FROM qio_tbl where mpr_d_code IS Not Null);
 `,
-  findAllQIO: `
-  SELECT *
-  FROM qio_tbl
+  findPrdrByQIO: `
+  SELECT prdr.prdr_code
+  , prdr.production_qtt -- 생산수량: 이거개수를 주문수량이넘을수가없음
+  , prdr.stat -- b3 = 생산 완료 생산실적
+  , prod.prod_name -- 생산 완료된 완제품 이름
+  , prod.unit -- h5 box, h4 ea
+  , prod.note -- 비고
+  , prod.com_value -- j1 봉지라면, j2 컵라면
+  , prod.prod_type -- i1 완제품, i4 원자재
+  FROM prdr_tbl prdr
+  JOIN prod_tbl prod
+  ON prdr.prod_code = prod.prod_code
+  WHERE prdr.prdr_code = ?
 `,
+  findMpr_dByQIO: `
+SELECT mpr_d_code
+, req_qtt
+, mpr_d.unit AS 'mpr_d_unit'
+, mat.unit AS 'mat_unit'
+, mpr_d.note AS 'mpr_d_note'
+, mat.note AS 'mat_note'
+, mpr_code
+, mat_sup
+, mat.mat_code
+, mat.mat_name -- 발주 품목 이름
+, mat.material_type_code -- t1 원자재, t2부자재
+, mat.is_used -- f1 미사용, f2 사용중
+FROM mpr_d_tbl mpr_d
+JOIN mat_tbl mat
+ON mat.mat_code = mpr_d.mat_code
+WHERE mpr_d_code = ?
+`,
+  findQualityEmployeeList: `
+  SELECT emp.emp_code
+  , cc.note
+  , emp.emp_name
+  , emp.hdate
+  , emp.ledate
+  , emp.regdate
+  , emp.auth
+  , emp.reg
+  , emp.emp_stat
+  , emp.emp_job_id
+FROM emp_tbl emp
+JOIN common_code cc
+ON cc.com_value = emp.emp_job_id -- emp_job_id // m1 = 관리자, m2 사원
+WHERE emp.dept_code = 'DEPT-5'
+`,
+  findAllQIO: `
+  SELECT qio.qio_code
+  , qio.emp_code
+  , DATE_FORMAT(qio.insp_date, '%Y-%m-%d') AS insp_date
+  , qio.prdr_code
+  , qio.mpr_d_code
+  , qio.insp_vol
+  , DATE_FORMAT(qio.qio_date, '%Y-%m-%d') AS qio_date
+  , emp.emp_name
+  FROM qio_tbl qio
+  JOIN emp_tbl emp
+  ON emp.emp_code = qio.emp_code
+  WHERE emp.dept_code = 'DEPT-5'
+  AND emp.emp_job_id = 'm1'
+  AND (qio.prdr_code IS NOT NULL OR qio.mpr_d_code IS NOT NULL)
+`,
+  findQIRsByQIO: `
+select qcr.qcr_code
+  , qcr.inspection_item
+  , qcr.range_top
+  , qcr.range_bot
+  , cc.note -- 공통코드 테이블
+from qir_tbl qir
+join qcr_tbl qcr
+on qcr.qcr_code = qir.qcr_code
+JOIN
+    common_code cc 
+ON qcr.unit = cc.com_value
+where qir.qio_code =  ?
+`,
+  createQuailityInstructionOrder: `
+  INSERT INTO qio_tbl (qio_code, qio_date, insp_date, prdr_code, mpr_d_code, emp_code, insp_vol) 
+VALUES (NULL,  CURDATE()
+, ? -- 검사 지시 일자 NotNull
+, ? -- 생산실적 코드 NullAble
+, ? -- 발주서 코드 NullAble - 생산실적과 발주서 중 둘중 하나만 FK있어야 함.
+, ? -- 사원 코드 NotNull
+, ? -- 검사량  
+)`,
+  createQuailityInstructionResult: `
+  INSERT INTO qir_tbl (qir_code, start_date, end_date, result, note, qio_code, qir_emp_code, qcr_code, mpr_d_code) 
+  VALUES (NULL -- qir_code DB에 트리거 만들어서 자동으로 입력됨
+  , ? -- 검사 시작일 - 검사 지시 일자 값으로 초기값 주면됨
+  , ? -- 검사 종료일 - 검사 지시 일자 값으로 초기값 주면됨
+  , 'g0' -- 검사결과 인데 notNull로만들어놔서 검사전 상태를 의미하는 g0을 임의로 추가함.
+  , null -- 비고 검사결과 작성한 담당자가 적을거라서 null로 줌
+  , ? -- qio_code - 어떤 검사지시서의 검사 문항인지 알아야 함.
+  , 'EMP-10005' -- qir_emp_code - 검사결과지 작성자 정보 넣어야되는데 이게왜 NotNull인데, 덮어써야해서 품질팀 관리자 PK넣어줌
+  , ? -- qcr_code - 검사 항목 상세정보의 기준이 되는 값을 저장하고있는 테이블의 PK
+  , null -- 이거 넣어야됨? 넣을수는있는데 왜 mrp_d code만있고 prdr code는없음?
+  )`,
 };

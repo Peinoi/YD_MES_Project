@@ -21,6 +21,7 @@ const qcRouter = require("./routers/qcRouter.js");
 const inboundRouter = require("./routers/inboundRouter.js");
 const bomRouter = require("./routers/bomRouter.js");
 const productionRouter = require("./routers/productionRouter.js");
+const materialRouter = require("./routers/materialRouter");
 const dashboardRouter = require("./routers/dashboardRouter");
 const addProdRouter = require("./routers/addProdRouter.js");
 
@@ -32,11 +33,13 @@ app.use(`/quality`, qualityRouter);
 app.use(`/order`, orderRouter);
 app.use(`/release/fwd`, fwdRouter);
 app.use(`/process`, processRouter);
-// app.use(`/`, production_workRouter);
+app.use(`/productionwork`, production_workRouter);
 app.use("/qc", qcRouter);
 app.use(`/inbound`, inboundRouter);
 app.use(`/baseinfo/bom`, bomRouter);
 app.use(`/production`, productionRouter);
+app.use(`/material`, materialRouter);
+
 app.use(`/add-product`, addProdRouter);
 // 전역 오류 처리 미들웨어
 app.use((err, req, res, next) => {

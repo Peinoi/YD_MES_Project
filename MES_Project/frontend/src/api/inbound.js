@@ -24,5 +24,19 @@ export default {
     // 백엔드: router.get("/managers", ...)
     getEmpList() {
         return api.get('/inbound/managers');
+    },
+    // 입출고 이력 조회
+    getHistoryList(params) {
+        // params: { startDate, endDate, type, keyword, status }
+        return api.get('/inbound/history', { params });
+    },
+    // 재고 목록 조회
+    getStockList(params) {
+        return api.get('/material/stocks', { params });
+    },
+
+    // 재고 상세 조회 (단건)
+    getStockDetail(code) {
+        return api.get(`/material/stocks/${code}`);
     }
 };

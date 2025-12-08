@@ -1,5 +1,5 @@
-const mariadb = require('mariadb');
-const sqlList = require('./sqlList.js');
+const mariadb = require("mariadb");
+const sqlList = require("./sqlList.js");
 
 const pool = mariadb.createPool({
   port: process.env.PORT,

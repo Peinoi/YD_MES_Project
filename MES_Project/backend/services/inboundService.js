@@ -106,9 +106,48 @@ const registerInboundItems = async (items) => {
   }
 };
 
+// 입출고내역 조회
+const getHistoryList = async (params) => {
+  try {
+    let sql = sqlList.getHistoryList; // 위에서 정의한 기본 쿼리
+    const values = [];
+
+    // 2. 동적 쿼리 조립
+    if (params.startDate && params.endDate) {
+      sql += " AND procDate BETWEEN ? AND ?";
+      values.push(params.startDate, params.endDate);
+    }
+
+    if (params.type && params.type !== "ALL") {
+      sql += " AND type = ?";
+      values.push(params.type);
+    }
+
+    if (params.keyword) {
+      sql += " AND (matCode LIKE ? OR matName LIKE ?)";
+      values.push(`%${params.keyword}%`, `%${params.keyword}%`);
+    }
+
+    sql += " ORDER BY procDate DESC";
+
+    // 3. 실행 (mapper.query 대신 getConnection으로 직접 실행)
+    conn = await getConnection();
+    const rows = await conn.query(sql, values);
+
+    // MariaDB 결과 반환 (배열이 아닌 경우 처리)
+    return Array.isArray(rows) ? rows : rows.slice(0, rows.length);
+  } catch (err) {
+    console.error("History Search Error:", err);
+    throw err;
+  } finally {
+    if (conn) conn.release();
+  }
+};
+
 module.exports = {
   getMaterialList,
   getClientList,
   getEmployeeList,
   registerInboundItems,
+  getHistoryList,
 };
