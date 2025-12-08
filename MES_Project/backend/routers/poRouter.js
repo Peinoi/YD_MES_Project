@@ -251,6 +251,25 @@ router.get("/client", async (req, res) => {
   }
 });
 
+router.get("/emp/list", async (req, res) => {
+  const keyword = req.query.keyword || "";
+
+  try {
+    const rows = await poService.getEmpList(keyword);
+    res.json({
+      success: true,
+      data: rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "사원 목록 조회 중 오류 발생",
+      error: err.message,
+    });
+  }
+});
+
 // 발주 단건 조회
 router.get("/:purchaseCode", async (req, res, next) => {
   try {

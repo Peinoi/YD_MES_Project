@@ -13,5 +13,10 @@ export default [
         path: '/baseinfo/lineinfo',
         name: 'lineInfo',
         component: () => import('@/views/baseinfo/LineInfo.vue')
+    },
+    {
+        path: '/add-product',
+        name: 'addProd',
+        component: () => import('@/views/baseinfo/addProd.vue')
     }
 ];

@@ -152,8 +152,8 @@ onMounted(() => {
                         <label>거래처</label>
                         <select v-model="search.client_name" class="input">
                             <option value=""></option>
-                            <option v-for="c in clientList" :value="c.client_name" :key="c.client_code">
-                                {{ c.client_name }}
+                            <option v-for="c in clientList" :value="c.clientName" :key="c.clientCode">
+                                {{ c.clientName }}
                             </option>
                         </select>
                     </div>

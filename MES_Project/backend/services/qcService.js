@@ -1,23 +1,18 @@
-const { query } = require('../database/mapper.js');
+const { query, getConnection } = require('../database/mapper.js');
+const qcSql = require('../database/sqls/qc/qcSQL');
 
 // 004 목록 조회
-async function qcFindAllService(params) {
+async function findQcrList(params) {
   try {
-    const { qcrCore, prodCode, prodName, qcrCode, result, startDate } = params;
-    return await query('QC_SEARCH', [
-      qcrCore,
-      qcrCore,
-      prodCode,
-      prodCode,
-      prodName,
-      prodName,
-      qcrCode,
-      qcrCode,
-      result,
-      result,
-      startDate,
-      startDate,
-    ]);
+    return await query('QCR_CODE_LIST');
+  } catch (err) {
+    throw err;
+  }
+}
+
+async function findQcListService(params) {
+  try {
+    return await query('QC_SEARCH', params);
   } catch (err) {
     throw err;
   }
@@ -36,7 +31,6 @@ async function pendingListService() {
 async function findInstructionService(params) {
   try {
     const result = await query('QC_INSTRUCTION', [params.qir_code]);
-    console.log(result);
     return result;
   } catch (err) {
     throw err;
@@ -44,29 +38,43 @@ async function findInstructionService(params) {
 }
 
 // 005 저장
-async function saveInstructionService(data) {
+async function saveResultService(data) {
   try {
-    const resultData = Object.values(data);
-    console.log(resultData);
-    // return await query('QC_INSTRUCTION_SAVE', resultData);
+    const params = [
+      data.qir_code,
+      data.start_date,
+      data.end_date,
+      data.result,
+      data.qir_emp_code,
+    ];
+    return await query('QC_RESULT_SAVE', params);
   } catch (err) {
     throw err;
   }
 }
 
-async function deleteInstructionService(params) {
+async function deleteResultService(params) {
+  const conn = await getConnection();
   try {
-    console.log(params);
-    // return await query('QC_INSTRUCTION_DELETE', params);
+    await conn.beginTransaction();
+
+    const result = await conn.query(qcSql.QC_RESULT_DELETE, [params.qir_code]);
+
+    await conn.commit();
+    return { ok: true };
   } catch (err) {
+    await conn.rollback();
     throw err;
+  } finally {
+    await conn.release();
   }
 }
 
 module.exports = {
-  qcFindAllService,
+  findQcrList,
+  findQcListService,
   pendingListService,
   findInstructionService,
-  saveInstructionService,
-  deleteInstructionService,
+  saveResultService,
+  deleteResultService,
 };

@@ -45,6 +45,58 @@ router.get("/search", async (req, res, next) => {
   }
 });
 
+// GET /order/client/search - 거래처 모달창 조회
+router.get("/client/search", async (req, res, next) => {
+  try {
+    // 쿼리스트링에서 검색 조건 받기
+    const filters = {
+      client_code: req.query.client_code || null,
+      client_name: req.query.client_name || null,
+    };
+
+    const searchs = await orderService.getClientSearch(filters);
+
+    res.json({ code: "S200", data: searchs });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
+// GET /order/manager/search - 거래처 담당자 모달창 조회
+router.get("/manager/search", async (req, res, next) => {
+  try {
+    // 쿼리스트링에서 검색 조건 받기
+    const filters = {
+      emp_code: req.query.emp_code || null,
+      emp_name: req.query.emp_name || null,
+    };
+
+    const searchs = await orderService.getManagerSearch(filters);
+
+    res.json({ code: "S200", data: searchs });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
+// GET /order/product/search - 상품 모달창 조회
+router.get("/product/search", async (req, res, next) => {
+  try {
+    // 쿼리스트링에서 검색 조건 받기
+    const filters = {
+      prod_code: req.query.prod_code || null,
+      prod_name: req.query.prod_name || null,
+      com_value_name: req.query.com_value_name || null,
+    };
+
+    const searchs = await orderService.getProductSearch(filters);
+
+    res.json({ code: "S200", data: searchs });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
 // GET /order/production - 주문 정보, 제품 정보 조회
 router.get("/production", async (req, res, next) => {
   try {
@@ -93,11 +145,32 @@ router.get("/manager/list", async (req, res, next) => {
 });
 
 // DELETE /order/:ord_code - 주문 삭제
-router.delete("/order/:ord_code", async (req, res, next) => {
+router.delete("/:ord_code", async (req, res, next) => {
   try {
-    const deletedOrder = await orderService.removeOrder(req.params.ord_code);
+    const ord_code = req.params.ord_code;
+
+    if (!ord_code) {
+      return res.status(400).json({
+        code: "E400",
+        message: "ord_code가 필요합니다.",
+      });
+    }
+
+    const deletedOrder = await orderService.removeOrder(ord_code);
 
     res.json({ code: "S200", data: deletedOrder });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
+// POST /order - 주문 저장/수정
+router.post("/", async (req, res, next) => {
+  try {
+    const payload = req.body;
+    const result = await orderService.saveOrder(payload);
+
+    res.json({ code: "S200", data: result });
   } catch (err) {
     next(err); // 에러를 전역 오류 처리 미들웨어로 전달
   }

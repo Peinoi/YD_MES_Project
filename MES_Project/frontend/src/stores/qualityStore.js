@@ -12,9 +12,11 @@ export const useQualityStore = defineStore('quality', {
         qioList: [],
         qirList: [],
         prdrList: [], // prdr_tbl: 생산실적 테이블
-        mpr_dList: [], // mpr_d_tbl: -- 발주서 ?사본 테이블
+        mpr_dList: [], // mpr_d_tbl: -- 자재구매요청상세 테이블: 기존사람들이 이걸로만들어서 나도 이걸로해야됨 월요일수정가능성 있음.
+        qualityEmployeeList: [], // 품질팀 사원 목록
 
         // 사용자가 선택한 항목
+        selectedQIO: null,
         selectedPrdr: null,
         selectedMpr_d: null,
 
@@ -26,7 +28,10 @@ export const useQualityStore = defineStore('quality', {
     // 2. getters: state를 기반으로 계산된 값을 반환합니다. (예: computed)
     getters: {
         hasQCRData: (state) => state.qcrList.length > 0,
-        hasPrdrData: (state) => state.prdrList.length > 0
+        hasQIOData: (state) => state.qioList.length > 0,
+        hasPrdrData: (state) => state.prdrList.length > 0,
+        hasEmployeeManager: (state) => state.qualityEmployeeList.length > 0,
+        getEmployeeManagers: (state) => state.qualityEmployeeList.filter((item) => item.emp_job_id === 'm1')
     },
     // 3. actions: 상태를 변경하는 동기/비동기 메서드를 정의합니다.
     actions: {
@@ -50,6 +55,20 @@ export const useQualityStore = defineStore('quality', {
                 const response = await axios.get('/api/quality/qcrs');
                 console.log(response.data.data);
                 this.qcrList = response.data.data; // 받아온 데이터로 state 업데이트
+            } catch (error) {
+                this.error = '데이터를 불러오는 데 실패했습니다.';
+                console.error('Error fetching QCR list:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
+        async fetchQIOList() {
+            this.loading = true;
+            this.error = null;
+            try {
+                const response = await axios.get('/api/quality/qios');
+                console.log(response.data.data);
+                this.qioList = response.data.data; // 받아온 데이터로 state 업데이트
             } catch (error) {
                 this.error = '데이터를 불러오는 데 실패했습니다.';
                 console.error('Error fetching QCR list:', error);
@@ -86,7 +105,48 @@ export const useQualityStore = defineStore('quality', {
                 this.loading = false;
             }
         },
+        async fetchQualityEmployeeList() {
+            this.loading = true;
+            this.error = null;
+            try {
+                const response = await axios.get('/api/quality/es');
+                console.log(response.data.data);
+                this.qualityEmployeeList = response.data.data; // 여기는 정상입니다.
+            } catch (error) {
+                this.error = '데이터를 불러오는 데 실패했습니다.';
+                console.error('Error fetching QualityEmployee list:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
+        /**
+         * 검사지시 상세 정보를 불러와 스토어 상태를 업데이트합니다.
+         * @param {object} qioItem - 모달에서 선택된 검사지시 항목
+         */
+        async loadInspectionDetails(qioItem) {
+            this.loading = true;
+            this.error = null;
+            try {
+                const { qio_code, prdr_code, mpr_d_code } = qioItem;
 
+                // 1. 백엔드 API에 GET 요청을 보냅니다.
+                const response = await axios.get('/api/quality/qiodetail', {
+                    params: { qio_code, prdr_code, mpr_d_code }
+                });
+                console.log('품질검사 지시 상세정보', response.data.data);
+                console.log('받아왔습니다 드디어11111111!', response.data.data[1].length);
+
+                this.selectedQIO = response.data.data;
+
+                // const { qioDetail,mpr_d||prdr, inspectionItems(qir&& qcr list) } = response.data.data;
+            } catch (error) {
+                this.error = '검사지시 상세 정보를 불러오는 데 실패했습니다.';
+                console.error('Error fetching inspection details:', error);
+                throw error; // 컴포넌트에서 에러를 인지할 수 있도록 다시 throw
+            } finally {
+                this.loading = false;
+            }
+        },
         /**
          * 신규 품질검사기준(QCR)을 서버에 생성합니다. (POST)
          * @param {object} newQcrData - 생성할 QCR 데이터 객체
