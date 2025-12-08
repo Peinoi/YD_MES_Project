@@ -142,7 +142,19 @@ const downloadExcel = () => {
         return;
     }
 
-    const worksheet = XLSX.utils.json_to_sheet(data);
+    const excelData = data.map((item) => ({
+        주문번호: item.ord_code,
+        주문명: item.ord_name,
+        거래처: item.client_name,
+        제품명: item.prod_name,
+        수량: item.ord_amount, // formatNumber 적용은 Excel 다운로드 후 직접 확인/처리하는 것이 일반적
+        주문일자: formatDate(item.ord_date),
+        납기일: formatDate(item.delivery_date),
+        상태: item.ord_stat_name,
+        비고: item.note
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, '주문목록');
 
@@ -248,7 +260,7 @@ onMounted(() => {
                 </div>
 
                 <div class="table-wrapper">
-                    <DataTable :value="orderList" v-model:selection="selectedOrders" selectionMode="multiple" dataKey="ord_d_code" showGridlines stripedRows class="order-table">
+                    <DataTable :value="orderList" v-model:selection="selectedOrders" selectionMode="multiple" dataKey="ord_d_code" showGridlines stripedRows class="order-table" scrollable scrollHeight="100%">
                         <Column selectionMode="multiple" style="width: 3rem" />
                         <Column header="No." style="width: 3rem">
                             <template #body="slotProps">{{ slotProps.index + 1 }}</template>
@@ -256,28 +268,18 @@ onMounted(() => {
                         <Column field="ord_code" header="주문번호" sortable />
                         <Column field="ord_name" header="주문명" sortable />
                         <Column header="주문일자">
-                            <template #body="{ data }">
-                                {{ formatDate(data.ord_date) }}
-                            </template>
+                            <template #body="{ data }">{{ formatDate(data.ord_date) }}</template>
                         </Column>
                         <Column field="prod_name" header="제품명" sortable />
                         <Column header="수량" sortable>
-                            <template #body="{ data }">
-                                {{ formatNumber(data.ord_amount) }}
-                            </template>
+                            <template #body="{ data }">{{ formatNumber(data.ord_amount) }}</template>
                         </Column>
                         <Column field="client_name" header="거래처" sortable />
                         <Column header="납기일">
-                            <template #body="{ data }">
-                                {{ formatDate(data.delivery_date) }}
-                            </template>
+                            <template #body="{ data }">{{ formatDate(data.delivery_date) }}</template>
                         </Column>
                         <Column field="ord_stat_name" header="상태" sortable />
                         <Column field="note" header="비고" sortable />
-
-                        <template #empty>
-                            <div class="text-center p-4 text-gray-500">등록된 주문이 없습니다.</div>
-                        </template>
                     </DataTable>
                 </div>
             </div>
@@ -310,7 +312,8 @@ onMounted(() => {
     margin: 0 auto;
     padding: 24px;
     background: #f4f6f8;
-    height: 100vh;
+    /* height: 100vh;를 calc()로 변경하여 padding 만큼 제외하고 높이를 계산 */
+    height: calc(100vh - 0px); /* 뷰포트 높이 전체를 사용하되, padding을 제외하기 위해 calc 사용 (padding이 24px이지만, 확실한 동작을 위해 일단 0으로 가정) */
     display: flex;
     flex-direction: column;
     overflow: hidden; /* 전체 스크롤 제거 */
@@ -322,35 +325,31 @@ onMounted(() => {
     padding: 18px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
     margin-bottom: 18px;
-    flex-shrink: 0; /* 위 카드들이 아래를 눌러서 overflow 생기는 것 방지 */
+    flex-shrink: 0;
 }
 
-/* 주문 목록 카드(테이블 카드) */
+/* 주문 목록 카드(테이블 카드) - 남은 공간을 모두 채우는 컨테이너 */
 .card.table-card {
-    flex: 1; /* 화면에서 남은 높이를 전부 차지 */
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* 결과 카드 자체에서 스크롤 막음 */
+    min-height: 0; /* Flex Item이 높이 계산을 제대로 하도록 보장 */
+    overflow: hidden; /* 자식 요소의 오버플로우가 이 카드를 넘어가지 않게 */
 }
 
-/* 카드 헤더 */
+/* 카드 헤더 및 검색 영역 스타일은 그대로 유지 */
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding-bottom: 8px;
     border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0; /* 헤더는 고정 높이 */
 }
 
-/* 제목 */
-.page-title {
-    font-size: 1.5rem;
-    font-weight: 800;
-}
 /* ------------------------------ */
-/* ▶ 검색 영역 */
+/* ▶ 검색 영역 (변경 없음) */
 /* ------------------------------ */
-/* 검색 조건 그리드 */
 .search-grid {
     display: grid;
     gap: 12px;
@@ -365,7 +364,7 @@ onMounted(() => {
 }
 
 .field-group label {
-    width: 80px; /* 라벨 너비 맞추기 */
+    width: 80px;
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
@@ -373,7 +372,6 @@ onMounted(() => {
     white-space: nowrap;
 }
 
-/* 검색 input */
 .input {
     width: 100%;
     padding: 8px;
@@ -382,20 +380,18 @@ onMounted(() => {
     box-sizing: border-box;
 }
 
-/* 날짜, 수량 범위 */
 .range-input {
     display: flex;
     align-items: center;
-    width: 100%; /* 전체 너비 확보 */
+    width: 100%;
     gap: 8px;
 }
 
 .range-input .input {
-    flex: 1; /* input 두 개가 동일하게 넓게 */
-    width: 100%; /* 혹시 모를 겹침 방지 */
+    flex: 1;
+    width: 100%;
 }
 
-/* 검색 버튼 */
 .search-actions {
     display: flex;
     justify-content: center;
@@ -403,7 +399,6 @@ onMounted(() => {
     margin-top: 14px;
 }
 
-/* 버튼 */
 .btn {
     padding: 8px 14px;
     border-radius: 8px;
@@ -412,17 +407,13 @@ onMounted(() => {
     font-weight: 600;
 }
 
-/* <style scoped> 내에 추가 */
-
-/* Input + Button 그룹화 스타일 */
 .input-with-button {
     display: flex;
     align-items: center;
     width: 100%;
-    gap: 4px; /* 버튼과 인풋 사이 간격 */
+    gap: 4px;
 }
 
-/* 검색 아이콘 버튼 */
 .btn-search {
     background: #e5e7eb;
     color: #374151;
@@ -435,7 +426,6 @@ onMounted(() => {
     background: #d1d5db;
 }
 
-/* 초기화 X 버튼 (선택 사항) */
 .btn-clear {
     background: #ff4d4f;
     color: white;
@@ -446,13 +436,13 @@ onMounted(() => {
 }
 
 /* ------------------------------ */
-/* ▶ 테이블 스타일 */
+/* 🔑 ▶ 테이블 스타일 (최종 안정화) */
 /* ------------------------------ */
-/* 주문 목록 테이블 너비 고정 + 폰트 15px */
+
+/* 주문 목록 테이블 - 강제 너비 제거 및 안정화 */
 .order-table {
-    width: 1600px !important;
-    max-width: 1600px !important;
-    min-width: 1600px !important;
+    /* 강제 너비 설정 제거. 테이블 내용에 따라 크기 조절 */
+    min-width: 100%; /* table-wrapper보다 작아지지 않도록 */
     font-size: 15px !important;
     margin: 0 auto;
 }
@@ -468,13 +458,28 @@ onMounted(() => {
     font-size: 15px;
 }
 
-/* ✔ 테이블 안에서만 스크롤 생김 */
+/* ✔ 테이블 안에서만 스크롤 생김 (핵심 로직) */
 .table-wrapper {
-    flex: 1; /* 남은 공간 모두 테이블에게 줌 */
-    overflow-y: auto; /* 테이블 안에서만 스크롤 */
-    overflow-x: auto;
+    flex: 1; /* 남은 공간 모두 차지 (세로 확장) */
+    min-height: 0; /* Flexbox 높이 계산을 위한 필수 속성 */
+    overflow: auto; /* 가로/세로 스크롤을 이 래퍼에서 모두 처리 */
+    margin-top: 8px; /* 테이블과 헤더 간의 여백 */
 }
 
+/* PrimeVue DataTable 컴포넌트 */
+.table-wrapper > .p-datatable {
+    height: 100%; /* table-wrapper의 높이를 100% 사용 */
+    display: flex;
+    flex-direction: column;
+}
+
+/* PrimeVue DataTable 내부 스크롤 가능한 영역 (p-datatable-wrapper) */
+.table-wrapper > .p-datatable > .p-datatable-wrapper {
+    flex: 1; /* 남은 세로 공간을 모두 차지하여 스크롤 영역 확보 */
+    min-height: 0;
+}
+
+/* 스크롤바 스타일 */
 .table-wrapper::-webkit-scrollbar {
     width: 10px;
     height: 10px;
