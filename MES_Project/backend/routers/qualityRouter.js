@@ -52,7 +52,7 @@ router.get("/qios", async (req, res, next) => {
   }
 });
 
-// 4. GET /api/quality/qiodetail - qio_tbl단건을 기반으로 품질검사지시 상세 조회
+// 5. GET /api/quality/qiodetail - qio_tbl단건을 기반으로 품질검사지시 상세 조회
 router.get("/qiodetail", async (req, res, next) => {
   const { qio_code, prdr_code, mpr_d_code } = req.query;
   try {
@@ -61,6 +61,17 @@ router.get("/qiodetail", async (req, res, next) => {
       prdr_code,
       mpr_d_code
     );
+    res.json({ code: "Q200", data: orders });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
+// 6. POST /api/quality/qio - 신규 qio_tbl 데이터 추가
+router.post("/qio", async (req, res, next) => {
+  const reqData = req.body;
+  try {
+    const orders = await qualityService.createQuailityInstructionOrder(reqData);
     res.json({ code: "Q200", data: orders });
   } catch (err) {
     next(err); // 에러를 전역 오류 처리 미들웨어로 전달

@@ -102,7 +102,7 @@ exports.getQualityEmployeeList = async () => {
   }
 };
 
-// ?. 기존의 품질검사 지시 목록을 조회.
+// 4. 기존의 품질검사 지시 목록을 조회.
 exports.getQIOList = async () => {
   try {
     const result = await query("findAllQIO", []);
@@ -112,7 +112,7 @@ exports.getQIOList = async () => {
   }
 };
 
-// ?. 기존의 품질검사 단건에 해당하는 prdr||mpr_d, qir && qcr 조회
+// 5. 기존의 품질검사 단건에 해당하는 prdr||mpr_d, qir && qcr 조회
 exports.getQIODetail = async (qio_code, prdr_code, mpr_d_code) => {
   const conn = await getConnection(); // 트랜잭션용 연결
   const result = [];
@@ -144,6 +144,52 @@ exports.getQIODetail = async (qio_code, prdr_code, mpr_d_code) => {
     await conn.rollback();
     console.error("조회 중 오류:", err);
     throw new Error("조회 중 오류가 발생했습니다.");
+  } finally {
+    conn.release();
+  }
+};
+
+exports.createQuailityInstructionOrder = async (data) => {
+  // 1. 프론트엔드에서 받은 데이터 분해 할당
+  const { insp_date, prdr_code, mpr_d_code, emp_code, insp_vol, qcr_codes } =
+    data;
+
+  const conn = await getConnection(); // 트랜잭션용 연결
+  try {
+    await conn.beginTransaction();
+
+    // 2. qio_tbl에 데이터 추가
+    await conn.query(sqlList.createQuailityInstructionOrder, [
+      insp_date,
+      prdr_code,
+      mpr_d_code,
+      emp_code,
+      insp_vol,
+    ]);
+    const rows = await conn.query(
+      `SELECT qio_code FROM qio_tbl WHERE qio_code = LAST_INSERT_ID()`,
+      []
+    );
+    //QIO-DEFAULT-TEMP
+    const qio_code = rows[0].qio_code; // ex) 'QIO-20251208-002'
+
+    // 4. qir_tbl에 qcr_codes 배열을 순회하며 데이터 추가
+    for (const item of qcr_codes) {
+      await conn.query(sqlList.createQuailityInstructionResult, [
+        insp_date, // insp_result_date (검사 결과일) - 초기에는 지시일자와 동일하게 설정
+        insp_date, // insp_date (검사일) - 초기에는 지시일자와 동일하게 설정
+        qio_code, // FK
+        emp_code, // FK
+        item, // qcr_code (FK)
+      ]);
+    }
+
+    await conn.commit(); // 모든 쿼리가 성공하면 트랜잭션 커밋
+    return { qio_code }; // 생성된 qio_code를 프론트엔드로 반환
+  } catch (err) {
+    await conn.rollback(); // 오류 발생 시 롤백
+    console.error("품질검사지시 생성 중 오류:", err);
+    throw new Error("품질검사지시 생성 중 오류가 발생했습니다.");
   } finally {
     conn.release();
   }

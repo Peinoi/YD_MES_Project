@@ -13,6 +13,7 @@ const employeeManagerList = computed(() => qualityStore.getEmployeeManagers); //
 const formState = ref({
     qio_code: '', // 검사지시코드
     insp_date: '', // 지시일자
+    emp_code: '', // 지시자 코드
     emp_name: '', // 지시자
     target_type: '', // 검사대상 (자재/제품)
     item_code: '', // 품목코드
@@ -83,6 +84,7 @@ const handleModalConfirm = async (selectedItem) => {
         formState.value.qio_code = selectedItem.qio_code;
         formState.value.insp_date = selectedItem.insp_date;
         formState.value.emp_name = selectedItem.emp_name;
+        formState.value.emp_code = ''; // 불러오기 시에는 코드가 없으므로 초기화
         isInstructorReadOnly.value = true; // 지시자 필드를 읽기 전용으로 설정
 
         const { qio_code, prdr_code, mpr_d_code } = selectedItem;
@@ -105,6 +107,7 @@ const handleModalConfirm = async (selectedItem) => {
         selectedProducts.value = [];
         qualityStore.selectedQIO[1].forEach((item) => {
             selectedProducts.value.push({
+                qcr_code: item.qcr_code,
                 inspection_item: item.inspection_item,
                 range_top: item.range_top,
                 range_bot: item.range_bot,
@@ -129,6 +132,7 @@ const resetForm = () => {
     formState.value = {
         qio_code: '',
         insp_date: formatDate(new Date()), // 지시일자는 오늘 날짜로 설정
+        emp_code: '',
         emp_name: '',
         target_type: '',
         item_code: '',
@@ -195,8 +199,34 @@ onMounted(() => {
     formState.value.insp_date = formatDate(new Date()); // 지시일자를 오늘 날짜로 설정
 });
 
-const seveQualityInspectionOrder = () => {
-    console.log('hello');
+const seveQualityInspectionOrder = async () => {
+    // 1. 유효성 검사
+    if (!selectedProducts.value || selectedProducts.value.length === 0) {
+        alert('검사항목을 선택해주세요.');
+        return;
+    }
+
+    if (!formState.value.emp_code) {
+        alert('지시자를 선택해주세요.');
+        return;
+    }
+
+    if (!formState.value.target_type || !formState.value.item_code) {
+        alert('검사대상을 선택해주세요.');
+        return;
+    }
+
+    if (!formState.value.qio_code) {
+        const saveData = {
+            insp_date: formState.value.insp_date, // ✅
+            emp_code: formState.value.emp_code, // ✅ Dropdown에서 선택된 emp_code 사용
+            insp_vol: formState.value.item_quantity, // ✅
+            prdr_code: formState.value.target_type === '제품' ? formState.value.item_code : null, // ✅ 조건부
+            mpr_d_code: formState.value.target_type === '자재' ? formState.value.item_code : null, // ✅ 조건부
+            qcr_codes: selectedProducts.value.map((item) => item.qcr_code) // ✅ 배열
+        };
+        formState.value.qio_code = await qualityStore.saveQIO(saveData); // Pinia 스토어의 saveQIO 액션 호출
+    }
 };
 </script>
 
@@ -228,7 +258,10 @@ const seveQualityInspectionOrder = () => {
             <div class="grid grid-cols-12 gap-2">
                 <label class="font-semibold flex items-center justify-center col-span-12 md:col-span-4">지시자</label>
                 <div class="col-span-12 md:col-span-8">
-                    <Dropdown v-model="formState.emp_name" :options="employeeManagerList" optionLabel="emp_name" optionValue="emp_name" placeholder="지시자 선택" class="w-full" :disabled="isInstructorReadOnly" />
+                    <!-- '검사지시 불러오기'로 emp_name만 있을 경우 InputText로 표시 -->
+                    <InputText v-if="isInstructorReadOnly" v-model="formState.emp_name" class="w-full" :readonly="true" />
+                    <!-- 직접 선택할 경우 Dropdown으로 emp_code를 모델에 바인딩 -->
+                    <Dropdown v-else v-model="formState.emp_code" :options="employeeManagerList" optionLabel="emp_name" optionValue="emp_code" placeholder="지시자 선택" class="w-full" />
                 </div>
             </div>
         </div>
