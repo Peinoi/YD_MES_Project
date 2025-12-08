@@ -72,13 +72,10 @@ const fetchManagerSearch = async (keyword = '') => {
 
 // 거래처 선택 이벤트
 const onClientSelect = (row) => {
-    if (!row || !row.clientCode) return;
+    if (!row || !row.client_code) return;
+
     order.client_code = row.client_code;
     order.client_name = row.client_name;
-
-    // 담당자 초기화
-    order.mcode = '';
-    order.client_contact = '';
 
     showClientModal.value = false;
 };
@@ -333,16 +330,16 @@ function resetForm() {
     products.value = [createEmptyProduct(nextProductId++), createEmptyProduct(nextProductId++), createEmptyProduct(nextProductId++), createEmptyProduct(nextProductId++)];
 }
 
-// ⭐️ 새로운 함수 추가: 거래처 모달 열기
+// 거래처 모달 열기
 function openClientSearch() {
     fetchClientSearch('').then(() => {
-        // 모달 열기 전에 선택 상태 초기화 (SearchSelectModal 내부에 selectedKey 초기화 로직이 있으므로 필수 아님)
+        // 모달 열기 전에 선택 상태 초기화
         clientSearchList.value = clientSearchList.value.map((row) => ({ ...row, _selected: false }));
         showClientModal.value = true;
     });
 }
 
-// ⭐️ 새로운 함수 추가: 담당자 모달 열기
+// 담당자 모달 열기
 function openManagerSearch() {
     fetchManagerSearch('').then(() => {
         // 모달 열기 전에 선택 상태 초기화
@@ -507,16 +504,14 @@ function formatCurrency(v) {
 
                     <label>거래처</label>
                     <div style="display: flex; gap: 6px; flex: 1">
-                        <input type="text" v-model="order.client_name" readonly />
-                        <button class="btn small" @click="openClientSearch">검색</button>
+                        <input type="text" v-model="order.client_name" @click="openClientSearch" readonly />
                     </div>
                 </div>
 
                 <div class="form-row">
                     <label>거래처담당자</label>
                     <div style="display: flex; gap: 6px; flex: 1">
-                        <input type="text" v-model="order.client_contact" readonly />
-                        <button class="btn small" @click="openManagerSearch">검색</button>
+                        <input type="text" v-model="order.client_contact" @click="openManagerSearch" readonly />
                     </div>
 
                     <label>비고</label>
