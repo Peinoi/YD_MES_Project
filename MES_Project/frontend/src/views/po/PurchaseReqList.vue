@@ -337,112 +337,130 @@ onMounted(() => {
 </script>
 
 <template>
-    <section class="p-2 mx-auto filter-section">
-        <!--  검색 영역 -->
-        <div class="card-block filter-block">
-            <h3 class="section-title">요청 검색</h3>
-            <div class="filter-grid">
-                <!-- 1행 -->
-                <div class="form-item">
-                    <label>요청번호</label>
-                    <input class="input" v-model="filters.mprCode" readonly placeholder="요청서 선택" @click="openReqModal(row)" />
-                </div>
+    <div class="inbound-container">
+        <section class="p-2 mx-auto filter-section">
+            <!--  검색 영역 -->
+            <div class="card-block filter-block">
+                <h3 class="section-title">요청 검색</h3>
+                <div class="filter-grid">
+                    <!-- 1행 -->
+                    <div class="form-item">
+                        <label>요청번호</label>
+                        <input class="input" v-model="filters.mprCode" readonly placeholder="요청서 선택" @click="openReqModal(row)" />
+                    </div>
 
-                <div class="form-item">
-                    <label>자재명</label>
-                    <input class="input" v-model="filters.matName" readonly placeholder="자재 선택" @click="openMateModal(row)" />
-                </div>
+                    <div class="form-item">
+                        <label>자재명</label>
+                        <input class="input" v-model="filters.matName" readonly placeholder="자재 선택" @click="openMateModal(row)" />
+                    </div>
 
-                <div class="form-item">
-                    <label>자재코드</label>
-                    <input class="input" v-model="filters.matCode" readonly placeholder="자재 선택" @click="openMateModal(row)" />
-                </div>
+                    <div class="form-item">
+                        <label>자재코드</label>
+                        <input class="input" v-model="filters.matCode" readonly placeholder="자재 선택" @click="openMateModal(row)" />
+                    </div>
 
-                <!-- 2행 -->
-                <div class="form-item">
-                    <label>요청일자</label>
-                    <input type="date" class="input" v-model="filters.reqDate" />
-                </div>
+                    <!-- 2행 -->
+                    <div class="form-item">
+                        <label>요청일자</label>
+                        <Calendar v-model="filters.reqDate" dateFormat="yy-mm-dd" placeholder="연도-월-일" class="reqdate-calendar" showIcon />
+                    </div>
 
-                <div class="form-item">
-                    <label>거래처</label>
-                    <input class="input" v-model="filters.vendor" readonly placeholder="공급업체 선택" @click="openClientModal" />
-                </div>
+                    <div class="form-item">
+                        <label>거래처</label>
+                        <input class="input" v-model="filters.vendor" readonly placeholder="공급업체 선택" @click="openClientModal" />
+                    </div>
 
-                <div class="form-item form-actions">
-                    <button class="btn-black" @click="onReset">초기화</button>
-                    <button class="btn-yellow" @click="onSearch">조회</button>
+                    <div class="form-item form-actions">
+                        <button class="btn-black" @click="onReset">초기화</button>
+                        <button class="btn-yellow" @click="onSearch">조회</button>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!--  검색 결과 + 엑셀 다운로드 -->
-        <div class="result-block mt-6">
-            <div class="result-header">
-                <h3 class="section-title">요청 자재 목록</h3>
+            <!--  검색 결과 + 엑셀 다운로드 -->
+            <div class="result-block mt-6">
+                <div class="result-header">
+                    <h3 class="section-title">요청 자재 목록</h3>
 
-                <div class="result-info">
-                    검색 결과 <span class="highlight">{{ tableRows.length }}</span
-                    >건
+                    <div class="result-info">
+                        검색 결과 <span class="highlight">{{ tableRows.length }}</span
+                        >건
+                    </div>
+                    <Button label="엑셀 다운로드" icon="pi pi-file-excel" class="btn-excel" @click="downloadExcel" />
                 </div>
-                <button class="btn-excel" @click="downloadExcel">엑셀 다운로드</button>
+                <div class="table-scroll">
+                    <table class="nice-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px">
+                                    <input type="checkbox" v-model="allChecked" @change="toggleAll" />
+                                </th>
+                                <th>요청번호</th>
+                                <th>자재명</th>
+                                <th>자재코드</th>
+                                <th>요청일자</th>
+                                <th>요청수량</th>
+                                <th>단위</th>
+                                <th>공급업체</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr v-for="row in tableRows" :key="row.id" @click="goDetail(row)" class="table-row">
+                                <td>
+                                    <input type="checkbox" v-model="row.checked" @click.stop />
+                                </td>
+                                <td>{{ row.mprCode }}</td>
+                                <td>{{ row.matName }}</td>
+                                <td>{{ row.matCode }}</td>
+                                <td>{{ row.reqDate }}</td>
+                                <td>{{ row.reqQtt }}</td>
+                                <td>{{ getUnitLabel(row.unit) }}</td>
+                                <td>{{ row.clientName }}</td>
+                            </tr>
+
+                            <tr v-if="!tableRows.length">
+                                <td colspan="11" class="empty-cell">조회 결과가 없습니다.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="table-scroll">
-                <table class="nice-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 40px">
-                                <input type="checkbox" v-model="allChecked" @change="toggleAll" />
-                            </th>
-                            <th>요청번호</th>
-                            <th>자재명</th>
-                            <th>자재코드</th>
-                            <th>요청일자</th>
-                            <th>요청수량</th>
-                            <th>단위</th>
-                            <th>공급업체</th>
-                        </tr>
-                    </thead>
+        </section>
 
-                    <tbody>
-                        <tr v-for="row in tableRows" :key="row.id" @click="goDetail(row)" class="table-row">
-                            <td>
-                                <input type="checkbox" v-model="row.checked" @click.stop />
-                            </td>
-                            <td>{{ row.mprCode }}</td>
-                            <td>{{ row.matName }}</td>
-                            <td>{{ row.matCode }}</td>
-                            <td>{{ row.reqDate }}</td>
-                            <td>{{ row.reqQtt }}</td>
-                            <td>{{ getUnitLabel(row.unit) }}</td>
-                            <td>{{ row.clientName }}</td>
-                        </tr>
+        <SearchSelectModal
+            v-model="showClientModal"
+            :columns="clientColumns"
+            :rows="clientRows"
+            row-key="clientCode"
+            search-placeholder="공급업체명을 입력하세요."
+            @search="handleClientSearch"
+            @confirm="handleConfirmClient"
+            @cancel="handleCancelClient"
+        />
 
-                        <tr v-if="!tableRows.length">
-                            <td colspan="11" class="empty-cell">조회 결과가 없습니다.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
-    <SearchSelectModal
-        v-model="showClientModal"
-        :columns="clientColumns"
-        :rows="clientRows"
-        row-key="clientCode"
-        search-placeholder="공급업체명을 입력하세요."
-        @search="handleClientSearch"
-        @confirm="handleConfirmClient"
-        @cancel="handleCancelClient"
-    />
-
-    <SearchSelectModal v-model="showMateModal" :columns="mateColumns" :rows="mateRows" row-key="matCode" search-placeholder="자재명 또는 자재코드를 입력해주세요." @confirm="handleConfirmMate" @cancel="handleCancelMate" @search="handleMateSearch" />
-    <SearchSelectModal v-model="showReqModal" :columns="ReqColumns" :rows="reqRows" row-key="mprCode" search-placeholder="자재구매요청번호를 입력해주세요." @confirm="handleConfirmReq" @cancel="handleCancelReq" @search="handleReqSearch" />
+        <SearchSelectModal
+            v-model="showMateModal"
+            :columns="mateColumns"
+            :rows="mateRows"
+            row-key="matCode"
+            search-placeholder="자재명 또는 자재코드를 입력해주세요."
+            @confirm="handleConfirmMate"
+            @cancel="handleCancelMate"
+            @search="handleMateSearch"
+        />
+        <SearchSelectModal v-model="showReqModal" :columns="ReqColumns" :rows="reqRows" row-key="mprCode" search-placeholder="자재구매요청번호를 입력해주세요." @confirm="handleConfirmReq" @cancel="handleCancelReq" @search="handleReqSearch" />
+    </div>
 </template>
 
 <style scoped>
+.inbound-container {
+    font-family: 'Pretendard', 'Inter', sans-serif;
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 12px;
+    height: calc(100vh - 11.5rem);
+}
 .filter-section {
     max-width: 100%;
     overflow-x: hidden;
@@ -482,7 +500,7 @@ onMounted(() => {
 }
 
 .form-item label {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     margin-bottom: 6px;
     color: #444;
@@ -493,6 +511,35 @@ onMounted(() => {
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 6px;
+}
+
+/* 요청일자 캘린더 아이콘 붙이기 */
+:deep(.reqdate-calendar.p-calendar) {
+    width: 100%;
+    display: flex;
+    align-items: center;
+}
+
+:deep(.reqdate-calendar .p-inputtext) {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 6px 0 0 6px; /* 왼쪽만 둥글게 */
+    border: 1px solid #ccc;
+    border-right: 0; /* 아이콘 버튼이랑 경계선 공유 */
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+:deep(.reqdate-calendar .p-datepicker-trigger) {
+    height: 40px;
+    padding: 0 10px;
+    border-radius: 0 6px 6px 0; /* 오른쪽만 둥글게 */
+    border: 1px solid #ccc;
+    border-left: 0;
+    box-sizing: border-box;
+    flex-shrink: 0;
 }
 
 .range-row .input {
@@ -508,7 +555,7 @@ onMounted(() => {
 }
 
 .range-dash {
-    font-size: 13px;
+    font-size: 14px;
     color: #777;
 }
 
@@ -538,6 +585,7 @@ onMounted(() => {
     border-radius: 8px;
     padding: 16px 20px 20px;
     background: #fff;
+    height: auto;
 }
 
 .result-header {
@@ -558,10 +606,9 @@ onMounted(() => {
 
 .btn-excel {
     padding: 7px 16px;
-    font-size: 13px;
+    font-size: 14px;
     border-radius: 6px;
     border: 1px solid #6cbf5a;
-    background: #f4fff2;
     cursor: pointer;
 }
 
@@ -575,7 +622,7 @@ onMounted(() => {
 .nice-table th,
 .nice-table td {
     padding: 8px 10px;
-    font-size: 13px;
+    font-size: 14px;
     border-bottom: 1px solid #eee;
 }
 
@@ -595,7 +642,7 @@ onMounted(() => {
 }
 
 .table-scroll {
-    max-height: 440px; /* 대략 12행 정도 높이 */
+    max-height: 410px; /* 대략 12행 정도 높이 */
     overflow-y: auto;
     overflow-x: hidden;
     border-radius: 6px;

@@ -2,13 +2,16 @@ module.exports = {
   // 단일 발주서 헤더 조회
   selectPoHeaderByCode: `
     SELECT
-    purchase_code,
-    purchase_req_date,
-    stat,
-    regdate,
-    note,
-    mcode
-  FROM mpo_tbl
+     m.purchase_code,
+    m.purchase_req_date,
+    m.stat,
+    m.regdate,
+    m.note,
+    m.mcode  AS mcode,
+     e.emp_name     AS mname
+  FROM mpo_tbl m
+  join emp_tbl e
+  ON m.mcode = e.emp_code
   WHERE purchase_code = ?
 `,
 
@@ -20,7 +23,7 @@ module.exports = {
     d.unit              AS unit,
     d.deadline          AS deadline,
     d.purchase_code     AS purchase_code,
-    d.client_code       AS client_code,
+    d.client_code       AS clientCode,
     d.req_qtt           AS req_qtt,
 
     m.mat_name          AS matName,
@@ -312,7 +315,8 @@ module.exports = {
       0
     ) AS insInven,
 
-    c.client_name       AS clientName
+    c.client_name       AS clientName,
+    c.client_code       AS clientCode
   FROM mpr_d_tbl d
   JOIN mpr_tbl h
     ON d.mpr_code = h.mpr_code
