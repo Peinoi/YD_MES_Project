@@ -95,23 +95,34 @@ const handleSelect = async (data) => {
         form.value.managerCode = data.empCode;
         form.value.manager = data.empName;
     } else if (type === 'ORDER') {
-        if (!data.purchaseCode) return;
+        if (!data.purchaseCode) {
+            isModalVisible.value = false;
+            return;
+        }
         try {
-            // 2단계: 상세 정보 조회
             const response = await inboundApi.getOrderDetail(data.purchaseCode);
             const detailData = response.data.data;
             const items = detailData.items || [];
 
             if (items.length === 0) {
                 toast.add({ severity: 'info', summary: '알림', detail: '해당 발주서에 포함된 자재가 없습니다.', life: 3000 });
-                // [수정] 모달을 닫기 위해 return 전에 isModalVisible을 false로 설정
                 isModalVisible.value = false;
                 return;
             }
 
-            // 3단계: 조회된 자재들을 입고 대기 목록에 추가
+            // [수정] 중복 추가 방지 로직
+            const existingMatCodes = new Set(inboundList.value.map((item) => item.matCode));
+            const newItems = items.filter((item) => !existingMatCodes.has(item.mat_code));
+            const skippedCount = items.length - newItems.length;
+
+            if (newItems.length === 0) {
+                toast.add({ severity: 'info', summary: '알림', detail: '가져온 모든 품목이 이미 목록에 존재합니다.', life: 3000 });
+                isModalVisible.value = false;
+                return;
+            }
+
             const today = new Date().toISOString().split('T')[0];
-            items.forEach((item) => {
+            newItems.forEach((item) => {
                 inboundList.value.push({
                     matCode: item.mat_code,
                     matName: item.matName,
@@ -119,20 +130,23 @@ const handleSelect = async (data) => {
                     unit: item.unit,
                     client: item.clientCode,
                     clientName: item.clientName,
-                    manager: '', // 발주 정보에 담당자가 없으므로 빈 값으로 설정
+                    manager: '',
                     managerName: '',
-                    inQty: item.req_qtt, // 발주 필요수량을 입고 수량으로 설정
-                    inboundDate: today // 입고일자는 오늘 날짜로 기본 설정
+                    inQty: item.req_qtt,
+                    inboundDate: today
                 });
             });
 
-            toast.add({ severity: 'success', summary: '추가 완료', detail: `발주서 [${data.purchaseCode}]의 ${items.length}개 품목이 목록에 추가되었습니다.`, life: 4000 });
+            let toastMessage = `신규 ${newItems.length}개 품목이 추가되었습니다.`;
+            if (skippedCount > 0) {
+                toastMessage += ` (${skippedCount}개는 이미 존재하여 건너뜁니다.)`;
+            }
+            toast.add({ severity: 'success', summary: '추가 완료', detail: toastMessage, life: 4000 });
         } catch (error) {
             console.error('발주 상세 정보 조회 실패:', error);
             toast.add({ severity: 'error', summary: '오류', detail: '발주 상세 정보를 불러오는 중 문제가 발생했습니다.', life: 3000 });
         }
     }
-    // [수정] 모든 선택 처리가 끝난 후 모달을 닫음
     isModalVisible.value = false;
 };
 // [기능] 목록에 추가
