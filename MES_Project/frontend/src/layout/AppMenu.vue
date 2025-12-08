@@ -44,12 +44,16 @@ const model = ref([
                         to: '/order/management'
                     },
                     {
-                        label: '출고관리',
+                        label: '출고조회',
+                        to: '/ForwardingCheck'
+                    },
+                    {
+                        label: '출고요청',
                         to: '/ForwardingManagement'
                     },
                     {
-                        label: '출고조회',
-                        to: '/ForwardingCheck'
+                        label: '출고관리',
+                        to: '/ForwardingApproval'
                     }
                 ]
             },
