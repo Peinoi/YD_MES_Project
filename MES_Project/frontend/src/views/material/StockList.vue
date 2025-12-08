@@ -1,110 +1,106 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
+import inboundApi from '@/api/inbound';
 
 const toast = useToast();
 
-const filters = ref({ keyword: '', type: 'ALL', status: 'ALL' });
+// ------------------------------------------------------------------
+// [State]
+// ------------------------------------------------------------------
+const filters = ref({
+    keyword: '',
+    type: 'ALL',
+    status: 'ALL'
+});
 
-const typeOptions = [
-    { label: '전체분류', value: 'ALL' },
-    { label: '원자재', value: '원자재' },
-    { label: '부자재', value: '부자재' },
-    { label: '포장재', value: '포장재' }
-];
-
-const statusOptions = [
-    { label: '전체상태', value: 'ALL' },
-    { label: '정상', value: '정상' },
-    { label: '부족', value: '부족' },
-    { label: '과다', value: '과다' },
-    { label: '발주 필요', value: '발주 필요' }
-];
-
-const allMaterialList = [
-    { code: 'MAT-001', name: '밀가루', category: '원자재', stock: '15,500kg', status: '정상' },
-    { code: 'MAT-002', name: '소프트 분말', category: '부자재', stock: '1,200kg', status: '부족' },
-    { code: 'MAT-003', name: '포장지', category: '포장재', stock: '85,000매', status: '과다' },
-    { code: 'MAT-004', name: '식용유', category: '원자재', stock: '350L', status: '발주 필요' },
-    { code: 'MAT-005', name: '전분', category: '원자재', stock: '8,900kg', status: '정상' }
-];
-
-const materialList = ref([...allMaterialList]);
+const materialList = ref([]);
 const selected = ref(null);
+const loading = ref(false);
 
-const selectMaterial = (data) => {
-    selected.value = {
-        ...data,
-        unit: 'kg',
-        minStock: '5,000kg',
-        lastInput: '2025-05-25',
-        details: [
-            { supplier: '대한제분', amount: '8,000kg', date: '2025-05-25', lot: 'LOT-2025-0525-001' },
-            { supplier: '대문제분', amount: '4,500kg', date: '2025-05-20', lot: 'LOT-2025-0520-002' },
-            { supplier: '동아밀', amount: '3,000kg', date: '2025-05-15', lot: 'LOT-2025-0515-008' }
-        ],
-        history: [
-            { date: '2025-05-25 14:20', type: '입고', amount: '+2,000kg', supplier: '대한제분', manager: '박민수' },
-            { date: '2025-05-24 09:30', type: '출고', amount: '-800kg', supplier: '대문제분', manager: '신대현' },
-            { date: '2025-05-23 16:15', type: '출고', amount: '-600kg', supplier: '동아밀', manager: '배유리' }
-        ]
-    };
-};
+// ------------------------------------------------------------------
+// [Functions] API 호출
+// ------------------------------------------------------------------
 
-const search = () => {
-    let filtered = [...allMaterialList];
+// 1) 재고 목록 조회
+const search = async () => {
+    loading.value = true;
+    selected.value = null; // 선택 초기화
 
-    // 1. 키워드 필터 (자재명, 자재코드)
-    const keyword = filters.value.keyword.trim().toLowerCase();
-    if (keyword) {
-        filtered = filtered.filter((item) => item.name.toLowerCase().includes(keyword) || item.code.toLowerCase().includes(keyword));
-    }
+    try {
+        const params = {
+            keyword: filters.value.keyword || null,
+            type: filters.value.type === 'ALL' ? null : filters.value.type,
+            status: filters.value.status === 'ALL' ? null : filters.value.status
+        };
 
-    // 2. 분류 필터
-    if (filters.value.type !== 'ALL') {
-        filtered = filtered.filter((item) => item.category === filters.value.type);
-    }
+        const response = await inboundApi.getStockList(params);
+        materialList.value = response.data || [];
 
-    // 3. 재고 상태 필터
-    if (filters.value.status !== 'ALL') {
-        filtered = filtered.filter((item) => item.status === filters.value.status);
-    }
-
-    materialList.value = filtered;
-
-    if (filtered.length === 0) {
-        toast.add({ severity: 'warn', summary: '검색 결과 없음', detail: '조건에 맞는 자재가 없습니다.', life: 3000 });
-    } else {
-        toast.add({ severity: 'success', summary: '조회 성공', detail: `${filtered.length}건이 조회되었습니다.`, life: 3000 });
+        if (materialList.value.length === 0) {
+            toast.add({
+                severity: 'warn',
+                summary: '결과 없음',
+                detail: '조건에 맞는 자재가 없습니다.',
+                life: 3000
+            });
+        }
+    } catch (err) {
+        console.error(err);
+        toast.add({
+            severity: 'error',
+            summary: '오류',
+            detail: '데이터를 불러오지 못했습니다.',
+            life: 3000
+        });
+    } finally {
+        loading.value = false;
     }
 };
 
+// 2) 자재 상세 정보 조회
+const selectMaterial = async (item) => {
+    try {
+        const response = await inboundApi.getStockDetail(item.code);
+        selected.value = response.data;
+    } catch (err) {
+        console.error(err);
+        toast.add({
+            severity: 'error',
+            summary: '오류',
+            detail: '상세 정보를 불러오지 못했습니다.',
+            life: 3000
+        });
+    }
+};
+
+// 3) 필터 초기화
 const resetFilters = () => {
-    filters.value = { keyword: '', type: 'ALL', status: 'ALL' };
-    materialList.value = [...allMaterialList];
-    selected.value = null; // 선택된 항목도 초기화
+    filters.value = {
+        keyword: '',
+        type: 'ALL',
+        status: 'ALL'
+    };
+    search();
 };
 
-// 재고 상태 라벨 가져오기 (원래 statusColor 함수가 라벨 역할을 겸했으므로 그대로 사용)
+// ------------------------------------------------------------------
+// [Helper]
+// ------------------------------------------------------------------
+// 날짜/시간 포맷팅 (YYYY-MM-DD HH:mm)
+const formatDateTime = (isoString) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+};
+
 const getStatusLabel = (status) => status;
 
-// 재고 상태 severity 가져오기 (태그 색상) - 이 함수는 현재 사용되지 않지만, InOutHistory.vue와 일관성을 위해 유지
-const getStatusSeverity = (status) => {
-    switch (status) {
-        case '정상':
-            return 'success';
-        case '부족':
-            return 'warning';
-        case '과다':
-            return 'danger';
-        case '발주 필요':
-            return 'info';
-        default:
-            return null;
-    }
-};
-
-// 재고 상태 점 클래스 가져오기
 const getStatusDotClass = (status) => {
     switch (status) {
         case '정상':
@@ -119,6 +115,11 @@ const getStatusDotClass = (status) => {
             return 'status-unknown';
     }
 };
+
+// 초기 로딩
+onMounted(() => {
+    search();
+});
 </script>
 
 <template>
@@ -153,13 +154,13 @@ const getStatusDotClass = (status) => {
                     <template #empty>
                         <div class="p-4 text-center text-gray-500">조회된 재고 목록이 없습니다.</div>
                     </template>
-                    <Column field="code" header="자재코드" />
-                    <Column field="name" header="자재명" />
-                    <Column field="category" header="분류" />
-                    <Column field="stock" header="현재 재고" />
-                    <Column header="재고 상태">
+                    <Column field="code" header="자재코드" headerClass="center-header" bodyClass="text-center" />
+                    <Column field="name" header="자재명" headerClass="center-header" bodyClass="text-center" />
+                    <Column field="category" header="분류" headerClass="center-header" bodyClass="text-center" />
+                    <Column field="stock" header="현재 재고" headerClass="center-header" bodyClass="text-center" />
+                    <Column header="재고 상태" headerClass="center-header" bodyClass="text-center">
                         <template #body="{ data }">
-                            <div class="status-chip">
+                            <div class="status-chip justify-center">
                                 <span class="status-dot" :class="getStatusDotClass(data.status)"></span>
                                 <span class="status-text">{{ getStatusLabel(data.status) }}</span>
                             </div>
@@ -194,24 +195,32 @@ const getStatusDotClass = (status) => {
                                 <span class="status-text">{{ getStatusLabel(selected.status) }}</span>
                             </div>
                         </div>
-                        <div><span class="info-label">최근 입고일:</span> {{ selected.lastInput }}</div>
+                        <div><span class="info-label">최근 입고일:</span> {{ formatDateTime(selected.lastInput) }}</div>
                     </div>
 
                     <h3 class="section-title border-yellow">상세 재고 (공급업체별)</h3>
                     <DataTable :value="selected.details" size="small" class="mb-4 text-sm" rowHover>
-                        <Column field="supplier" header="공급업체" />
-                        <Column field="amount" header="수량" />
-                        <Column field="date" header="입고일" />
-                        <Column field="lot" header="LOT번호" />
+                        <Column field="supplier" header="공급업체" headerClass="center-header" bodyClass="text-center" />
+                        <Column field="amount" header="수량" headerClass="center-header" bodyClass="text-center" />
+                        <Column field="date" header="입고일" headerClass="center-header" bodyClass="text-center">
+                            <template #body="{ data }">
+                                {{ formatDateTime(data.date) }}
+                            </template>
+                        </Column>
+                        <Column field="lot" header="LOT번호" headerClass="center-header" bodyClass="text-center" />
                     </DataTable>
 
                     <h3 class="section-title border-red">최근 입출고 이력</h3>
                     <DataTable :value="selected.history" size="small" class="text-sm" rowHover>
-                        <Column field="date" header="일시" />
-                        <Column field="type" header="구분" />
-                        <Column field="amount" header="수량" />
-                        <Column field="supplier" header="공급업체" />
-                        <Column field="manager" header="담당자" />
+                        <Column field="date" header="일시" headerClass="center-header" bodyClass="text-center">
+                            <template #body="{ data }">
+                                {{ formatDateTime(data.date) }}
+                            </template>
+                        </Column>
+                        <Column field="type" header="구분" headerClass="center-header" bodyClass="text-center" />
+                        <Column field="amount" header="수량" headerClass="center-header" bodyClass="text-center" />
+                        <Column field="supplier" header="공급업체" headerClass="center-header" bodyClass="text-center" />
+                        <Column field="manager" header="담당자" headerClass="center-header" bodyClass="text-center" />
                     </DataTable>
                 </div>
             </div>
@@ -384,6 +393,11 @@ const getStatusDotClass = (status) => {
     padding-bottom: 0.4rem;
 }
 
+/* 테이블 내용 중앙 정렬 */
+:deep(.text-center) {
+    text-align: center !important;
+}
+
 /* 재고상태 점 + 텍스트 스타일 (InOutHistory.vue에서 복사 및 수정) */
 .status-chip {
     display: inline-flex;
@@ -415,5 +429,17 @@ const getStatusDotClass = (status) => {
 .status-text {
     font-size: 0.85rem;
     color: #374151;
+}
+</style>
+<style>
+/* PrimeVue 4 헤더 중앙 정렬 전역 설정 */
+.center-header .p-column-header-content,
+.center-header .p-datatable-column-header-content {
+    justify-content: center !important;
+}
+html,
+body {
+    height: 100%;
+    overflow: hidden;
 }
 </style>

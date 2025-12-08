@@ -13,7 +13,11 @@ const model = ref([
                 to: '/',
                 items: [
                     {
-                        label: '제품 및 BOM 등록',
+                        label: '제품 등록',
+                        to: '/add-product'
+                    },
+                    {
+                        label: 'BOM 등록',
                         to: '/baseinfo/bom'
                     },
                     {
@@ -61,10 +65,6 @@ const model = ref([
                     {
                         label: '작업지시서관리',
                         to: '/Production/productionPlanDetail'
-                    },
-                    {
-                        label: '작업 진행',
-                        to: '/Production/work'
                     },
                     {
                         label: '작업 진행 목록',

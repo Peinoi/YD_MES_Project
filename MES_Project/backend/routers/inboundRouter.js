@@ -54,4 +54,24 @@ router.post("/register", async (req, res) => {
   }
 });
 
+//입출력내역 조회
+// GET /api/inbound/history
+router.get("/history", async (req, res) => {
+  try {
+    // Query Parameter 받기
+    const { startDate, endDate, type, keyword } = req.query;
+
+    const result = await inboundService.getHistoryList({
+      startDate,
+      endDate,
+      type,
+      keyword,
+    });
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

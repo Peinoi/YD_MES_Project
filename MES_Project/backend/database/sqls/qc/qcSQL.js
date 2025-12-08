@@ -1,27 +1,29 @@
+const QCR_CODE_LIST = `
+SELECT 
+	qcr_code,
+  check_method
+FROM qcr_tbl
+`;
+
 const QC_SEARCH = `
-SELECT
-  qir.qir_code,
-  p.prod_code,
-  p.prod_name,
-  qcr.qcr_code,
-  qcr.check_method,
-  qcr.note,
-  c.note AS unit,
-  qir.result,
-  qir.start_date
-FROM qir_tbl qir
-JOIN qcr_tbl qcr ON qir.qcr_code = qcr.qcr_code
-JOIN qio_tbl qio ON qir.qio_code = qio.qio_code
-JOIN prdr_tbl prdr ON qio.prdr_code = prdr.prdr_code
-JOIN prod_tbl p ON prdr.prod_code = p.prod_code
-JOIN common_code c ON c.com_value = qcr.unit
-WHERE (? IS NULL OR qcr.qcr_code = ?)
-AND (? IS NULL OR p.prod_code LIKE CONCAT('%', ?, '%'))
-AND (? IS NULL OR p.prod_name LIKE CONCAT('%', ?, '%'))
-AND (? IS NULL OR qcr.check_method LIKE CONCAT('%', ?, '%'))
-AND (? IS NULL OR qir.result = ?)
-AND (? IS NULL OR qir.start_date = ?)
-ORDER BY qir.start_date DESC
+SELECT 
+	qir_code,
+  prod_code,
+  prod_name,
+  qcr_code,
+  check_method,
+  note,
+  unit,
+  result,
+  DATE_FORMAT(start_date, '%y-%m-%d') AS start_date
+FROM v_quality_result
+WHERE qcr_code LIKE CONCAT('%', IFNULL(?, ''), '%')
+AND prod_code LIKE CONCAT('%', IFNULL(?, ''), '%')
+AND prod_name LIKE CONCAT('%', IFNULL(?, ''), '%')
+AND check_method LIKE CONCAT('%', IFNULL(?, ''), '%')
+AND result LIKE CONCAT('%', IFNULL(?, ''), '%')
+AND start_date LIKE CONCAT('%', IFNULL(?, ''), '%')
+ORDER BY start_date DESC;
 `;
 
 const QC_PENDING_LIST = `
@@ -49,21 +51,20 @@ JOIN common_code c ON c.com_value = qcr.unit
 WHERE qir.qir_code = ?
 `;
 
-const QC_INSTRUCTION_SAVE = `
-UPDATE qir_tbl
-SET result = ?
-WHERE qir_code = ?
+const QC_RESULT_SAVE = `
+CALL UPDATE_QIR_RESULT(?, ?, ?, ?, ?)
 `;
 
-const QC_INSTRUCTION_DELETE = `
+const QC_RESULT_DELETE = `
 DELETE FROM qir_tbl
 WHERE qir_code = ?
 `;
 
 module.exports = {
+  QCR_CODE_LIST,
   QC_SEARCH,
   QC_PENDING_LIST,
   QC_INSTRUCTION,
-  QC_INSTRUCTION_SAVE,
-  QC_INSTRUCTION_DELETE,
+  QC_RESULT_SAVE,
+  QC_RESULT_DELETE,
 };

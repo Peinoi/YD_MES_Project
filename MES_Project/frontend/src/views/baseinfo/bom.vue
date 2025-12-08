@@ -5,7 +5,7 @@ import SubMaterialModal from '../BomMatModal.vue';
 import axios from 'axios';
 // import BomProductModal from '@/views/BomProductModal.vue';
 // PrimeVue 컴포넌트는 전역 등록되어 있다고 가정 (Sakai 템플릿 기본 구조)
-
+const deletedCodes = ref([]);
 const isModalVisible = ref(false);
 const isSubMaterialModal = ref(false);
 const searchForm = ref({
@@ -82,7 +82,8 @@ const openProductModal = () => {
 };
 
 const onProductSelect = (selectedProduct) => {
-    ((searchForm.value.itemCode = selectedProduct.prod_code), (searchForm.value.itemName = selectedProduct.prod_name));
+    searchForm.value.itemCode = selectedProduct.prod_code;
+    searchForm.value.itemName = selectedProduct.prod_name;
 };
 const useYnOptions = [
     { label: '사용', value: 'Y' },
@@ -197,16 +198,33 @@ const onDeleteBom = () => {
 };
 
 const onDownloadExcel = () => {
-    // TODO: 엑셀 다운로드 API 호출
-    console.log('엑셀 다운로드');
+    axios({
+        url: '/api/baseinfo/bom/download',
+        method: 'GET',
+        responseType: 'blob'
+    }).then((res) => {
+        const blob = new Blob([res.data], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'bom_export.xlsx';
+        link.click();
+        URL.revokeObjectURL(url);
+    });
 };
 
 const onDeleteSubMaterial = () => {
+    selectedSubMaterials.value.forEach((m) => {
+        deletedCodes.value.push(m.materialCode); // 삭제 추적
+    });
+
     const ids = new Set(selectedSubMaterials.value.map((m) => m.id));
     subMaterialList.value = subMaterialList.value.filter((m) => !ids.has(m.id));
+
     selectedSubMaterials.value = [];
 };
-
 const onCreate = async () => {
     if (!detailForm.value.prodCode) {
         alert('제품을 먼저 선택하세요.');
@@ -215,6 +233,7 @@ const onCreate = async () => {
 
     const payload = {
         bom_code: detailForm.value.bomCode,
+        deleted: deletedCodes.value,
         materials: subMaterialList.value.map((m) => ({
             mat_code: m.materialCode,
             mat_name: m.materialName,

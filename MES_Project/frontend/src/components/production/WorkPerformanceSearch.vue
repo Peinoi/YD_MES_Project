@@ -1,4 +1,5 @@
 <script setup>
+// WorkPerformancesSearch.vue
 import { reactive, defineEmits } from 'vue';
 
 const emit = defineEmits(['search', 'reset']);
@@ -7,11 +8,11 @@ const emit = defineEmits(['search', 'reset']);
 const initialForm = {
     startDate: '', // 기간 시작일
     endDate: '', // 기간 종료일
-    status: '', // 상태
-    line: '', // 라인
-    productName: '', // 제품명
-    worker: '', // 작업자
-    remarks: '' // ⭐️ 비고 추가
+    stat: '', // 상태
+    linecode: '', // 라인
+    name: '', // 제품명
+    lotnum: '', // 로트번호
+    order_num: '' // 작업지시번호
 };
 
 const searchForm = reactive({ ...initialForm });
@@ -41,36 +42,32 @@ const resetForm = () => {
             </div>
             <div class="field">
                 <label>제품명</label>
-                <input v-model="searchForm.productName" type="text" class="input" placeholder="제품명 입력" />
+                <input v-model="searchForm.name" type="text" class="input" placeholder="제품명 입력" />
             </div>
             <div class="field">
-                <label>공정명</label>
-                <input v-model="searchForm.productName" type="text" class="input" placeholder="제품명 입력" />
+                <label>라인번호</label>
+                <input v-model="searchForm.linecode" type="text" class="input" placeholder="제품명 입력" />
             </div>
             <div class="field">
                 <label>상태</label>
-                <select v-model="searchForm.status" class="input">
+                <select v-model="searchForm.stat" class="input">
                     <option value="">전체</option>
-                    <option value="진행중">진행중</option>
-                    <option value="대기">대기</option>
-                    <option value="완료">완료</option>
-                    <option value="중단">중단</option>
+                    <option value="대기 중">대기 중</option>
+                    <option value="생산 중">생산 중</option>
+                    <option value="생산 완료">생산 완료</option>
+                    <option value="생산 일시 정지">생산 일시 정지</option>
+                    <option value="가동 중지">가동 중지</option>
                 </select>
             </div>
 
             <div class="field">
                 <label>작업지시번호</label>
-                <input v-model="searchForm.productName" type="text" class="input" placeholder="제품명 입력" />
+                <input v-model="searchForm.order_num" type="text" class="input" placeholder="제품명 입력" />
             </div>
 
             <div class="field">
                 <label>LOT번호</label>
-                <input v-model="searchForm.worker" type="text" class="input" placeholder="작업자명 입력" />
-            </div>
-
-            <div class="field-custom">
-                <label>생산계획번호</label>
-                <input v-model="searchForm.remarks" type="text" class="input" placeholder="비고 내용 입력" />
+                <input v-model="searchForm.lotnum" type="text" class="input" placeholder="작업자명 입력" />
             </div>
         </div>
 
