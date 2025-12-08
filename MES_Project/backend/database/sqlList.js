@@ -11,6 +11,7 @@ const qcSQL = require("./sqls/qc/qcSQL.js");
 const inbound = require("./sqls/inbound.js");
 const process = require("./sqls/process.js");
 const quality = require("./sqls/quality.js");
+const dashboard = require("./sqls/dashboard.js");
 
 module.exports = {
   ...Productionwork,
@@ -24,4 +25,5 @@ module.exports = {
   ...process,
   ...quality,
   ...bom,
+  ...dashboard,
 };
