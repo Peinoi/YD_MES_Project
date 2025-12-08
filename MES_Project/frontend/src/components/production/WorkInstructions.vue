@@ -44,20 +44,29 @@ const props = defineProps({
 // 🔹 props를 내부 reactive로 복사 (v-model용)
 const localWorkOrder = reactive({ ...props.workOrderData });
 
-// 🔹 부모 데이터 변경 시 localWorkOrder 자동 업데이트
-// props 변경 → localWorkOrder 갱신
+// 🔥 props 변경 시 localWorkOrder 즉시 업데이트 (deep watch + immediate)
 watch(
     () => props.workOrderData,
     (newVal) => {
-        Object.assign(localWorkOrder, newVal);
-        localWorkOrder.lineType = newVal.lineCode?.trim() ? '정형' : '비정형';
+        console.log('🔥 WorkInstructions - props 변경 감지:', newVal);
+
+        // 🔥 Object.assign 대신 개별 속성 업데이트 (반응성 보장)
+        localWorkOrder.productName = newVal.productName || '';
+        localWorkOrder.instructionQuantity = newVal.instructionQuantity || '';
+        localWorkOrder.startDate = newVal.startDate || '';
+        localWorkOrder.expectedCompletion = newVal.expectedCompletion || '';
+        localWorkOrder.instructionStatus = newVal.instructionStatus || '';
+        localWorkOrder.lineType = newVal.lineType || (newVal.lineCode ? '정형' : '비정형');
+        localWorkOrder.lineCode = newVal.lineCode || '';
+
+        console.log('✅ localWorkOrder 업데이트 완료:', localWorkOrder);
     },
     { deep: true, immediate: true }
 );
 
-// localWorkOrder 변경 → 부모에게 자동 emit
+// 🔹 localWorkOrder 변경 → 부모에게 자동 emit
 watch(
-    () => localWorkOrder,
+    localWorkOrder,
     (newVal) => {
         emit('update:workOrderData', { ...newVal });
     },
@@ -118,15 +127,15 @@ watch(
                 </div>
             </div>
 
-            <!-- 라인 유형 (input 유지) -->
+            <!-- 라인 유형 -->
             <div class="grid-row border-b border-gray-200">
                 <label class="label-col">{{ labels.lineType }}</label>
                 <div class="input-col">
-                    <input type="text" v-model="localWorkOrder.lineType" class="input-field-style-compact" />
+                    <input type="text" v-model="localWorkOrder.lineType" class="input-field-style-compact" readonly />
                 </div>
             </div>
 
-            <!-- 라인 코드 (INPUT으로 변경) -->
+            <!-- 라인 코드 -->
             <div class="grid-row border-r border-gray-200">
                 <label class="label-col">{{ labels.lineCode }}</label>
                 <div class="input-col">
