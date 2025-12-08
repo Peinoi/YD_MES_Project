@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import axios from 'axios';
 // PrimeVue 컴포넌트는 전역 등록되어 있다고 가정 (Sakai 템플릿 기본 구조)
 
@@ -17,6 +17,44 @@ const searchForm = ref({
 
 // 공정 흐름도
 const processList = ref([]);
+function applySeqChange(row) {
+    const list = subProcessData.value; // 이제 원본 배열에 대한 참조입니다.
+    // 1. 현재 위치(fromIndex) 찾기
+
+    const fromIndex = list.indexOf(row);
+    if (fromIndex === -1) return;
+
+    const currentNo = fromIndex + 1;
+    let targetNo = Number(row.poNumber); // 2-1. 숫자가 아니거나, 1보다 작으면 -> 원래 순서로 되돌리고 끝
+
+    if (!Number.isInteger(targetNo) || targetNo < 1) {
+        row.poNumber = currentNo;
+        return;
+    } // 2-2. 입력값이 원래 순서랑 같으면 -> 그냥 아무 것도 안 함
+
+    if (targetNo === currentNo) {
+        return;
+    } // 3. 범위 보정 (리스트 길이보다 크면 맨 마지막으로)
+
+    const len = list.length;
+    if (targetNo > len) targetNo = len;
+
+    const toIndex = targetNo - 1; // 4. 배열에서 해당 row를 빼고 (원본 배열 직접 조작)
+
+    const [moved] = list.splice(fromIndex, 1); // 5. 원하는 위치에 끼워 넣기 (원본 배열 직접 조작)
+
+    list.splice(toIndex, 0, moved); // 6. poNumber 를 1,2,3,... 으로 다시 부여
+
+    list.forEach((item, idx) => {
+        // 객체의 속성을 변경하는 것도 반응성을 유발합니다.
+        item.poNumber = idx + 1;
+    });
+
+    // 7. 반영 - 원본 배열을 직접 변경했으므로 이 단계가 필요 없어집니다.
+    // 하지만, 마지막에 원본을 **다시 대입하여** Vue의 반응성 시스템에 명확히 알립니다.
+    // 또는 `subProcessData.value = [...list];` 처럼 얕게 복사하여 대입해도 됩니다.
+    subProcessData.value = list;
+}
 const selectedProcess = ref(null);
 
 // 흐름도 상세
@@ -24,9 +62,9 @@ const subProcessData = ref([]);
 const selectedSubProcess = ref([]);
 
 // 공정순서에 따라 데이터를 자동 정렬
-const subProcessList = computed(() => {
-    return [...subProcessData.value].sort((a, b) => a.no - b.no);
-});
+// const subProcessList = computed(() => {
+//     return [...subProcessData.value].sort((a, b) => a.poNumber - b.poNumber);
+// });
 
 // 공형분류
 const processStructureOptions = [
@@ -158,13 +196,18 @@ const onSelectProcess = async () => {
         subProcessData.value = [];
         return;
     }
+
     detailForm.value = { ...row };
-    // 흐름도 상세
+
     try {
         const response = await axios.get('/api/process/detail', {
             params: { processCode: row.processCode }
         });
-        subProcessData.value = response.data;
+
+        subProcessData.value = response.data.map((item, idx) => ({
+            ...item,
+            poNumber: item.poNumber ?? idx + 1
+        }));
     } catch (error) {
         console.error('흐름도 상세 조회 실패', error.message);
         subProcessData.value = [];
@@ -183,10 +226,10 @@ const onDeleteProcess = () => {
 const onAddSubProcess = () => {
     const maxId = subProcessData.value.reduce((max, item) => Math.max(max, item.id || 0), 0);
     const nextId = maxId + 1;
-    const maxNo = subProcessData.value.reduce((max, item) => Math.max(max, Number(item.no) || 0), 0); // poNumber 대신 no 사용
+    const maxPoNumber = subProcessData.value.reduce((max, item) => Math.max(max, Number(item.poNumber) || 0), 0);
     subProcessData.value.push({
         id: nextId,
-        no: maxNo + 1, // 필드명을 no로 통일
+        poNumber: maxPoNumber + 1,
         poCode: '',
         poName: '',
         machine: ''
@@ -200,12 +243,12 @@ const onDeleteSubProcess = () => {
 };
 
 // 공정순서 변화 시 데이터 업데이트
-const updateSeq = (row, e) => {
-    const value = Number(e.value);
-    row.poNumber = value;
-    // 정렬되도록 데이터 변경
-    subProcessData.value = [...subProcessData.value].sort((a, b) => Number(a.poNumber) - Number(b.poNumber));
-};
+// const updateSeq = (row, e) => {
+//     const value = Number(e.value);
+//     row.poNumber = value;
+//     // 정렬되도록 데이터 변경
+//     subProcessData.value = [...subProcessData.value].sort((a, b) => Number(a.poNumber) - Number(b.poNumber));
+// };
 
 const onCreate = () => {
     // TODO: 등록 API 연동
@@ -310,14 +353,15 @@ const onUpdate = () => {
                     </div>
 
                     <div class="sub-process-wrapper">
-                        <DataTable :value="subProcessList" dataKey="id" v-model:selection="selectedSubProcess" selectionMode="single" class="p-datatable-sm sub-process-table">
+                        <DataTable :value="subProcessData" dataKey="subProcessData" v-model:selection="selectedSubProcess" selectionMode="single" class="p-datatable-sm sub-process-table">
                             <Column selectionMode="multiple" headerStyle="width:3rem"></Column>
                             <!-- 공정순서: 숫자 입력 -->
-                            <Column field="no" header="공정순서" style="width: 60px">
+                            <Column field="poNumber" header="공정순서" style="width: 60px">
                                 <template #body="{ data }">
-                                    <InputNumber v-model="data.no" @change="(e) => updateSeq(data, e.value)" :min="1" :useGrouping="false" style="width: 60px" class="p-inputtext-tight" />
+                                    <InputNumber v-model="data.poNumber" :min="1" :useGrouping="false" style="width: 60px" @keyup.enter="applySeqChange(data)" />
                                 </template>
                             </Column>
+
                             <!-- 공정코드 + 돋보기 버튼 -->
                             <Column field="po_code" header="공정코드" style="width: 120px">
                                 <template #body="{ data }">
@@ -325,7 +369,7 @@ const onUpdate = () => {
                                         <InputText v-model="data.po_code" disabled style="width: 120px" /><Button icon="pi pi-search" class="p-button-text p-button-sm" @click="openProcessDetail(data)" />
                                     </div> </template
                             ></Column>
-                            <Column field="po_name" header="공정명" style="width: 100px"> ></Column>
+                            <Column field="po_name" header="공정명" style="width: 100px"> </Column>
                             <Column field="eq_type_name" header="설비유형" style="width: 120px"> </Column>
                         </DataTable>
                     </div>
