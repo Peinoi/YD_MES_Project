@@ -1,7 +1,10 @@
-export function yymmddFormat(date) {
-    const d = new Date(date);
-    const yy = String(d.getFullYear()).slice(2);
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yy}-${mm}-${dd}`;
+import { DateTime } from 'luxon';
+
+export function dateTime() {
+    return DateTime.now().setZone('Asia/Seoul').toFormat('yyyy-MM-dd HH:mm:ss');
+}
+
+export function kstFormat(date) {
+    if (!date) return null;
+    return DateTime.fromJSDate(date, { zone: 'utc' }).setZone('Asia/Seoul').toFormat('yyyy-MM-dd');
 }
