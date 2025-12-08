@@ -27,14 +27,14 @@ const allChecked = computed({
 
 const resultCount = computed(() => props.rows.length);
 const formatDate = (dateString) => {
-    if (!dateString) return "";
+    if (!dateString) return '';
 
     const d = new Date(dateString);
     const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
 
     return `${y}-${m}-${day} ${hh}:${mm}`;
 };

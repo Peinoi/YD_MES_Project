@@ -36,7 +36,8 @@ ORDER BY
     prdr.prdr_code as prdrcode
 from
     wko_tbl wk INNER JOIN prod_tbl prod on wk.prod_code = prod.prod_code
-    INNER JOIN prdr_tbl prdr on prdr.work_order_code = wk.wko_code;
+    INNER JOIN prdr_tbl prdr on prdr.work_order_code = wk.wko_code
+    ORDER BY wk.wko_code asc;
     `,
   work_performance: `
 SELECT 
