@@ -99,7 +99,7 @@ const fetchMateList = async (keyword = '') => {
 
 //요청 모달 목록 불러오기
 const fetchReqList = async (keyword = '') => {
-    const res = await axios.get('/api/poder/mpr/list', {
+    const res = await axios.get('/api/poder/mpr/list-for-po', {
         params: {
             mprCode: keyword || null
         }
@@ -152,6 +152,21 @@ const openEmpModal = async () => {
 // 오늘날짜, 형식변환
 function getToday() {
     return new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+}
+
+function toDateOnly(value) {
+    if (!value) return null;
+
+    if (value instanceof Date) {
+        return value.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+    }
+
+    const s = String(value);
+    if (s.length >= 10) {
+        return s.substring(0, 10);
+    }
+
+    return s;
 }
 
 // 날짜
@@ -221,7 +236,7 @@ const savePo = async () => {
 
     const header = {
         purchase_code: purchaseCode.value || null,
-        purchase_req_date: purchaseDate.value || today, // 발주제안일
+        purchase_req_date: toDateOnly(purchaseDate.value) || today, // 발주제안일
         stat: status.value,
         regdate: orderDate.value || today, // 시스템 등록일
         note: note.value,
@@ -233,7 +248,7 @@ const savePo = async () => {
         .map((row) => ({
             unit: row.unit,
             needQty: row.needQty,
-            dueDate: row.dueDate,
+            dueDate: toDateOnly(row.dueDate),
             vendor: row.vendor,
             vendorCode: row.vendorCode,
             code: row.code

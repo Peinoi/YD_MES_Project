@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
@@ -71,6 +71,42 @@ const orderRows = ref([]);
 
 // 실제 테이블에 보여줄 데이터
 const tableRows = ref([...allList.value]);
+
+//정렬
+const sortKey = ref('');
+const sortOrder = ref('asc');
+
+const sortedRows = computed(() => {
+    if (!sortKey.value) return tableRows.value;
+
+    const copied = [...tableRows.value];
+    const key = sortKey.value;
+
+    copied.sort((a, b) => {
+        const va = a[key];
+        const vb = b[key];
+
+        // null / undefined는 뒤로
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+
+        // 숫자 정렬
+        if (typeof va === 'number' && typeof vb === 'number') {
+            return sortOrder.value === 'asc' ? va - vb : vb - va;
+        }
+
+        // 문자열/날짜(YYYY-MM-DD 문자열) 정렬
+        const sa = String(va).toLowerCase();
+        const sb = String(vb).toLowerCase();
+
+        if (sa < sb) return sortOrder.value === 'asc' ? -1 : 1;
+        if (sa > sb) return sortOrder.value === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    return copied;
+});
 
 const allChecked = ref(false);
 
@@ -179,6 +215,22 @@ function toggleAll() {
     tableRows.value.forEach((row) => {
         row.checked = allChecked.value;
     });
+}
+
+function sortBy(key) {
+    if (sortKey.value === key) {
+        sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortKey.value = key;
+        sortOrder.value = 'asc';
+    }
+}
+
+function sortIcon(key) {
+    if (sortKey.value !== key) {
+        return '↕';
+    }
+    return sortOrder.value === 'asc' ? '▲' : '▼';
 }
 
 // 숫자 포맷
@@ -370,21 +422,61 @@ fetchOrderList().then(() => {
                                 <th style="width: 40px">
                                     <input type="checkbox" v-model="allChecked" @change="toggleAll" />
                                 </th>
-                                <th>발주서번호</th>
-                                <th>발주제안일</th>
-                                <th>자재유형</th>
-                                <th>자재명</th>
-                                <th>공급업체</th>
-                                <th>필요수량</th>
-                                <th>입고납기일</th>
-                                <th>발주상태</th>
-                                <th>작성자</th>
-                                <th>등록일자</th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'purchaseCode' }]" @click="sortBy('purchaseCode')">
+                                    <span>발주서번호</span>
+                                    <span class="sort-icon">{{ sortIcon('purchaseCode') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'purchaseDate' }]" @click="sortBy('purchaseDate')">
+                                    <span>발주제안일</span>
+                                    <span class="sort-icon">{{ sortIcon('purchaseDate') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'type' }]" @click="sortBy('type')">
+                                    <span>자재유형</span>
+                                    <span class="sort-icon">{{ sortIcon('type') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'matName' }]" @click="sortBy('matName')">
+                                    <span>자재명</span>
+                                    <span class="sort-icon">{{ sortIcon('matName') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'clientName' }]" @click="sortBy('clientName')">
+                                    <span>공급업체</span>
+                                    <span class="sort-icon">{{ sortIcon('clientName') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'req_qtt' }]" @click="sortBy('req_qtt')">
+                                    <span>필요수량</span>
+                                    <span class="sort-icon">{{ sortIcon('req_qtt') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'deadLine' }]" @click="sortBy('deadLine')">
+                                    <span>입고납기일</span>
+                                    <span class="sort-icon">{{ sortIcon('deadLine') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'stat' }]" @click="sortBy('stat')">
+                                    <span>발주상태</span>
+                                    <span class="sort-icon">{{ sortIcon('stat') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'mcode' }]" @click="sortBy('mcode')">
+                                    <span>작성자</span>
+                                    <span class="sort-icon">{{ sortIcon('mcode') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'regDate' }]" @click="sortBy('regDate')">
+                                    <span>등록일자</span>
+                                    <span class="sort-icon">{{ sortIcon('regDate') }}</span>
+                                </th>
                             </tr>
                         </thead>
 
                         <tbody>
-                            <tr v-for="row in tableRows" :key="row.id">
+                            <tr v-for="row in sortedRows" :key="row.id">
                                 <td>
                                     <input type="checkbox" v-model="row.checked" />
                                 </td>
@@ -623,15 +715,17 @@ fetchOrderList().then(() => {
     padding: 8px 10px;
     font-size: 14px;
     border-bottom: 1px solid #eee;
+    text-align: center;
 }
 
 .nice-table th {
     background: #faf7e8;
-    text-align: left;
+    text-align: center;
 }
 
-.text-right {
+.nice-table td.text-right {
     text-align: right;
+    padding-right: 20px;
 }
 
 .empty-cell {
@@ -643,7 +737,7 @@ fetchOrderList().then(() => {
 .table-scroll {
     max-height: 315px;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     border-radius: 6px;
 }
 
@@ -654,5 +748,33 @@ fetchOrderList().then(() => {
     z-index: 2;
     border-top: 2px solid #f4b321;
     box-shadow: 0 2px 0 #eee;
+}
+
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.sortable span {
+    margin-left: 4px;
+}
+
+.sortable:hover {
+    background: #f1e9d3;
+}
+
+.sort-icon {
+    display: inline-block;
+    width: 14px;
+    text-align: center;
+    margin-left: 4px;
+    font-size: 11px;
+    color: #b5b5b5;
+}
+
+.sortable.is-active,
+.sortable.is-active .sort-icon {
+    color: #e0a000;
 }
 </style>
