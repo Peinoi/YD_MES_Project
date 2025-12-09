@@ -10,6 +10,11 @@ export default [
         component: () => import('@/views/release/ForwardingManagement.vue')
     },
     {
+        path: '/ForwardingApproval',
+        name: 'ForwardingApproval',
+        component: () => import('@/views/release/ForwardingApproval.vue')
+    },
+    {
         path: '/ForwardingCheck',
         name: 'ForwardingCheck',
         component: () => import('@/views/release/ForwardingCheck.vue')

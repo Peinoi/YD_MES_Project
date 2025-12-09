@@ -1,4 +1,4 @@
-<!-- src/views/release/ForwardingManagement.vue -->
+<!-- src/views/release/ForwardingApproval.vue -->
 <script setup>
 import { reactive, ref, onMounted, computed } from 'vue';
 import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
@@ -9,11 +9,10 @@ const unitMap = ref({});
 const specMap = ref({});
 const typeMap = ref({});
 
-// 🔹 등록자(직원) 목록
+// 등록자(직원) 목록
 const employees = ref([]);
 
 // 모달들
-const showOrderModal = ref(false);
 const showReleaseModal = ref(false); // 출고 모달
 const showEmpModal = ref(false); // 직원 선택 모달
 
@@ -27,58 +26,10 @@ const formatDate = (d) => {
 };
 
 /* ===========================
- *  주문 모달 (검색용)
- * =========================== */
-
-// 🔹 주문 검색 모달 컬럼
-const orderColumns = [
-    { field: 'orderNo', label: '주문번호' },
-    { field: 'orderDate', label: '주문일자' },
-    { field: 'orderName', label: '주문명' },
-    { field: 'client', label: '거래처' },
-    { field: 'remainingQty', label: '미출고수량' }
-];
-
-// 백엔드에서 채워질 주문 리스트
-const orderRows = ref([]);
-const orderKeyword = ref('');
-
-// 주문 목록 조회 API
-const fetchOrderList = async (keyword = '') => {
-    const res = await axios.get('/api/release/fwd/orders', {
-        params: { keyword }
-    });
-
-    console.log('[Forwarding] 주문 목록 응답:', res.data);
-
-    const raw = res.data?.data;
-
-    if (!raw) {
-        orderRows.value = [];
-    } else if (Array.isArray(raw)) {
-        orderRows.value = raw;
-    } else {
-        orderRows.value = [raw];
-    }
-};
-
-// 주문 모달 열기
-const openOrderModal = () => {
-    fetchOrderList(); // 초기 목록
-    showOrderModal.value = true;
-};
-
-// 주문 검색
-const handleSearchOrder = (keyword) => {
-    orderKeyword.value = keyword;
-    fetchOrderList(keyword);
-};
-
-/* ===========================
  *  출고 모달 (검색용)
  * =========================== */
 
-// 🔹 출고 검색 모달 컬럼 (헤더 중심)
+// 출고 검색 모달 컬럼 (헤더 중심)
 const releaseColumns = [
     { field: 'releaseCode', label: '출고번호' },
     { field: 'releaseDate', label: '출고일자' },
@@ -149,7 +100,7 @@ const handleSearchRelease = (keyword) => {
  *  기본 정보 + 제품 리스트
  * =========================== */
 
-// 🔹 기본정보
+// 기본정보
 const basicInfo = reactive({
     releaseCode: '',
     orderCode: '',
@@ -160,7 +111,7 @@ const basicInfo = reactive({
     remark: ''
 });
 
-// 🔹 담당자(등록자) 표시용 computed (코드 -> 이름)
+// 담당자(등록자) 표시용 computed (코드 -> 이름)
 const registrantName = computed(() => {
     if (!basicInfo.registrant) return '';
     const emp = employees.value.find((e) => e.empCode === basicInfo.registrant);
@@ -169,49 +120,6 @@ const registrantName = computed(() => {
 
 // 제품 리스트 (주문/출고 선택 시 API 결과로 채움)
 const products = ref([]);
-
-/**
- * 주문 상세 조회 API
- * GET /api/release/fwd/orders/:orderNo
- * 응답: { status: 'success', data: { header, items } }
- */
-const fetchOrderDetail = async (orderNo) => {
-    if (!orderNo) return;
-
-    try {
-        const res = await axios.get(`/api/release/fwd/orders/${orderNo}`);
-
-        if (res.data?.status !== 'success' || !res.data.data) {
-            console.warn('[Forwarding] 주문 상세 없음');
-            return;
-        }
-
-        const { header, items } = res.data.data;
-        console.log('[Forwarding] 주문 상세 응답:', header, items);
-
-        // 헤더 정보 채우기 (alias 기준)
-        basicInfo.orderCode = header.orderNo;
-        basicInfo.orderDate = formatDate(header.orderDate);
-        basicInfo.client = header.client;
-
-        // 제품 리스트 세팅
-        products.value = (items || []).map((item) => ({
-            productCode: item.productCode,
-            name: item.productName,
-            type: item.type,
-            spec: item.spec,
-            unit: item.unit,
-            orderQty: item.orderQty,
-            // 처음 출고수량은 0으로
-            releaseQty: 0,
-            stockQty: item.stockQty ?? item.currentStock ?? 0,
-            dueDate: item.dueDate ? formatDate(item.dueDate) : '',
-            notReleasedQty: item.notReleasedQty ?? null
-        }));
-    } catch (err) {
-        console.error('[Forwarding] 주문 상세 조회 실패:', err);
-    }
-};
 
 /**
  * 출고 상세 조회 API
@@ -240,6 +148,9 @@ const fetchReleaseDetail = async (releaseCode) => {
         basicInfo.client = header.client;
         basicInfo.remark = header.remark ?? '';
 
+        // 담당자 코드 세팅 (화면에는 registrantName으로 이름 표시됨)
+        basicInfo.registrant = '';
+
         // 라인 정보 세팅
         products.value = (lines || []).map((item) => ({
             productCode: item.productCode,
@@ -252,6 +163,7 @@ const fetchReleaseDetail = async (releaseCode) => {
             stockQty: item.stockQty ?? item.currentStock ?? 0,
             dueDate: item.dueDate ? formatDate(item.dueDate) : ''
         }));
+        console.log(products.value);
     } catch (err) {
         console.error('[Forwarding] 출고 상세 조회 실패:', err);
     }
@@ -326,26 +238,6 @@ onMounted(() => {
  *  모달 Confirm / Cancel
  * =========================== */
 
-// 주문 선택 시
-const handleConfirmOrder = async (row) => {
-    if (!row) return;
-
-    console.log('[Forwarding] 주문 선택:', row);
-
-    // 일단 기본 정보 세팅 (목록 값 기준)
-    basicInfo.orderCode = row.orderNo;
-    basicInfo.orderDate = row.orderDate;
-    basicInfo.client = row.client;
-
-    onReset();
-
-    // 실제 주문 상세 가져와서 제품 리스트 세팅
-    await fetchOrderDetail(row.orderNo);
-
-    // 주문 모달 닫기
-    showOrderModal.value = false;
-};
-
 // 출고 선택 시 (기존 출고 불러오기)
 const handleConfirmRelease = async (row) => {
     if (!row) return;
@@ -365,11 +257,6 @@ const handleConfirmRelease = async (row) => {
 
     // 출고 모달 닫기
     showReleaseModal.value = false;
-};
-
-const handleCancelOrder = () => {
-    console.log('주문 선택 모달 취소');
-    showOrderModal.value = false;
 };
 
 const handleCancelRelease = () => {
@@ -415,75 +302,45 @@ const maxReleaseQty = (item) => {
     return Math.max(0, Math.min(notReleasedBase, stockBase));
 };
 
-const onDelete = async () => {
-    console.log('삭제 클릭');
-
-    if (!basicInfo.releaseCode) {
-        console.warn('삭제할 출고코드가 없습니다.');
-        return;
-    }
-
-    if (!confirm('현재 출고요청을 삭제하시겠습니다?')) {
-        return;
-    }
-
-    try {
-        const res = await axios.delete(`/api/release/fwd/${basicInfo.releaseCode}`);
-        console.log('[Forwarding] 삭제 결과:', res.data);
-        alert('출고요청이 삭제되었습니다.');
-        onReset();
-    } catch (err) {
-        console.error('[Forwarding] 삭제 실패:', err);
-        alert('출고요청 삭제 중 오류가 발생했습니다.');
-    }
-};
-
 const onReset = () => {
     basicInfo.releaseCode = '';
     basicInfo.orderCode = '';
     basicInfo.releaseDate = getToday();
     basicInfo.orderDate = '';
     basicInfo.client = '';
-    basicInfo.registrant = '';
+    // basicInfo.registrant 는 유지 (담당자는 계속 동일하게 쓸 수 있게)
     basicInfo.remark = '';
     products.value = [];
     console.log('초기화 클릭');
 };
 
 const onSave = async () => {
-    // 필수값 체크
+    // 필수값 체크는 그대로 유지
     if (!basicInfo.orderCode) {
         alert('주문을 선택해주세요.');
         return;
     }
-
     if (!basicInfo.releaseDate) {
         alert('출고일자를 입력해주세요.');
         return;
     }
-
     if (!basicInfo.orderDate) {
         alert('주문일자를 확인해주세요.');
         return;
     }
-
     if (!basicInfo.client) {
         alert('거래처 정보가 없습니다.');
         return;
     }
-
     if (!basicInfo.registrant) {
         alert('등록자를 선택해주세요.');
         return;
     }
-
-    // 🔹 주문을 선택했는데 products 비어있으면 비정상
     if (!products.value.length) {
         alert('제품 정보가 없습니다. 주문을 다시 선택해주세요.');
         return;
     }
 
-    // 🔹 출고수량이 모두 0이면 저장할 수 없게
     const totalRelease = products.value.reduce((sum, item) => sum + (item.releaseQty || 0), 0);
     if (totalRelease <= 0) {
         alert('출고수량을 입력해주세요.');
@@ -491,25 +348,20 @@ const onSave = async () => {
     }
 
     const payload = {
-        header: { ...basicInfo },
-        lines: products.value
+        header: { ...basicInfo }, // releaseCode, releaseDate, orderCode, registrant 등
+        lines: products.value // productCode, orderQty, releaseQty, stockQty, dueDate 등
     };
 
     try {
-        if (!basicInfo.releaseCode) {
-            // 신규: 출고요청 등록
-            const res = await axios.post('/api/release/fwd', payload);
-            console.log('[Forwarding] 저장 결과:', res.data);
-            alert('출고요청이 등록되었습니다.');
-            onReset();
-        } else {
-            const res = await axios.put(`/api/release/fwd/${basicInfo.releaseCode}`, payload);
-            console.log('[Forwarding] 수정 결과:', res.data);
-            alert('출고요청이 수정되었습니다.');
-            onReset();
-        }
+        // 🔹 이 페이지는 "실출고" 이므로 출고요청이 이미 있다고 가정하고,
+        //     해당 출고요청(releaseCode)에 대한 실출고를 생성
+        const res = await axios.post('/api/release/fwd/outbound', payload);
+        console.log('[Forwarding] 실출고 결과:', res.data);
+        alert('실출고가 처리되었습니다.');
+        onReset();
     } catch (err) {
-        console.error('[Forwarding] 저장 실패:', err);
+        console.error('[Forwarding] 실출고 실패:', err);
+        alert('실출고 처리 중 오류가 발생했습니다.');
     }
 };
 
@@ -546,28 +398,14 @@ const fetchCommonCodes = async () => {
         <!-- 기본정보 영역 -->
         <section class="forward-card">
             <div class="section-header">
-                <h3 class="section-title">출고요청</h3>
+                <h3 class="section-title">출고관리</h3>
 
                 <div class="forward-actions">
-                    <button class="btn btn-red" @click="onDelete">삭제</button>
                     <button class="btn btn-black" @click="onReset">초기화</button>
-                    <button class="btn btn-blue" @click="onSave">저장</button>
-                    <button class="btn btn-outline-green" @click="openOrderModal">주문정보 불러오기</button>
+                    <button class="btn btn-blue" @click="onSave">출고</button>
                     <button class="btn btn-outline-green" @click="openReleaseModal">출고요청 불러오기</button>
                 </div>
             </div>
-
-            <!-- 주문 정보 모달 -->
-            <SearchSelectModal
-                v-model="showOrderModal"
-                :columns="orderColumns"
-                :rows="orderRows"
-                row-key="orderNo"
-                search-placeholder="주문번호 / 주문명 / 거래처를 입력해주세요."
-                @search="handleSearchOrder"
-                @confirm="handleConfirmOrder"
-                @cancel="handleCancelOrder"
-            />
 
             <!-- 출고 정보 모달 -->
             <SearchSelectModal
