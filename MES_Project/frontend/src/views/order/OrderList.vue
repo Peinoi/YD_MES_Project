@@ -4,16 +4,20 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
+import SearchSelectModal from '@/views/order/SearchSelectModal.vue';
+
+const showClientModal = ref(false);
 
 const orderList = ref([]);
-const clientList = ref([]);
 const statList = ref([]);
 const selectedOrders = ref([]);
+const clientSearchList = ref([]);
 
 // 검색조건
 const search = ref({
     ord_code: '',
     ord_name: '',
+    client_code: '',
     client_name: '',
     ord_amount_from: '',
     ord_amount_to: '',
@@ -59,16 +63,45 @@ const fetchOrderList = async () => {
     }
 };
 
-// 거래처 목록 조회
-const fetchClientList = async () => {
+const fetchClientSearch = async (keyword = '') => {
     try {
-        const res = await axios.get(`/api/order/client/list`);
-        if (res.data && res.data.code === 'S200') {
-            clientList.value = res.data.data || [];
+        // 백엔드에서 모든 목록을 가져온 후 클라이언트에서 키워드 필터링을 수행하는 로직
+        const res = await axios.get('/api/order/client/search', { params: { keyword: '' } });
+        const fullList = res.data.code === 'S200' ? res.data.data : [];
+
+        if (keyword && fullList.length) {
+            const lowerKeyword = keyword.toLowerCase();
+            clientSearchList.value = fullList.filter((row) => {
+                const clientCode = String(row.client_code || '').toLowerCase();
+                const clientName = String(row.client_name || '').toLowerCase();
+
+                return clientCode.includes(lowerKeyword) || clientName.includes(lowerKeyword);
+            });
+        } else {
+            // 키워드가 없으면 전체 목록 표시
+            clientSearchList.value = fullList;
         }
-    } catch (err) {
-        console.error('fetchClientList', err);
+    } catch (e) {
+        console.error('fetchClientSearch', e);
+        clientSearchList.value = [];
     }
+};
+
+const onClientSelect = (row) => {
+    if (!row || !row.client_code) return;
+
+    // ⭐️ search 객체에 코드와 이름을 반영
+    search.value.client_code = row.client_code;
+    search.value.client_name = row.client_name;
+
+    showClientModal.value = false;
+};
+
+const openClientSearch = () => {
+    // 모달을 열기 전에 초기 목록을 불러오고 모달을 띄웁니다.
+    fetchClientSearch('').then(() => {
+        showClientModal.value = true;
+    });
 };
 
 // 상태 목록 조회
@@ -87,6 +120,7 @@ const resetSearch = () => {
     search.value = {
         ord_code: '',
         ord_name: '',
+        client_code: '',
         client_name: '',
         ord_amount_from: '',
         ord_amount_to: '',
@@ -118,7 +152,6 @@ const downloadExcel = () => {
 
 onMounted(() => {
     fetchOrderList();
-    fetchClientList();
     fetchStatList();
 });
 </script>
@@ -150,12 +183,20 @@ onMounted(() => {
 
                     <div class="field-group">
                         <label>거래처</label>
-                        <select v-model="search.client_name" class="input">
-                            <option value=""></option>
-                            <option v-for="c in clientList" :value="c.clientName" :key="c.clientCode">
-                                {{ c.clientName }}
-                            </option>
-                        </select>
+                        <div class="input-with-button">
+                            <input v-model="search.client_name" type="text" class="input" readonly placeholder="거래처를 선택하세요." @click="openClientSearch" />
+                            <button class="btn btn-search" @click="openClientSearch">🔍</button>
+                            <button
+                                v-if="search.client_code"
+                                class="btn btn-clear"
+                                @click="
+                                    search.client_name = '';
+                                    search.client_code = '';
+                                "
+                            >
+                                X
+                            </button>
+                        </div>
                     </div>
 
                     <div class="field-group">
@@ -207,7 +248,7 @@ onMounted(() => {
                 </div>
 
                 <div class="table-wrapper">
-                    <DataTable :value="orderList" v-model:selection="selectedOrders" selectionMode="multiple" dataKey="ord_code" showGridlines stripedRows class="order-table">
+                    <DataTable :value="orderList" v-model:selection="selectedOrders" selectionMode="multiple" dataKey="ord_d_code" showGridlines stripedRows class="order-table">
                         <Column selectionMode="multiple" style="width: 3rem" />
                         <Column header="No." style="width: 3rem">
                             <template #body="slotProps">{{ slotProps.index + 1 }}</template>
@@ -241,6 +282,21 @@ onMounted(() => {
                 </div>
             </div>
         </div>
+        <SearchSelectModal
+            v-model="showClientModal"
+            searchPlaceholder="거래처명 또는 거래처 코드를 입력하세요."
+            :columns="[
+                { field: 'client_code', label: '거래처 코드' },
+                { field: 'client_name', label: '거래처명' },
+                { field: 'client_type_name', label: '거래처 유형' },
+                { field: 'client_mname', label: '담당자' },
+                { field: 'client_pnum', label: '전화번호' }
+            ]"
+            :rows="clientSearchList"
+            rowKey="client_code"
+            @search="fetchClientSearch"
+            @confirm="onClientSelect"
+        />
     </div>
 </template>
 
@@ -354,6 +410,39 @@ onMounted(() => {
     border: none;
     cursor: pointer;
     font-weight: 600;
+}
+
+/* <style scoped> 내에 추가 */
+
+/* Input + Button 그룹화 스타일 */
+.input-with-button {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 4px; /* 버튼과 인풋 사이 간격 */
+}
+
+/* 검색 아이콘 버튼 */
+.btn-search {
+    background: #e5e7eb;
+    color: #374151;
+    padding: 8px 10px;
+    font-weight: normal;
+    font-size: 1rem;
+    line-height: 1;
+}
+.btn-search:hover {
+    background: #d1d5db;
+}
+
+/* 초기화 X 버튼 (선택 사항) */
+.btn-clear {
+    background: #ff4d4f;
+    color: white;
+    padding: 8px 10px;
+    font-weight: normal;
+    font-size: 1rem;
+    line-height: 1;
 }
 
 /* ------------------------------ */

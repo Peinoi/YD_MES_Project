@@ -62,8 +62,44 @@ const updateProductionPlan = async (data) => {
   }
 };
 
+// 생산지시 생성 INSERT
+const insertProductionPlan = async (data) => {
+  try {
+    const params = [
+      data.wko_code,
+      data.start_date || null,
+      data.stat || "v4",
+      data.prod_code,
+      data.wko_qtt || 0,
+      data.end_date || null,
+      data.line_code || null,
+      // reg_date는 빼야 함!!
+    ];
+
+    await query("insertWko", params);
+
+    return { success: true };
+  } catch (error) {
+    console.error("작업지시 INSERT 오류:", error);
+    throw new Error("작업지시 저장 중 오류가 발생했습니다.");
+  }
+};
+
+const getSelectLine = async () => {
+  try {
+    const result = await query("selectLine", []);
+
+    return result;
+  } catch (error) {
+    console.error("생산 계획 목록 조회 중 DB 오류 발생:", error);
+    throw new Error("데이터베이스 오류로 생산 계획 목록 조회에 실패했습니다.");
+  }
+};
+
 module.exports = {
   getProductionPlan,
   checkProductionPlanExists,
-  updateProductionPlan, // 여기 추가
+  updateProductionPlan,
+  insertProductionPlan,
+  getSelectLine,
 };

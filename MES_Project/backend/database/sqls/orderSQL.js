@@ -5,6 +5,7 @@ module.exports = {
   SELECT o.ord_code -- 주문번호
 	  ,o.ord_name -- 주문명
     ,o.ord_date -- 주문일자
+    ,od.ord_d_code -- 주문상세코드
     ,od.prod_code -- 제품코드
     ,p.prod_name -- 제품명
     ,od.ord_amount -- 수량
@@ -40,6 +41,7 @@ module.exports = {
   AND ( ? IS NULL OR DATE(od.delivery_date) <= ? )
   /* 상태 */
   AND ( ? IS NULL OR ? = '' OR cc.note LIKE CONCAT('%', ?, '%') )
+  ORDER BY ord_code ASC
 `,
 
   // 주문 모달창 조회
