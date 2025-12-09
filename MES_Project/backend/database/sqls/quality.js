@@ -48,7 +48,7 @@ JOIN mpo_tbl mpo -- 복수의 자재발주상세를 담은 발주서의 정보, 
 ON mpo_d.purchase_code = mpo.purchase_code -- 발주서 정보가 존재하는 발주상세 끌어옴
 JOIN common_code cc
 ON mat.material_type_code = cc.com_value
-WHERE mpo.stat = 'c1' -- 발주 완료 상태인 발주서의 발주상세정보 목록을 출력
+WHERE mpo.stat = 'c1' AND mpo_d.mpo_d_code NOT IN (SELECT mpo_d_code FROM qio_tbl WHERE mpo_d_code IS NOT NULL)
 `,
   findPrdrByQIO: `
   SELECT prdr.prdr_code
