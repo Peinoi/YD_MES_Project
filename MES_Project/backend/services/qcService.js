@@ -30,8 +30,20 @@ async function pendingListService() {
 // 005 검사지시 불러오기
 async function findInstructionService(params) {
   try {
-    const result = await query('QC_INSTRUCTION', [params.qir_code]);
-    return result;
+    const prdr = await query('QC_INSTRUCTION', [params.qir_code]);
+    const mpr = await query('QC_INSTRUCTION_MPR_D', [params.qir_code]);
+
+    if (prdr.length > 0) {
+      const resultPrdr = [{ ...prdr[0], type: 'prdr' }];
+      return resultPrdr;
+    }
+
+    if (mpr.length > 0) {
+      const resultMpr = [{ ...mpr[0], type: 'mpr' }];
+      return resultMpr;
+    }
+
+    return { ok: false, message: 'type에 맞는 값이 없습니다.' };
   } catch (err) {
     throw err;
   }
@@ -40,6 +52,24 @@ async function findInstructionService(params) {
 // 005 저장
 async function saveResultService(data) {
   try {
+    if (data.type == 'mpr') {
+      const params = [
+        data.start_date,
+        data.end_date,
+        data.result,
+        data.note,
+        data.qir_emp_code,
+        data.qir_code,
+      ];
+      const result = await query('QC_RESULT_SAVE_MPR_D', params);
+
+      if (result.affectedRows == 0) {
+        throw new Error('저장된 데이터가 없습니다.');
+      }
+
+      return { ok: true, affectedRows: result.affectedRows };
+    }
+
     const params = [
       data.qir_code,
       data.start_date,
@@ -48,6 +78,7 @@ async function saveResultService(data) {
       data.note,
       data.qir_emp_code,
     ];
+
     const result = await query('QC_RESULT_SAVE', params);
 
     if (result.affectedRows == 0) {

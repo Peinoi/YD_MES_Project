@@ -70,6 +70,10 @@ export function useQcAppService() {
             return { ok: false, message: '검사결과 선택해주세요.' };
         }
         const result = await qcService.getInstruction(store.selectedQir.qirCode);
+        if (!Array.isArray(result.data)) {
+            return { ok: result.data.ok, message: result.data.message };
+        }
+
         if (result.data.length == 0) {
             return { ok: false, message: '등록된 검사지시가 없습니다.' };
         }
@@ -86,7 +90,11 @@ export function useQcAppService() {
         }
         store.basic.endDate = dateTime();
         store.basic.note = store.resultItems[0].note;
-        const result = await qcService.saveResult(store.basic);
+        const payload = {
+            ...store.basic,
+            type: store.instruction.type
+        };
+        const result = await qcService.saveResult(payload);
         if (result.data.affectedRows == 0) {
             throw new Error('품질검사결과 저장 중 오류 발생');
         }
