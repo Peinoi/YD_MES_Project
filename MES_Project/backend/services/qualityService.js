@@ -128,8 +128,8 @@ exports.getQIODetail = async (qio_code, prdr_code, mpo_d_code) => {
         const prdr = await conn.query(sqlList.findPrdrByQIO, [prdr_code]);
         result.push(prdr);
       } else if (mpo_d_code != null) {
-        const mpr_d = await conn.query(sqlList.findMpr_dByQIO, [mpo_d_code]);
-        result.push(mpr_d);
+        const mpo_d = await conn.query(sqlList.findMpo_dByQIO, [mpo_d_code]);
+        result.push(mpo_d);
       } else {
         throw new Error("조회중 오류 발생");
       }

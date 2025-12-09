@@ -64,23 +64,17 @@ WHERE mpo.stat = 'c1' -- 발주 완료 상태인 발주서의 발주상세정보
   ON prdr.prod_code = prod.prod_code
   WHERE prdr.prdr_code = ?
 `,
-  findMpr_dByQIO: `
-SELECT mpo_d_code
-, req_qtt
-, mpr_d.unit AS 'mpr_d_unit'
-, mat.unit AS 'mat_unit'
-, mpr_d.note AS 'mpr_d_note'
-, mat.note AS 'mat_note'
-, mpr_code
-, mat_sup
-, mat.mat_code
-, mat.mat_name -- 발주 품목 이름
-, mat.material_type_code -- t1 원자재, t2부자재
-, mat.is_used -- f1 미사용, f2 사용중
-FROM mpr_d_tbl mpr_d
-JOIN mat_tbl mat
-ON mat.mat_code = mpr_d.mat_code
-WHERE mpo_d_code = ?
+  findMpo_dByQIO: `
+  SELECT 
+    mpo_d.mpo_d_code
+    , mpo_d.req_qtt
+    , mat.mat_name
+    , mat.material_type_code
+    , cc.note
+  FROM mpo_d_tbl mpo_d
+  JOIN mat_tbl mat ON mpo_d.mat_code = mat.mat_code
+  JOIN common_code cc ON mat.material_type_code = cc.com_value
+  WHERE mpo_d.mpo_d_code = ?
 `,
   findQualityEmployeeList: `
   SELECT emp.emp_code

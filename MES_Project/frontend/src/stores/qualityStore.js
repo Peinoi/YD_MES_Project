@@ -119,11 +119,11 @@ export const useQualityStore = defineStore('quality', {
             this.loading = true;
             this.error = null;
             try {
-                const { qio_code, prdr_code, mpr_d_code } = qioItem;
+                const { qio_code, prdr_code, mpo_d_code } = qioItem;
 
                 // 1. 백엔드 API에 GET 요청을 보냅니다.
                 const response = await axios.get('/api/quality/qiodetail', {
-                    params: { qio_code, prdr_code, mpr_d_code }
+                    params: { qio_code, prdr_code, mpo_d_code }
                 });
                 console.log('품질검사 지시 상세정보', response.data.data);
                 console.log('받아왔습니다 드디어11111111!', response.data.data[1].length);
