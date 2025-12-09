@@ -240,9 +240,6 @@ const fetchReleaseDetail = async (releaseCode) => {
         basicInfo.client = header.client;
         basicInfo.remark = header.remark ?? '';
 
-        // 담당자 코드 세팅 (화면에는 registrantName으로 이름 표시됨)
-        basicInfo.registrant = header.registrantCode || '';
-
         // 라인 정보 세팅
         products.value = (lines || []).map((item) => ({
             productCode: item.productCode,
@@ -251,7 +248,7 @@ const fetchReleaseDetail = async (releaseCode) => {
             spec: item.spec,
             unit: item.unit,
             orderQty: item.orderQty,
-            releaseQty: item.releaseQty,
+            releaseQty: item.requestQty,
             stockQty: item.stockQty ?? item.currentStock ?? 0,
             dueDate: item.dueDate ? formatDate(item.dueDate) : ''
         }));
@@ -447,7 +444,7 @@ const onReset = () => {
     basicInfo.releaseDate = getToday();
     basicInfo.orderDate = '';
     basicInfo.client = '';
-    // basicInfo.registrant 는 유지 (담당자는 계속 동일하게 쓸 수 있게)
+    basicInfo.registrant = '';
     basicInfo.remark = '';
     products.value = [];
     console.log('초기화 클릭');
@@ -556,7 +553,7 @@ const fetchCommonCodes = async () => {
                     <button class="btn btn-black" @click="onReset">초기화</button>
                     <button class="btn btn-blue" @click="onSave">저장</button>
                     <button class="btn btn-outline-green" @click="openOrderModal">주문정보 불러오기</button>
-                    <button class="btn btn-outline-green" @click="openReleaseModal">출고정보 불러오기</button>
+                    <button class="btn btn-outline-green" @click="openReleaseModal">출고요청 불러오기</button>
                 </div>
             </div>
 

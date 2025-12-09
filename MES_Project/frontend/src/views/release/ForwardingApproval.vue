@@ -9,7 +9,7 @@ const unitMap = ref({});
 const specMap = ref({});
 const typeMap = ref({});
 
-// 🔹 등록자(직원) 목록
+// 등록자(직원) 목록
 const employees = ref([]);
 
 // 모달들
@@ -29,7 +29,7 @@ const formatDate = (d) => {
  *  출고 모달 (검색용)
  * =========================== */
 
-// 🔹 출고 검색 모달 컬럼 (헤더 중심)
+// 출고 검색 모달 컬럼 (헤더 중심)
 const releaseColumns = [
     { field: 'releaseCode', label: '출고번호' },
     { field: 'releaseDate', label: '출고일자' },
@@ -100,7 +100,7 @@ const handleSearchRelease = (keyword) => {
  *  기본 정보 + 제품 리스트
  * =========================== */
 
-// 🔹 기본정보
+// 기본정보
 const basicInfo = reactive({
     releaseCode: '',
     orderCode: '',
@@ -111,7 +111,7 @@ const basicInfo = reactive({
     remark: ''
 });
 
-// 🔹 담당자(등록자) 표시용 computed (코드 -> 이름)
+// 담당자(등록자) 표시용 computed (코드 -> 이름)
 const registrantName = computed(() => {
     if (!basicInfo.registrant) return '';
     const emp = employees.value.find((e) => e.empCode === basicInfo.registrant);
@@ -159,10 +159,11 @@ const fetchReleaseDetail = async (releaseCode) => {
             spec: item.spec,
             unit: item.unit,
             orderQty: item.orderQty,
-            releaseQty: item.releaseQty,
+            releaseQty: item.requestQty,
             stockQty: item.stockQty ?? item.currentStock ?? 0,
             dueDate: item.dueDate ? formatDate(item.dueDate) : ''
         }));
+        console.log(products.value);
     } catch (err) {
         console.error('[Forwarding] 출고 상세 조회 실패:', err);
     }
@@ -314,39 +315,32 @@ const onReset = () => {
 };
 
 const onSave = async () => {
-    // 필수값 체크
+    // 필수값 체크는 그대로 유지
     if (!basicInfo.orderCode) {
         alert('주문을 선택해주세요.');
         return;
     }
-
     if (!basicInfo.releaseDate) {
         alert('출고일자를 입력해주세요.');
         return;
     }
-
     if (!basicInfo.orderDate) {
         alert('주문일자를 확인해주세요.');
         return;
     }
-
     if (!basicInfo.client) {
         alert('거래처 정보가 없습니다.');
         return;
     }
-
     if (!basicInfo.registrant) {
         alert('등록자를 선택해주세요.');
         return;
     }
-
-    // 🔹 주문을 선택했는데 products 비어있으면 비정상
     if (!products.value.length) {
         alert('제품 정보가 없습니다. 주문을 다시 선택해주세요.');
         return;
     }
 
-    // 🔹 출고수량이 모두 0이면 저장할 수 없게
     const totalRelease = products.value.reduce((sum, item) => sum + (item.releaseQty || 0), 0);
     if (totalRelease <= 0) {
         alert('출고수량을 입력해주세요.');
@@ -354,25 +348,20 @@ const onSave = async () => {
     }
 
     const payload = {
-        header: { ...basicInfo },
-        lines: products.value
+        header: { ...basicInfo }, // releaseCode, releaseDate, orderCode, registrant 등
+        lines: products.value // productCode, orderQty, releaseQty, stockQty, dueDate 등
     };
 
     try {
-        if (!basicInfo.releaseCode) {
-            // 신규: 출고요청 등록
-            const res = await axios.post('/api/release/fwd', payload);
-            console.log('[Forwarding] 저장 결과:', res.data);
-            alert('출고요청이 등록되었습니다.');
-            onReset();
-        } else {
-            const res = await axios.put(`/api/release/fwd/${basicInfo.releaseCode}`, payload);
-            console.log('[Forwarding] 수정 결과:', res.data);
-            alert('출고요청이 수정되었습니다.');
-            onReset();
-        }
+        // 🔹 이 페이지는 "실출고" 이므로 출고요청이 이미 있다고 가정하고,
+        //     해당 출고요청(releaseCode)에 대한 실출고를 생성
+        const res = await axios.post('/api/release/fwd/outbound', payload);
+        console.log('[Forwarding] 실출고 결과:', res.data);
+        alert('실출고가 처리되었습니다.');
+        onReset();
     } catch (err) {
-        console.error('[Forwarding] 저장 실패:', err);
+        console.error('[Forwarding] 실출고 실패:', err);
+        alert('실출고 처리 중 오류가 발생했습니다.');
     }
 };
 

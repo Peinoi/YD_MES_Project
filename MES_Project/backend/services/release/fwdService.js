@@ -26,7 +26,7 @@ async function getForwardingCommonCodes() {
     commonService.getNoteList("0J"), // 제품 유형
   ]);
 
-  // 🔹 규격은 4개 그룹을 하나로 합치기
+  // 규격은 4개 그룹을 하나로 합치기
   const specList = [...specOList, ...specXList, ...specYList, ...specZList];
 
   const toMap = (list) =>
@@ -269,18 +269,27 @@ async function getReleaseDetail(releaseCode) {
       releaseCode,
     ]);
 
-    const lines = (lineRows || []).map((r) => ({
-      lineNo: r.line_no,
-      productCode: r.product_code,
-      productName: r.product_name,
-      type: r.product_type,
-      spec: r.spec,
-      unit: r.unit,
-      orderQty: r.order_qty,
-      releaseQty: r.release_qty,
-      stockQty: r.current_stock,
-      dueDate: r.due_date,
-    }));
+    const lines = (lineRows || []).map((r, idx) => {
+      const requestQty = r.requestQty ?? r.releaseQty ?? 0;
+      const shippedQty = r.shippedQty ?? 0;
+
+      return {
+        no: idx + 1, // 라인 번호는 프론트에서 seq로
+        productCode: r.product_code,
+        productName: r.product_name,
+        type: r.product_type,
+        spec: r.spec,
+        unit: r.unit,
+
+        orderQty: r.order_qty || 0,
+        requestQty,
+        shippedQty,
+        remainingQty: Math.max(0, requestQty - shippedQty),
+
+        stockQty: r.current_stock ?? 0,
+        dueDate: r.due_date,
+      };
+    });
 
     return { header, lines };
   } finally {
@@ -343,13 +352,12 @@ async function getClientList(keyword = "") {
 /* ===========================
  *  출고요청 조회 (ForwardingCheck)
  *  라우터: GET /api/release/fwd/check
- *  query: releaseNo, productName, qtyFrom, qtyTo, dateFrom, dateTo, manager, client
  * =========================== */
 async function getForwardingCheckList(params = {}) {
   const {
     releaseNo = "",
     productName = "",
-    productCode = "", // 🔹 프론트에서 같이 넘겨주는 코드
+    productCode = "",
     qtyFrom = "",
     qtyTo = "",
     dateFrom = "",
@@ -359,7 +367,9 @@ async function getForwardingCheckList(params = {}) {
   } = params;
 
   const where = [];
+  const having = [];
   const values = [];
+  const havingValues = [];
 
   // 출고번호
   if (releaseNo) {
@@ -367,9 +377,7 @@ async function getForwardingCheckList(params = {}) {
     values.push(`%${releaseNo}%`);
   }
 
-  // 🔹 제품 조건: "이 출고요청(orq.out_req_code)에 이 제품이 하나라도 있냐?"
-  //    - productCode가 있으면 코드로 체크
-  //    - 없고 productName만 있으면 이름 LIKE로 체크
+  // 🔹 제품 조건: "이 출고요청에 이 제품이 하나라도 포함되어 있냐?"
   if (productCode) {
     where.push(`
       EXISTS (
@@ -394,17 +402,17 @@ async function getForwardingCheckList(params = {}) {
     values.push(`%${productName}%`);
   }
 
-  // 수량
+  // 출고요청 수량 범위 (출고번호 단위 합계 기준)
   if (qtyFrom !== "" && qtyFrom != null) {
-    where.push("ord.out_req_d_amount >= ?");
-    values.push(Number(qtyFrom));
+    having.push("SUM(ord.out_req_d_amount) >= ?");
+    havingValues.push(Number(qtyFrom));
   }
   if (qtyTo !== "" && qtyTo != null) {
-    where.push("ord.out_req_d_amount <= ?");
-    values.push(Number(qtyTo));
+    having.push("SUM(ord.out_req_d_amount) <= ?");
+    havingValues.push(Number(qtyTo));
   }
 
-  // 일자
+  // 출고요청일
   if (dateFrom) {
     where.push("orq.out_req_date >= ?");
     values.push(dateFrom);
@@ -425,17 +433,25 @@ async function getForwardingCheckList(params = {}) {
   }
 
   const whereSQL = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const havingSQL = having.length ? `HAVING ${having.join(" AND ")}` : "";
+
   const listSql = fwdSQL.SELECT_FORWARDING_CHECK_LIST.replace(
     "/*WHERE*/",
     whereSQL
-  );
+  ).replace("/*HAVING*/", havingSQL);
 
   const conn = await db.getConnection();
   try {
-    const rows = await conn.query(listSql, values);
+    const rows = await conn.query(listSql, [...values, ...havingValues]);
     console.log("[getForwardingCheckList] rows.length =", rows.length);
-    // 👉 여기 rows는 "조건에 맞는 출고전표의 모든 제품 라인"
-    return rows; // [{ releaseNo, productName, qty, date, manager, client, status }]
+
+    // 👉 여기 rows 는 이제 "출고번호 1건당 1행" 형태
+    // 프론트에서 그대로:
+    //  - releaseNo, releaseDate,
+    //  - firstProductName, productCount,
+    //  - requestedQty, shippedQty, remainingQty,
+    //  - manager, client, status, statusCode
+    return rows;
   } finally {
     conn.release();
   }
@@ -648,6 +664,161 @@ async function deleteRelease(releaseCode) {
   }
 }
 
+/* ===========================
+ *  실출고 생성 (poutbnd_tbl)
+ *  라우터: POST /api/release/fwd/outbound
+ *  payload:
+ *    header: { releaseCode, releaseDate, orderCode, registrant, ... }
+ *    lines:  [{ productCode, orderQty, releaseQty, stockQty, dueDate, ... }]
+ * =========================== */
+async function createOutboundRelease({ header, lines }) {
+  const conn = await db.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    const { releaseCode, releaseDate, orderCode, registrant } = header;
+
+    if (!releaseCode) {
+      throw new Error(
+        "releaseCode(out_req_code) is required for createOutboundRelease."
+      );
+    }
+    if (!orderCode) {
+      throw new Error("orderCode is required for createOutboundRelease.");
+    }
+    if (!registrant) {
+      throw new Error(
+        "registrant(mcode) is required for createOutboundRelease."
+      );
+    }
+
+    // 출고할 라인(출고수량 > 0)만 필터
+    const validLines = (lines || []).filter(
+      (l) => l.releaseQty && Number(l.releaseQty) > 0
+    );
+    if (!validLines.length) {
+      throw new Error(
+        "출고수량이 0입니다. 최소 1개 이상의 출고수량이 필요합니다."
+      );
+    }
+
+    // 출고요청 코드 기준으로 주문/거래처 다시 확인
+    const relRows = await conn.query(fwdSQL.SELECT_RELEASE_ORDER_CLIENT, [
+      releaseCode,
+    ]);
+
+    if (!relRows || relRows.length === 0) {
+      throw new Error(
+        `출고요청 코드 ${releaseCode} 에 해당하는 주문 정보를 찾을 수 없습니다.`
+      );
+    }
+
+    const { ord_code, client_code } = relRows[0];
+
+    if (ord_code !== orderCode) {
+      throw new Error(
+        `헤더의 orderCode(${orderCode}) 와 출고요청의 주문코드(${ord_code})가 일치하지 않습니다.`
+      );
+    }
+
+    const clientCode = client_code;
+    const outDate = releaseDate || new Date();
+
+    const insertedCodes = [];
+
+    for (const line of validLines) {
+      const qty = Number(line.releaseQty) || 0;
+      const stockQty = Number(line.stockQty ?? line.currentStock ?? 0);
+
+      if (qty <= 0) continue;
+
+      // 🔹 1) 이 출고요청 + 제품 기준으로 "요청/누적출고/남은수량" 조회
+      const summaryRows = await conn.query(fwdSQL.SELECT_RELEASE_LINE_SUMMARY, [
+        releaseCode,
+        line.productCode,
+        releaseCode,
+        line.productCode,
+      ]);
+
+      if (!summaryRows || summaryRows.length === 0) {
+        throw new Error(
+          `출고요청 ${releaseCode} 에 제품 ${line.productCode} 에 대한 요청 정보가 없습니다.`
+        );
+      }
+
+      const summary = summaryRows[0];
+      const requestedQty = Number(summary.requestedQty) || 0;
+      const shippedQty = Number(summary.shippedQty) || 0;
+      const remainingQty = Number(summary.remainingQty) || 0;
+
+      // 🔹 2) 재고/남은요청 수량 검증
+      if (qty > remainingQty) {
+        throw new Error(
+          `제품(${line.productCode})의 출고수량이 남은 요청수량을 초과했습니다. (출고: ${qty}, 남은요청: ${remainingQty})`
+        );
+      }
+
+      if (qty > stockQty) {
+        throw new Error(
+          `제품(${line.productCode})의 출고수량이 재고수량을 초과했습니다. (출고: ${qty}, 재고: ${stockQty})`
+        );
+      }
+
+      const newShippedTotal = shippedQty + qty;
+
+      // 🔹 3) 이번 출고 이후 상태코드 결정 (0Q)
+      // q1: 출고 대기 (실제론 출고 안 했을 때만)
+      // q2: 부분 출고 (누적 < 요청)
+      // q3: 출고 완료 (누적 == 요청)
+      let lineStatus = "q2";
+      if (newShippedTotal >= requestedQty) {
+        lineStatus = "q3";
+      } else if (newShippedTotal <= 0) {
+        lineStatus = "q1";
+      }
+
+      // 🔹 4) 실출고 코드 자동채번
+      const poutCodeRows = await conn.query(fwdSQL.GENERATE_POUTBND_CODE);
+      const poutbndCode = poutCodeRows[0].poutbnd_code;
+
+      const deadline = line.dueDate || outDate;
+      const lotNum = null; // lot 관리 나중에 붙이면 여기 수정
+
+      await conn.query(fwdSQL.INSERT_POUTBND, [
+        poutbndCode, // poutbnd_code
+        qty, // req_qtt  (이번 요청 기준 수량)
+        qty, // outbnd_qtt
+        deadline, // deadline
+        lineStatus, // stat (0Q: q2 or q3)
+        releaseCode, // outbound_request_code
+        lotNum, // lot_num
+        line.productCode, // prod_code
+        clientCode, // client_code
+        registrant, // mcode
+      ]);
+
+      insertedCodes.push(poutbndCode);
+    }
+
+    await conn.commit();
+
+    return {
+      releaseCode,
+      orderCode,
+      clientCode,
+      poutbndCodes: insertedCodes,
+      message: "실출고가 성공적으로 처리되었습니다.",
+    };
+  } catch (err) {
+    await conn.rollback();
+    console.error("[createOutboundRelease] error:", err);
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
 module.exports = {
   getOrderList,
   getOrderDetail,
@@ -662,4 +833,5 @@ module.exports = {
   getClientList,
   getForwardingCheckList,
   getReleaseListAll,
+  createOutboundRelease,
 };
