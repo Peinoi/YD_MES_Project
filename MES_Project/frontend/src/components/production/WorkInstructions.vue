@@ -52,6 +52,23 @@ const localWorkOrder = reactive({ ...props.workOrderData });
 const showProductModal = ref(false);
 const openProductModal = () => (showProductModal.value = true);
 
+// ✅ 제품 선택 핸들러 추가
+const handleProductSelect = (payload) => {
+    if (!payload || !payload.row) return;
+
+    const selectedProduct = payload.row;
+
+    // ✅ 선택된 제품 정보를 localWorkOrder에 할당
+    localWorkOrder.prodCode = selectedProduct.prod_code || '';
+    localWorkOrder.productName = selectedProduct.prod_name || '';
+
+    console.log('✅ 선택된 제품:', selectedProduct);
+    console.log('✅ 업데이트된 localWorkOrder:', localWorkOrder);
+
+    // 모달 닫기
+    showProductModal.value = false;
+};
+
 /* -------------------------
       라인 선택 모달
 ------------------------- */
@@ -79,7 +96,6 @@ const handleLineSelect = (row) => {
 /* -------------------------
        lineCode 변경 감시
 ------------------------- */
-
 watch(
     () => localWorkOrder.lineCode,
     (newLineCode) => {
@@ -164,6 +180,7 @@ watch(localWorkOrder, (newVal) => emit('update:workOrderData', { ...newVal }), {
         </div>
     </div>
 
+    <!-- ✅ @select="handleProductSelect" 이벤트 핸들러 추가 -->
     <ProductSelectModal v-model="showProductModal" @select="handleProductSelect" />
     <LineSelectModal v-model="showLineModal" :rows="lineList" @select="handleLineSelect" />
 </template>

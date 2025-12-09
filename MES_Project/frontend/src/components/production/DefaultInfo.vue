@@ -147,7 +147,6 @@ watch(
 // 📌 PlanModal 연동 (PK를 채우는 유일한 방법 1)
 // -------------------------------------
 const showPlanModal = ref(false);
-const emit = defineEmits(['updateOtherData']);
 
 const handlePlanSelected = (payload) => {
     if (!payload) return;
@@ -187,6 +186,11 @@ const formatDateOnly = (date) => {
 // 📌 버튼
 // -------------------------------------
 const handleDelete = () => console.log('삭제');
+// 📌 기존 emit 수정
+const emit = defineEmits(['updateOtherData', 'resetForm']); // ✅ 'resetForm' 이벤트 추가
+
+// 📌 handleReset 함수 수정
+// 📌 handleReset 함수 수정
 const handleReset = () => {
     console.log('🔥 초기화 버튼 클릭');
 
@@ -215,6 +219,9 @@ const handleReset = () => {
 
     // 부모에게 초기화 신호 전달
     emit('updateOtherData', otherDataStore.value);
+
+    // ✅ 부모 컴포넌트에 초기화 이벤트 전달
+    emit('resetForm');
 };
 
 // -------------------------------------
