@@ -98,6 +98,17 @@ router.put("/qio", async (req, res, next) => {
   }
 });
 
+// 8. DELETE /api/quality/qio/:qioCode - 기존 qio_tbl 및 관련 qir_tbl 데이터 삭제
+router.delete("/qio/:qioCode", async (req, res, next) => {
+  try {
+    const { qioCode } = req.params;
+    const result = await qualityService.deleteQio(qioCode);
+    res.json({ code: "Q200", data: result });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/productions/:planId/mrp - 특정 생산 계획으로 MRP 계산
 // router.post("/:planId/mrp", async (req, res, next) => {
 //   try {

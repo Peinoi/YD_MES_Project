@@ -207,6 +207,21 @@ export const useQualityStore = defineStore('quality', {
             return saveQIO.qio_code ? this.updateQIO(saveQIO) : this.createQIO(saveQIO);
         },
 
+        async deleteQIO(qioCode) {
+            this.loading = true;
+            this.error = null;
+            try {
+                await axios.delete(`/api/quality/qio/${qioCode}`);
+                await this.fetchQIOList(); // 삭제 후 목록 새로고침
+            } catch (error) {
+                this.error = '데이터 삭제에 실패했습니다.';
+                console.error('Error deleting QIO:', error);
+                throw error;
+            } finally {
+                this.loading = false;
+            }
+        },
+
         //--- 상태 초기화 액션 ---
         resetState() {
             this.qioList = [];

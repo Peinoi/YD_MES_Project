@@ -192,7 +192,10 @@ VALUES (
     qir_emp_code = ?
   WHERE qir_code = ?
   `,
-  deleteQuailityInstructionResultsByQIO: `
+  deleteQirsByQioCode: `
   DELETE FROM qir_tbl WHERE qio_code = ?
+  `,
+  deleteQioByQioCode: `
+  DELETE FROM qio_tbl WHERE qio_code = ?
   `,
 };

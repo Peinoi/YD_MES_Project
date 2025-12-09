@@ -319,3 +319,25 @@ exports.updateQuailityInstructionOrder = async (data) => {
     conn.release();
   }
 };
+
+exports.deleteQio = async (qioCode) => {
+  const conn = await getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // 1. 자식 레코드(qir_tbl) 삭제
+    await conn.query(sqlList.deleteQirsByQioCode, [qioCode]);
+
+    // 2. 부모 레코드(qio_tbl) 삭제
+    await conn.query(sqlList.deleteQioByQioCode, [qioCode]);
+
+    await conn.commit();
+    return { success: true };
+  } catch (err) {
+    await conn.rollback();
+    console.error("품질검사지시 삭제 중 오류:", err);
+    throw new Error("품질검사지시 삭제 중 오류가 발생했습니다.");
+  } finally {
+    conn.release();
+  }
+};

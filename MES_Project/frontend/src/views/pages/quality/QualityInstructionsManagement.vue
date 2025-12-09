@@ -250,6 +250,24 @@ const seveQualityInspectionOrder = async () => {
         alert('작업 중 오류가 발생했습니다.');
     }
 };
+
+const onDelete = async () => {
+    if (!formState.value.qio_code) {
+        alert('삭제할 검사지시를 선택해주세요.');
+        return;
+    }
+
+    if (confirm('정말로 삭제하시겠습니까?')) {
+        try {
+            await qualityStore.deleteQIO(formState.value.qio_code);
+            alert('성공적으로 삭제되었습니다.');
+            resetForm();
+        } catch (error) {
+            console.error('삭제 중 오류 발생:', error);
+            alert('삭제 중 오류가 발생했습니다.');
+        }
+    }
+};
 </script>
 
 <template>
@@ -258,7 +276,7 @@ const seveQualityInspectionOrder = async () => {
         <div class="flex justify-between items-center">
             <div class="font-semibold text-xl">기본정보</div>
             <div class="flex gap-2">
-                <Button label="삭제" severity="danger"></Button>
+                <Button label="삭제" severity="danger" @click="onDelete"></Button>
                 <Button label="초기화" severity="secondary" @click="resetForm"></Button>
                 <Button label="저장" severity="success" @click="seveQualityInspectionOrder"></Button>
                 <Button label="검사지시 불러오기" @click="openModal('inspection')"></Button>
