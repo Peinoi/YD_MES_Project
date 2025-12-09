@@ -11,7 +11,11 @@ let performanceList = ref([]);
 const getPerformanceList = async () => {
     let result = await axios.get(`/api/productionwork/work/performance`).catch((err) => console.log('작업진행도 리스트' + err));
     const res = result.data.data.result;
-    performanceList.value = JSON.parse(JSON.stringify(res));
+    const filterList = JSON.parse(JSON.stringify(res)).filter((item) => {
+        return item.cr_date == null ? false : true;
+    });
+    console.log(filterList);
+    performanceList.value = filterList;
     console.log(performanceList.value);
 };
 

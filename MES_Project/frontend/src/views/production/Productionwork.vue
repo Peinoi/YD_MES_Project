@@ -167,15 +167,21 @@ const formatDate = (str) => {
                         <div
                             :class="[
                                 'progress-track',
-                                {
-                                    'track-green': process['진행률'] === 100,
-                                    'track-yellow': process['진행률'] > 0 && process['진행률'] < 100,
-                                    'track-gray': process['진행률'] === 0
-                                }
+                             {
+                                'track-green': process['진행률'] === 100,
+                                'track-yellow': process['진행률'] > 0 && process['진행률'] < 100,
+                                'track-gray': process['진행률'] === 0
+                             }
                             ]"
-                        >
-                            <div class="progress-bar" :style="{ width: process['진행률'] + '%' }"></div>
-                        </div>
+                            >
+                            <div
+                                class="progress-bar"
+                                :style="{
+                                width: process['진행률'] + '%',
+                                backgroundColor: process['진행률'] === 100 ? '#4CAF50' : '#facc15'
+                                }"
+                            ></div>
+                            </div>
 
                         <span class="progress-text font-bold" :class="{ 'text-gray-500': process['진행률'] === 0 }">
                             {{ getProgressText(process) }}
@@ -188,10 +194,10 @@ const formatDate = (str) => {
                     id="eq-box"
                     class="process-detail text-gray-600 font-light"
                     :style="{
-                        cursor: index === 0 ? 'pointer' : 'default',
-                        backgroundColor: index === 0 ? 'rgb(172,170,170)' : '#f3f4f6'
+                        cursor: index === 0 || index === workList.length - 1 ? 'pointer' : 'default',
+                        backgroundColor: index === 0 || index === workList.length - 1 ? 'rgb(172,170,170)' : '#f3f4f6'
                     }"
-                    @click.stop="index === 0 && goIrregularWork()"
+                    @click.stop="(index === 0 || index === workList.length - 1) && goIrregularWork()"
                 >
                     {{ process['설비코드'] }} - {{ process['설비'] }}
                 </div>
