@@ -2,8 +2,12 @@
 import { onMounted, ref, computed } from 'vue';
 import SearchModal from './SearchModal.vue'; // SearchModal 컴포넌트 임포트
 import { useQualityStore } from '@/stores/qualityStore';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
 
 const qualityStore = useQualityStore();
+const toast = useToast();
+const confirm = useConfirm();
 
 // 1. tableData를 스토어의 qcrList를 바라보는 computed 속성으로 변경합니다.
 const tableData = computed(() => qualityStore.qcrList); // 검사항목 테이블 데이터
@@ -127,7 +131,7 @@ const handleModalConfirm = async (selectedItem) => {
 };
 
 // 화면 상태를 초기화하는 함수
-const resetForm = () => {
+const resetForm = async () => {
     formState.value = {
         qio_code: '',
         insp_date: formatDate(new Date()), // 지시일자는 오늘 날짜로 설정
@@ -142,6 +146,9 @@ const resetForm = () => {
     isInstructorReadOnly.value = false;
     // 데이터 테이블에서 선택된 항목들 초기화
     selectedProducts.value = null;
+
+    await qualityStore.fetchMpo_dList();
+    await qualityStore.fetchPrdrList(); 
 };
 
 // 선택된 행들을 저장할 반응형 변수
@@ -201,17 +208,17 @@ onMounted(() => {
 const seveQualityInspectionOrder = async () => {
     // 1. 유효성 검사
     if (!selectedProducts.value || selectedProducts.value.length === 0) {
-        alert('검사항목을 선택해주세요.');
+        toast.add({ severity: 'warn', summary: '경고', detail: '검사항목을 선택해주세요.', life: 3000 });
         return;
     }
 
     if (!formState.value.emp_code && !isInstructorReadOnly.value) {
-        alert('지시자를 선택해주세요.');
+        toast.add({ severity: 'warn', summary: '경고', detail: '지시자를 선택해주세요.', life: 3000 });
         return;
     }
 
     if (!formState.value.target_type || !formState.value.item_code) {
-        alert('검사대상을 선택해주세요.');
+        toast.add({ severity: 'warn', summary: '경고', detail: '검사대상을 선택해주세요.', life: 3000 });
         return;
     }
 
@@ -233,40 +240,54 @@ const seveQualityInspectionOrder = async () => {
             // 생성 로직
             const newQioCode = await qualityStore.saveQIO(saveData);
             formState.value.qio_code = newQioCode;
-            alert('성공적으로 저장되었습니다.');
+            toast.add({ severity: 'success', summary: '성공', detail: '성공적으로 저장되었습니다.', life: 3000 });
+            resetForm(); // 생성 후 폼 초기화
+            await qualityStore.fetchQIOList(); // 생성 후 목록 새로고침
         } else {
             // 수정 로직
             saveData.qio_code = formState.value.qio_code;
             await qualityStore.saveQIO(saveData);
-            alert('성공적으로 수정되었습니다.');
+            toast.add({ severity: 'success', summary: '성공', detail: '성공적으로 수정되었습니다.', life: 3000 });
             resetForm(); // 수정 성공 후 폼 초기화
 
             // 수정하고 수정사항 반영해서 목록 갱신
             await qualityStore.fetchMpo_dList();
             await qualityStore.fetchPrdrList();
+            await qualityStore.fetchQIOList(); // 수정 후 목록 새로고침
         }
     } catch (error) {
         console.error('저장/수정 중 오류 발생:', error);
-        alert('작업 중 오류가 발생했습니다.');
+        toast.add({ severity: 'error', summary: '오류', detail: '작업 중 오류가 발생했습니다.', life: 3000 });
     }
 };
 
 const onDelete = async () => {
     if (!formState.value.qio_code) {
-        alert('삭제할 검사지시를 선택해주세요.');
+        toast.add({ severity: 'warn', summary: '경고', detail: '삭제할 검사지시를 선택해주세요.', life: 3000 });
         return;
     }
 
-    if (confirm('정말로 삭제하시겠습니까?')) {
-        try {
-            await qualityStore.deleteQIO(formState.value.qio_code);
-            alert('성공적으로 삭제되었습니다.');
-            resetForm();
-        } catch (error) {
-            console.error('삭제 중 오류 발생:', error);
-            alert('삭제 중 오류가 발생했습니다.');
+    confirm.require({
+        group: 'qimDialog',
+        message: '정말로 삭제하시겠습니까?',
+        header: '삭제 확인',
+        icon: 'pi pi-exclamation-triangle',
+        acceptClass: 'p-button-success',
+        rejectClass: 'p-button-danger',
+        accept: async () => {
+            try {
+                await qualityStore.deleteQIO(formState.value.qio_code);
+                toast.add({ severity: 'success', summary: '성공', detail: '성공적으로 삭제되었습니다.', life: 3000 });
+                resetForm();
+            } catch (error) {
+                console.error('삭제 중 오류 발생:', error);
+                toast.add({ severity: 'error', summary: '오류', detail: '삭제 중 오류가 발생했습니다.', life: 3000 });
+            }
+        },
+        reject: () => {
+            toast.add({ severity: 'info', summary: '정보', detail: '삭제가 취소되었습니다.', life: 3000 });
         }
-    }
+    });
 };
 </script>
 
@@ -380,6 +401,9 @@ const onDelete = async () => {
 
         <!-- SearchModal 컴포넌트 추가 -->
         <SearchModal v-model:visible="isModalVisible" :header="modalTitle" :data="modalData" :columns="modalColumns" @onConfirm="handleModalConfirm" />
+
+        <Toast />
+        <ConfirmDialog group="qimDialog"></ConfirmDialog>
     </div>
 </template>
 
