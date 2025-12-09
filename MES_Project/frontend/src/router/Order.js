@@ -33,5 +33,10 @@ export default [
         path: '/order/management',
         name: 'OrderManagement',
         component: () => import('@/views/order/OrderManagement.vue')
+    },
+    {
+        path: '/order/:ordCode',
+        name: 'OrderDetail',
+        component: () => import('@/views/order/OrderDetail.vue')
     }
 ];
