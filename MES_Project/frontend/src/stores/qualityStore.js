@@ -12,7 +12,7 @@ export const useQualityStore = defineStore('quality', {
         qioList: [],
         qirList: [],
         prdrList: [], // prdr_tbl: 생산실적 테이블
-        mpr_dList: [], // mpr_d_tbl: -- 자재구매요청상세 테이블: 기존사람들이 이걸로만들어서 나도 이걸로해야됨 월요일수정가능성 있음.
+        mpo_dList: [], // mpo_d_tbl: -- 자재구매요청상세 테이블: 기존사람들이 이걸로만들어서 나도 이걸로해야됨 월요일수정가능성 있음.
         qualityEmployeeList: [], // 품질팀 사원 목록
 
         // 사용자가 선택한 항목
@@ -83,13 +83,13 @@ export const useQualityStore = defineStore('quality', {
                 this.loading = false;
             }
         },
-        async fetchMpr_dList() {
+        async fetchMpo_dList() {
             this.loading = true;
             this.error = null;
             try {
-                const response = await axios.get('/api/quality/mpr_ds');
+                const response = await axios.get('/api/quality/mpo_ds');
                 console.log(response.data.data);
-                this.mpr_dList = response.data.data; // 여기는 정상입니다.
+                this.mpo_dList = response.data.data; // 여기는 정상입니다.
             } catch (error) {
                 this.error = '데이터를 불러오는 데 실패했습니다.';
                 console.error('Error fetching Mpr_d list:', error);

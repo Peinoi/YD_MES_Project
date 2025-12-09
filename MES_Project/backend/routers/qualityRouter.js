@@ -22,10 +22,10 @@ router.get("/prdrs", async (req, res, next) => {
   }
 });
 
-// 2. GET /api/quality/mpr_ds - mpr_d_tbl목록 전체 조회
-router.get("/mpr_ds", async (req, res, next) => {
+// 2. GET /api/quality/mpo_ds - mpo_d_tbl목록 전체 조회
+router.get("/mpo_ds", async (req, res, next) => {
   try {
-    const orders = await qualityService.getMpr_dList();
+    const orders = await qualityService.getMpo_dList();
     res.json({ code: "Q200", data: orders });
   } catch (err) {
     next(err); // 에러를 전역 오류 처리 미들웨어로 전달

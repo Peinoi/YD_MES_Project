@@ -25,24 +25,30 @@ module.exports = {
   FROM prdr_tbl prdr
   JOIN prod_tbl prod
   ON prdr.prod_code = prod.prod_code
+WHERE prdr.prdr_code  NOT IN (SELECT prdr_code FROM qio_tbl where prdr_code IS NOT NULL)
+AND prdr.stat = 'b3'
 `,
-  findAllMpr_d: `
-  SELECT mpr_d_code
-  , req_qtt
-  , mpr_d.unit AS 'mpr_d_unit'
-  , mat.unit AS 'mat_unit'
-  , mpr_d.note AS 'mpr_d_note'
-  , mat.note AS 'mat_note'
-  , mpr_code
-  , mat_sup
-  , mat.mat_code
-  , mat.mat_name -- 발주 품목 이름
+  findAllMpo_d: `
+  SELECT 
+  mpo_d.mpo_d_code -- 자재 발주서 상세 PK, 회사가 들여온 각 자재의 코드(QIO가 FK로땡기고있음)
+  , mpo_d.purchase_code -- 복수의 자재 발주서 상세 정보를 담을 하나의 자재 발주서, 발주완료 여부를 땡겨올때 씀
+  , mpo_d.mat_code -- 자재의 정보를 담고 있는 FK mat_tbl과 조인할때 씀
+  
+  , mpo_d.req_qtt -- 회사로 들여온 자재의 개수(QIO에서 품질검사 할 때 이 갯수를 넘길 수 없음)
+  , mpo_d.deadline 
+  , mpo_d.client_code 
+  , mat.mat_name
   , mat.material_type_code -- t1 원자재, t2부자재
   , mat.is_used -- f1 미사용, f2 사용중
-FROM mpr_d_tbl mpr_d
+  , cc.note
+FROM mpo_d_tbl mpo_d
 JOIN mat_tbl mat
-ON mat.mat_code = mpr_d.mat_code
-WHERE mpr_d_code NOT IN (SELECT mpr_d_code FROM qio_tbl where mpr_d_code IS Not Null);
+ON mpo_d.mat_code = mat.mat_code
+JOIN mpo_tbl mpo -- 복수의 자재발주상세를 담은 발주서의 정보, mpo_tbl.stat 이 c1인거 땡겨올거임
+ON mpo_d.purchase_code = mpo.purchase_code -- 발주서 정보가 존재하는 발주상세 끌어옴
+JOIN common_code cc
+ON mat.material_type_code = cc.com_value
+WHERE mpo.stat = 'c1' -- 발주 완료 상태인 발주서의 발주상세정보 목록을 출력
 `,
   findPrdrByQIO: `
   SELECT prdr.prdr_code

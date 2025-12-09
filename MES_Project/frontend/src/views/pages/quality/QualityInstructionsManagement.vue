@@ -49,13 +49,13 @@ const openModal = async (type) => {
         // TODO: dataKey prop 추가 필요
     } else if (type === 'stock') {
         modalTitle.value = '자재목록 불러오기';
-        // 스토어에 mpr_dList 데이터가 없으면 가져옵니다.
-        if (!qualityStore.mpr_dList.length) {
-            await qualityStore.fetchMpr_dList();
+        // 스토어에 mpo_dList 데이터가 없으면 가져옵니다.
+        if (!qualityStore.mpo_dList.length) {
+            await qualityStore.fetchMpo_dList();
         }
-        modalData.value = qualityStore.mpr_dList;
+        modalData.value = qualityStore.mpo_dList;
         modalColumns.value = [
-            { field: 'mpr_d_code', header: '자재 코드' },
+            { field: 'mpo_d_code', header: '발주서 코드' },
             { field: 'mat_name', header: '자재 명' },
             { field: 'req_qtt', header: '발주수량' }
         ];
@@ -68,7 +68,7 @@ const openModal = async (type) => {
         }
         modalData.value = qualityStore.prdrList;
         modalColumns.value = [
-            { field: 'prdr_code', header: '제품 코드' },
+            { field: 'prdr_code', header: '생산실적 코드' },
             { field: 'prod_name', header: '제품 명' },
             { field: 'production_qtt', header: '수량' }
         ];
@@ -87,13 +87,13 @@ const handleModalConfirm = async (selectedItem) => {
         formState.value.emp_code = selectedItem.emp_code; // 올바른 emp_code를 할당하도록 수정
         isInstructorReadOnly.value = true; // 지시자 필드를 읽기 전용으로 설정
 
-        const { qio_code, prdr_code, mpr_d_code } = selectedItem;
-        await qualityStore.loadInspectionDetails({ qio_code, prdr_code, mpr_d_code });
+        const { qio_code, prdr_code, mpo_d_code } = selectedItem;
+        await qualityStore.loadInspectionDetails({ qio_code, prdr_code, mpo_d_code });
 
-        if ((selectedItem.prdr_code != null && selectedItem.mpr_d_code == null) || (selectedItem.prdr_code == null && selectedItem.mpr_d_code != null)) {
-            if (selectedItem.mpr_d_code != null) {
-                formState.value.target_type = '자재';
-                formState.value.item_code = qualityStore.selectedQIO[0][0].mpr_d_code;
+        if ((selectedItem.prdr_code != null && selectedItem.mpo_d_code == null) || (selectedItem.prdr_code == null && selectedItem.mpo_d_code != null)) {
+            if (selectedItem.mpo_d_code != null) {
+                formState.value.target_type = qualityStore.selectedQIO[0][0].note; //'자재';
+                formState.value.item_code = qualityStore.selectedQIO[0][0].mpo_d_code;
                 formState.value.item_name = qualityStore.selectedQIO[0][0].mat_name;
                 formState.value.item_quantity = qualityStore.selectedQIO[0][0].req_qtt;
             } else if (selectedItem.prdr_code != null) {
@@ -103,7 +103,6 @@ const handleModalConfirm = async (selectedItem) => {
                 formState.value.item_quantity = qualityStore.selectedQIO[0][0].production_qtt;
             }
         }
-
         selectedProducts.value = [];
         qualityStore.selectedQIO[1].forEach((item) => {
             selectedProducts.value.push({
@@ -115,8 +114,8 @@ const handleModalConfirm = async (selectedItem) => {
             });
         });
     } else if (modalType.value === 'stock') {
-        formState.value.target_type = '자재';
-        formState.value.item_code = selectedItem.mpr_d_code;
+        formState.value.target_type = selectedItem.note; // '자재';
+        formState.value.item_code = selectedItem.mpo_d_code;
         formState.value.item_name = selectedItem.mat_name;
         formState.value.item_quantity = selectedItem.req_qtt;
     } else if (modalType.value === 'production') {
@@ -222,7 +221,7 @@ const seveQualityInspectionOrder = async () => {
         emp_code: formState.value.emp_code,
         insp_vol: formState.value.item_quantity,
         prdr_code: formState.value.target_type === '제품' ? formState.value.item_code : null,
-        mpr_d_code: formState.value.target_type === '자재' ? formState.value.item_code : null,
+        mpo_d_code: formState.value.target_type === ('t1' || 't2') ? formState.value.item_code : null,
         qcr_codes: selectedProducts.value.map((item) => item.qcr_code)
     };
 
@@ -243,7 +242,7 @@ const seveQualityInspectionOrder = async () => {
             resetForm(); // 수정 성공 후 폼 초기화
 
             // 수정하고 수정사항 반영해서 목록 갱신
-            await qualityStore.fetchMpr_dList();
+            await qualityStore.fetchMpo_dList();
             await qualityStore.fetchPrdrList();
         }
     } catch (error) {

@@ -83,9 +83,9 @@ exports.getPrdrList = async () => {
 };
 
 // 2. 발주서 사본 테이블 조회
-exports.getMpr_dList = async () => {
+exports.getMpo_dList = async () => {
   try {
-    const result = await query("findAllMpr_d", []);
+    const result = await query("findAllMpo_d", []);
     return result;
   } catch (err) {
     throw err;
@@ -175,7 +175,7 @@ exports.createQuailityInstructionOrder = async (data) => {
           )
       ) as new_qio_code;
     `;
-    
+
     // conn.query가 row의 배열을 반환
     const rows = await conn.query(getNewQioCodeSql, [insp_date, insp_date]);
 
@@ -218,12 +218,12 @@ exports.createQuailityInstructionOrder = async (data) => {
 
       // 4-2. 생성된 qir_code와 함께 데이터 추가
       await conn.query(sqlList.createQuailityInstructionResult, [
-        qir_code,   // 새로 생성된 QIR PK
-        insp_date,  // start_date (검사 시작일)
-        insp_date,  // end_date (검사 종료일)
-        qio_code,   // FK
-        emp_code,   // qir_emp_code (검사 담당자)
-        item,       // qcr_code (FK)
+        qir_code, // 새로 생성된 QIR PK
+        insp_date, // start_date (검사 시작일)
+        insp_date, // end_date (검사 종료일)
+        qio_code, // FK
+        emp_code, // qir_emp_code (검사 담당자)
+        item, // qcr_code (FK)
       ]);
     }
 
@@ -241,7 +241,15 @@ exports.createQuailityInstructionOrder = async (data) => {
 // 7. 품질검사 지시 수정
 exports.updateQuailityInstructionOrder = async (data) => {
   // 1. 프론트엔드에서 받은 데이터 분해 할당
-  const { qio_code, insp_date, prdr_code, mpr_d_code, emp_code, insp_vol, qcr_codes } = data;
+  const {
+    qio_code,
+    insp_date,
+    prdr_code,
+    mpr_d_code,
+    emp_code,
+    insp_vol,
+    qcr_codes,
+  } = data;
 
   const conn = await getConnection(); // 트랜잭션용 연결
   try {
@@ -283,12 +291,12 @@ exports.updateQuailityInstructionOrder = async (data) => {
 
       // 4-2. 생성된 qir_code와 함께 데이터 추가
       await conn.query(sqlList.createQuailityInstructionResult, [
-        qir_code,   // 새로 생성된 QIR PK
-        insp_date,  // start_date (검사 시작일)
-        insp_date,  // end_date (검사 종료일)
-        qio_code,   // FK
-        emp_code,   // qir_emp_code (검사 담당자)
-        item,       // qcr_code (FK)
+        qir_code, // 새로 생성된 QIR PK
+        insp_date, // start_date (검사 시작일)
+        insp_date, // end_date (검사 종료일)
+        qio_code, // FK
+        emp_code, // qir_emp_code (검사 담당자)
+        item, // qcr_code (FK)
       ]);
     }
 
@@ -301,4 +309,4 @@ exports.updateQuailityInstructionOrder = async (data) => {
   } finally {
     conn.release();
   }
-}
+};
