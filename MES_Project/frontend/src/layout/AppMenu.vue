@@ -86,8 +86,8 @@ const model = ref([
                         to: '/uikit/formlayout'
                     },
                     {
-                        label: '품질 기준정보',
-                        to: '/quality/criteria'
+                        label: '품질검사 목록조회',
+                        to: '/quality/instructions-list'
                     },
                     {
                         label: '품질검사 지시관리',

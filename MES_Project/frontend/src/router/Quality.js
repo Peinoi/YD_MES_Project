@@ -1,8 +1,8 @@
 export default [
     {
-        path: '/quality/criteria',
-        name: 'criteria',
-        component: () => import('@/views/pages/quality/QualityCriteria.vue')
+        path: '/quality/instructions-list',
+        name: 'qims',
+        component: () => import('@/views/pages/quality/QualityInstructionsOrderList.vue')
     },
     {
         path: '/quality/instructions-management',
