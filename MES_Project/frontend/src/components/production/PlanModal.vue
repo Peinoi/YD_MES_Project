@@ -18,6 +18,21 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'select']);
 
+// -----------------------------------------
+// 🔥 상태 옵션 (label/value 매핑)
+// -----------------------------------------
+const statusOptions = [
+    { label: '진행중', value: 'v1' },
+    { label: '작업완료', value: 'v2' },
+    { label: '작업보류', value: 'v3' },
+    { label: '작업대기', value: 'v4' }
+];
+
+const getStatusLabel = (v) => {
+    const found = statusOptions.find((s) => s.value === v);
+    return found ? found.label : v || '';
+};
+
 // 검색 & 선택
 const searchInput = ref('');
 const selectedPlanNo = ref('');
@@ -33,12 +48,22 @@ watch(
     { immediate: true }
 );
 
-// 검색 필터 리스트
+// -----------------------------------------
+// 🔥 검색 + 상태 라벨 변환된 리스트 생성
+// -----------------------------------------
 const filteredPlanList = computed(() => {
     const s = searchInput.value.toLowerCase();
-    if (!s) return props.planList;
 
-    return props.planList.filter((p) => p.계획번호.toLowerCase().includes(s) || p.상태.toLowerCase().includes(s));
+    return props.planList
+        .filter((p) => p.계획번호 && p.계획번호.trim() !== '') // 🔥 계획번호 없는 데이터 제외
+        .map((plan) => ({
+            ...plan,
+            상태라벨: getStatusLabel(plan.상태)
+        }))
+        .filter((p) => {
+            if (!s) return true;
+            return p.계획번호.toLowerCase().includes(s) || p.상태라벨.toLowerCase().includes(s);
+        });
 });
 
 // 검색 버튼
@@ -59,14 +84,12 @@ const handleConfirm = () => {
         return;
     }
 
-    // 선택된 3가지
     const selectedData = {
         prdp_code: selectedPlan.계획번호,
         wko_code: selectedPlan.작업지시번호,
         prdp_date: selectedPlan.계획일자
     };
 
-    // 나머지 값들
     const otherData = {
         dueDate: selectedPlan.납기일자,
         planName: selectedPlan.계획명,
@@ -78,7 +101,6 @@ const handleConfirm = () => {
         lineCode: selectedPlan.작업라인코드
     };
 
-    // 부모에게 payload 형태로 전달
     emit('select', { selectedData, otherData });
 };
 
@@ -122,7 +144,9 @@ const handleCancel = () => {
                             <td>{{ plan.계획명 }}</td>
                             <td>{{ plan.계획일자 }}</td>
                             <td>{{ plan.납기일자 }}</td>
-                            <td>{{ plan.상태 }}</td>
+
+                            <!-- 🔥 상태를 라벨로 표시 -->
+                            <td>{{ plan.상태라벨 }}</td>
                         </tr>
 
                         <tr v-if="filteredPlanList.length === 0">

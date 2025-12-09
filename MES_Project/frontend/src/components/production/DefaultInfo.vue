@@ -136,7 +136,8 @@ watch(
             startDate: newVal.startDate || null,
             expectedCompletion: newVal.expectedCompletion || null,
             instructionStatus: newVal.instructionStatus,
-            lineCode: newVal.lineCode
+            lineCode: newVal.lineCode,
+            prodCode: newVal.prodCode // ⭐ 여기가 반드시 있어야 함
         };
     },
     { deep: true, immediate: true }
@@ -186,16 +187,34 @@ const formatDateOnly = (date) => {
 // 📌 버튼
 // -------------------------------------
 const handleDelete = () => console.log('삭제');
-
 const handleReset = () => {
-    // 모든 필드를 빈 값으로 초기화
-    Object.keys(formData.value).forEach((key) => (formData.value[key] = ''));
+    console.log('🔥 초기화 버튼 클릭');
 
-    // PK는 빈 값으로 유지
-    formData.value.planDate = getToday();
+    // 등록 모드 판단
+    const isRegistrationMode = !props.defaultInfoData?.workOrderNo;
+
+    // 초기화용 새 객체 생성
+    formData.value = {
+        productionPlanNo: '',
+        workOrderNo: '',
+        planDate: getToday(),
+        dueDate: '',
+        planName: '',
+        status: '',
+        lineType: ''
+    };
+
     otherDataStore.value = {};
 
-    emit('updateOtherData', {});
+    if (!isRegistrationMode) {
+        // 조회 모드면 defaultInfoData 기준으로 값 채움
+        formData.value.workOrderNo = props.defaultInfoData.workOrderNo || '';
+        formData.value.productionPlanNo = props.defaultInfoData.productionPlanNo || '';
+        formData.value.planDate = props.defaultInfoData.planDate || getToday();
+    }
+
+    // 부모에게 초기화 신호 전달
+    emit('updateOtherData', otherDataStore.value);
 };
 
 // -------------------------------------
@@ -235,18 +254,13 @@ const handleSave = async () => {
             start_date: otherDataStore.value?.startDate || null,
             end_date: formatDateOnly(otherDataStore.value?.expectedCompletion) || null,
             stat: otherDataStore.value?.instructionStatus || formData.value.status,
-            line_code: otherDataStore.value?.lineCode || (formData.value.lineType === '정형' ? 'LINE-001' : 'LINE-999'),
+            line_code: otherDataStore.value?.lineCode || null,
 
-            // 최종 확정된 PK 값 (wko_code) 사용
-            wko_code: wkoCode,
+            // ⭐ 필수 추가
+            prod_code: otherDataStore.value?.prodCode || formData.value.prodCode || null,
 
-            // 🔥 생산계획번호 (prdp_code)는 등록 시 Payload에서 제외
-            // prdp_code: formData.value.productionPlanNo, // <-- 주석 처리 또는 제거
-
-            prdp_name: formData.value.prdp_name,
-            due_date: formatDateOnly(formData.value.dueDate)
+            wko_code: wkoCode
         };
-
         // 4. 저장/수정 실행
         if (exists) {
             // PK가 DB에 존재하면 수정 (UPDATE)

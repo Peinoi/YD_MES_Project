@@ -1,21 +1,23 @@
 <script setup>
-import { reactive, watch, ref, defineProps, defineEmits } from 'vue';
-import ProductSelectModal from '@/components/order/ProductSelectModal.vue';
+import { reactive, ref, watch, defineProps, defineEmits } from 'vue';
+import axios from 'axios';
+import ProductSelectModal from '@/components/production/ProductSelectModal.vue';
+import LineSelectModal from '@/components/production/LineSelectModal.vue';
 
 const emit = defineEmits(['update:workOrderData']);
 
-// 🔹 부모에서 전달된 props 정의
 const props = defineProps({
     workOrderData: {
         type: Object,
         default: () => ({
+            prodCode: '',
             productName: '',
             instructionQuantity: '',
             startDate: '',
             expectedCompletion: '',
-            instructionStatus: 'v4', // 💡 초기 상태를 '작업대기' (v4)로 설정
+            instructionStatus: 'v4',
             lineType: '',
-            lineCode: '' // 생산 계획 번호로 사용될 가능성이 높음
+            lineCode: ''
         })
     },
     labels: {
@@ -28,7 +30,7 @@ const props = defineProps({
             expectedCompletion: '예상 완료일시',
             instructionStatus: '지시 상태',
             lineType: '라인 유형',
-            lineCode: '라인 코드' // 이 필드를 생산 계획 번호로 간주
+            lineCode: '라인 코드'
         })
     },
     statusOptions: {
@@ -37,73 +39,88 @@ const props = defineProps({
             { label: '진행중', value: 'v1' },
             { label: '작업완료', value: 'v2' },
             { label: '작업보류', value: 'v3' },
-            { label: '작업대기', value: 'v4' } // 💡 '작업대기'의 value를 'v4'로 가정합니다.
+            { label: '작업대기', value: 'v4' }
         ]
     }
 });
 
-// 🔹 props를 내부 reactive로 복사 (v-model용)
 const localWorkOrder = reactive({ ...props.workOrderData });
 
-// 💡 모달 표시 상태 관리 및 핸들러 (이전과 동일)
+/* -------------------------
+      제품 선택 모달
+------------------------- */
 const showProductModal = ref(false);
-const openProductModal = () => {
-    showProductModal.value = true;
-};
+const openProductModal = () => (showProductModal.value = true);
+
 const handleProductSelect = (payload) => {
-    if (payload && payload.row) {
-        const selectedProduct = payload.row;
-        localWorkOrder.productName = selectedProduct.prod_name || '';
-        localWorkOrder.lineCode = selectedProduct.prod_code || '';
+    if (payload?.row) {
+        const p = payload.row;
+        localWorkOrder.productName = p.prod_name || '';
+        localWorkOrder.lineCode = p.line_code || '';
+        localWorkOrder.prodCode = p.prod_code || '';
     }
     showProductModal.value = false;
 };
+const resetWorkOrder = () => {
+    const emptyData = {
+        prodCode: '',
+        productName: '',
+        instructionQuantity: '',
+        startDate: '',
+        expectedCompletion: '',
+        instructionStatus: 'v4',
+        lineType: '',
+        lineCode: ''
+    };
+    Object.assign(localWorkOrder, emptyData);
+};
 
-// --- ✨ 추가/수정된 로직 ---
+/* -------------------------
+      라인 선택 모달
+------------------------- */
+const showLineModal = ref(false);
+const lineList = ref([]); // 라인 데이터 저장
 
-// 1. 라인 코드 (생산 계획 번호) 변경 감시 및 라인 유형 업데이트
+const openLineModal = async () => {
+    try {
+        const res = await axios.get('/api/production/line');
+        lineList.value = res.data.data || [];
+        showLineModal.value = true;
+    } catch (error) {
+        console.error('라인 조회 오류:', error);
+    }
+};
+
+const handleLineSelect = (row) => {
+    if (row) {
+        localWorkOrder.lineCode = row.line_code;
+        localWorkOrder.lineType = row.line_type === '01' ? '정형' : '비정형';
+    }
+    showLineModal.value = false;
+};
+
+/* -------------------------
+       lineCode 변경 감시
+------------------------- */
+
 watch(
     () => localWorkOrder.lineCode,
     (newLineCode) => {
-        // 라인 유형 ('정형'/'비정형') 업데이트
         localWorkOrder.lineType = newLineCode ? '정형' : '비정형';
-
-        // 💡 2. 라인 코드 값 유무에 따라 지시 상태를 '작업대기' (v4)로 설정
-        //     단, 이미 '진행중' 등 다른 상태라면 덮어쓰지 않도록 조건 추가 (필요에 따라 조절)
-        if (!newLineCode) {
-            // 생산 계획 번호가 비어있다면, 강제로 '작업대기'로 설정
-            localWorkOrder.instructionStatus = 'v4';
-        }
+        if (!newLineCode) localWorkOrder.instructionStatus = 'v4';
     },
     { immediate: true }
 );
 
-// 🔥 props 변경 시 localWorkOrder 즉시 업데이트
+// props → localWorkOrder 동기화
 watch(
     () => props.workOrderData,
-    (newVal) => {
-        localWorkOrder.productName = newVal.productName || '';
-        localWorkOrder.instructionQuantity = newVal.instructionQuantity || '';
-        localWorkOrder.startDate = newVal.startDate || '';
-        localWorkOrder.expectedCompletion = newVal.expectedCompletion || '';
-
-        // 지시 상태의 초기값 설정 (props에서 받은 값 우선, 없으면 '작업대기' (v4))
-        localWorkOrder.instructionStatus = newVal.instructionStatus || 'v4';
-
-        localWorkOrder.lineCode = newVal.lineCode || '';
-        localWorkOrder.lineType = newVal.lineType || (newVal.lineCode ? '정형' : '비정형');
-    },
+    (newVal) => Object.assign(localWorkOrder, newVal),
     { deep: true, immediate: true }
 );
 
-// 🔹 localWorkOrder 변경 → 부모에게 자동 emit
-watch(
-    localWorkOrder,
-    (newVal) => {
-        emit('update:workOrderData', { ...newVal });
-    },
-    { deep: true }
-);
+// localWorkOrder → 부모 emit
+watch(localWorkOrder, (newVal) => emit('update:workOrderData', { ...newVal }), { deep: true });
 </script>
 
 <template>
@@ -145,7 +162,7 @@ watch(
             <div class="grid-row border-b border-r border-gray-200">
                 <label class="label-col">{{ labels.instructionStatus }}</label>
                 <div class="input-col">
-                    <input type="text" :value="statusOptions.find((opt) => opt.value === localWorkOrder.instructionStatus)?.label || '알 수 없음'" class="input-field-style-compact read-only-status" readonly />
+                    <input type="text" :value="statusOptions.find((opt) => opt.value === localWorkOrder.instructionStatus)?.label || '작업대기'" class="input-field-style-compact read-only-status" readonly />
                 </div>
             </div>
 
@@ -159,7 +176,7 @@ watch(
             <div class="grid-row border-r border-gray-200">
                 <label class="label-col">{{ labels.lineCode }}</label>
                 <div class="input-col">
-                    <input type="text" v-model="localWorkOrder.lineCode" class="input-field-style-compact" />
+                    <input type="text" v-model="localWorkOrder.lineCode" @click="openLineModal" readonly class="input-field-style-compact product-select-field" />
                 </div>
             </div>
 
@@ -170,7 +187,8 @@ watch(
         </div>
     </div>
 
-    <ProductSelectModal :model-value="showProductModal" @update:model-value="(val) => (showProductModal = val)" @select="handleProductSelect" />
+    <ProductSelectModal v-model="showProductModal" @select="handleProductSelect" />
+    <LineSelectModal v-model="showLineModal" :rows="lineList" @select="handleLineSelect" />
 </template>
 
 <style scoped>
@@ -220,23 +238,12 @@ watch(
     outline: none;
     border-color: #3b82f6;
 }
-.select-field {
-    appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234b5563' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 8px center;
-    padding-right: 25px !important;
-}
 .product-select-field {
     cursor: pointer;
     background-color: #f9f9f9;
 }
 .read-only-status {
     cursor: default;
-    background-color: #f0f0f0; /* 읽기 전용임을 시각적으로 표현 */
-}
-.product-select-field {
-    cursor: pointer;
-    background-color: #f9f9f9;
+    background-color: #f0f0f0;
 }
 </style>
