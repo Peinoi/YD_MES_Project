@@ -1,7 +1,11 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import axios from 'axios';
+// 💡 분리된 모달 컴포넌트 임포트
+import UnitSelectModal from '@/views/UnitSelectModal.vue';
+import ProdTypeSelectModal from '@/views/ProdTypeSelectModal.vue';
+import IsUsedSelectModal from '@/views/IsUsedSelectModal.vue';
 
 const toast = useToast();
 
@@ -19,15 +23,23 @@ const form = ref({
     reg: ''
 });
 
-// 제품유형 매핑
+// ------------------------------------
+// 💡 데이터 및 모달 상태 정의
+// ------------------------------------
+
+// 1. 제품 유형 목록 (데이터)
 const productTypeOptions = [
     { label: '완제품', value: 'i1' },
     { label: '반제품', value: 'i2' },
     { label: '부자재', value: 'i3' },
     { label: '원자재', value: 'i4' }
 ];
-
-// 단위 목록 (unitMap 기반)
+// 2. 사용 여부 목록 (데이터)
+const isUsedOptions = [
+    { label: '사용중', value: 'f2' },
+    { label: '미사용', value: 'f1' }
+];
+// 3. 단위 목록 (데이터)
 const unitOptions = [
     { label: 'kg', value: 'h1' },
     { label: 't', value: 'h2' },
@@ -43,6 +55,52 @@ const unitOptions = [
     { label: 'ml', value: 'hc' },
     { label: 'mg/g', value: 'hd' }
 ];
+
+// 💡 4. 모달 상태
+const showUnitModal = ref(false);
+const showProdTypeModal = ref(false);
+const showIsUsedModal = ref(false);
+
+// ------------------------------------
+// 💡 유틸리티: 코드 -> 레이블 매핑 (InputText 표시용)
+// ------------------------------------
+
+const unitLabelMap = computed(() => {
+    return unitOptions.reduce((map, item) => {
+        map[item.value] = item.label;
+        return map;
+    }, {});
+});
+
+const prodTypeLabelMap = computed(() => {
+    return productTypeOptions.reduce((map, item) => {
+        map[item.value] = item.label;
+        return map;
+    }, {});
+});
+
+const isUsedLabelMap = computed(() => {
+    return isUsedOptions.reduce((map, item) => {
+        map[item.value] = item.label;
+        return map;
+    }, {});
+});
+
+// ------------------------------------
+// 💡 핸들러: 모달에서 선택된 값 적용
+// ------------------------------------
+
+function handleUnitSelect(unitData) {
+    form.value.unit = unitData.value;
+}
+
+function handleProdTypeSelect(typeData) {
+    form.value.prod_type = typeData.value;
+}
+
+function handleIsUsedSelect(usedData) {
+    form.value.is_used = usedData.value;
+}
 
 // 페이지 로드시 제품코드 자동생성
 onMounted(async () => {
@@ -60,6 +118,7 @@ async function save() {
         await axios.post('/api/add-product', form.value);
         toast.add({ severity: 'success', summary: '완료', detail: '제품이 등록되었습니다.' });
     } catch (e) {
+        console.error('등록 오류:', e.response?.data || e);
         toast.add({ severity: 'error', summary: '오류', detail: '등록 실패' });
     }
 }
@@ -67,8 +126,8 @@ async function save() {
 
 <template>
     <div class="page-wrapper">
+        <Toast />
         <div class="form-grid">
-            <!-- ▣ 좌측: 기본 정보 -->
             <div class="form-card">
                 <h3 class="section-title">기본 정보</h3>
 
@@ -84,24 +143,17 @@ async function save() {
 
                 <div class="form-item">
                     <label>제품 유형</label>
-                    <Dropdown v-model="form.prod_type" :options="productTypeOptions" optionLabel="label" optionValue="value" placeholder="선택" class="input" />
+                    <InputText :value="prodTypeLabelMap[form.prod_type] || ''" class="input" placeholder="제품 유형 선택" readonly @click="showProdTypeModal = true" />
                 </div>
 
                 <div class="form-item">
                     <label>사용 여부</label>
-                    <Dropdown
-                        v-model="form.is_used"
-                        :options="[
-                            { label: '사용중', value: 'f2' },
-                            { label: '미사용', value: 'f1' }
-                        ]"
-                        class="input"
-                    />
+                    <InputText :value="isUsedLabelMap[form.is_used] || ''" class="input" placeholder="사용 여부 선택" readonly @click="showIsUsedModal = true" />
                 </div>
 
                 <div class="form-item">
                     <label>단위</label>
-                    <Dropdown v-model="form.unit" :options="unitOptions" optionLabel="label" optionValue="value" :editable="false" />
+                    <InputText :value="unitLabelMap[form.unit] || ''" class="input" placeholder="단위 선택" readonly @click="showUnitModal = true" />
                 </div>
 
                 <div class="form-item">
@@ -110,7 +162,6 @@ async function save() {
                 </div>
             </div>
 
-            <!-- ▣ 우측: 상세 정보 -->
             <div class="form-card">
                 <h3 class="section-title">상세 정보</h3>
 
@@ -141,7 +192,10 @@ async function save() {
             </div>
         </div>
 
-        <!-- ===== 저장 버튼 ===== -->
+        <UnitSelectModal v-model="showUnitModal" :unitOptions="unitOptions" @select="handleUnitSelect" />
+        <ProdTypeSelectModal v-model="showProdTypeModal" :typeOptions="productTypeOptions" @select="handleProdTypeSelect" />
+        <IsUsedSelectModal v-model="showIsUsedModal" :usedOptions="isUsedOptions" @select="handleIsUsedSelect" />
+
         <div class="footer-fixed">
             <Button label="제품 등록" severity="primary" @click="save" class="save-btn" />
         </div>
@@ -186,6 +240,8 @@ async function save() {
 
 .input {
     width: 100%;
+    /* 💡 수정: 모달이 잘 보이도록 포인터 추가 */
+    cursor: pointer;
 }
 
 .footer-fixed {

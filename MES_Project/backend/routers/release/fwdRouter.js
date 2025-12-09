@@ -379,4 +379,28 @@ router.delete("/:releaseCode", async (req, res) => {
   }
 });
 
+// 실출고 처리
+// POST /api/release/fwd/outbound
+router.post("/outbound", async (req, res) => {
+  try {
+    const { header, lines } = req.body;
+
+    const result = await fwdService.createOutboundRelease({
+      header,
+      lines,
+    });
+
+    return res.json({
+      status: "success",
+      data: result,
+    });
+  } catch (err) {
+    console.error("[Forwarding] 실출고 처리 실패:", err);
+    return res.status(500).json({
+      status: "error",
+      message: err.message || "실출고 처리 중 오류가 발생했습니다.",
+    });
+  }
+});
+
 module.exports = router;

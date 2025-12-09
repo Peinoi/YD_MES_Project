@@ -18,6 +18,7 @@ export const useQcResultStore = defineStore('qcResult', {
             prodName: '',
             checkMethod: '',
             result: null,
+            note: '',
             startDate: null
         },
 
@@ -38,7 +39,8 @@ export const useQcResultStore = defineStore('qcResult', {
         resultItems: [],
 
         // 모달에서 선택한 코드
-        selectedQir: '',
+        selectedQir: '', // 리팩토링 후 삭제하기
+        selectedQio: '',
 
         // 초기화 유무
         isReset: true

@@ -190,7 +190,7 @@ const fetchWorkData = async (params = {}) => {
 onMounted(() => {
     console.log('📍 onMounted 실행');
     console.log('📍 route.path:', route.path);
-    console.log('📍 route.query:', route.query);
+    console.log('📍 route.query:', route.loadDetailFromQuery);
     loadDetailFromQuery(); // query 데이터 먼저 로드
     fetchWorkData();
 });
@@ -199,12 +199,6 @@ onMounted(() => {
 const handleSearch = (form) => {
     searchCriteria.value = form;
     fetchWorkData(form);
-};
-
-const handleReset = () => {
-    searchCriteria.value = {};
-    resetAllData(); // 🔥 데이터 초기화
-    fetchWorkData();
 };
 
 const downloadExcel = () => {
@@ -216,12 +210,45 @@ const handleOtherData = (data) => {
     otherDataFromChild.value = data;
     console.log('부모에서 받은 otherData:', data);
 };
+
+const handleReset = () => {
+    searchCriteria.value = {};
+    resetAllData(); // 🔥 데이터 초기화
+    fetchWorkData();
+};
+
+// ✅ 새로운 함수 추가: DefaultInfo의 초기화 이벤트 받기
+const handleResetFromChild = () => {
+    console.log('👶 자식에서 초기화 신호 받음');
+
+    // workOrderData도 함께 초기화
+    workOrderData.value = {
+        productName: '',
+        instructionQuantity: '',
+        startDate: '',
+        expectedCompletion: '',
+        instructionStatus: '',
+        lineType: '',
+        lineCode: ''
+    };
+
+    // defaultInfoData도 초기화
+    defaultInfoData.value = {
+        workOrderNo: '',
+        productionPlanNo: '',
+        planDate: ''
+    };
+
+    otherDataFromChild.value = null;
+
+    console.log('✅ 모든 UI 초기화 완료');
+};
 </script>
 
 <template>
     <div class="forward-check-page">
         <!-- DefaultInfo: defaultInfoData props 추가 -->
-        <DefaultInfo :plan-data="allRows" :work-order-data="workOrderData" :default-info-data="defaultInfoData" @updateOtherData="handleOtherData" @search="handleSearch" @reset="handleReset" />
+        <DefaultInfo :plan-data="allRows" :work-order-data="workOrderData" :default-info-data="defaultInfoData" @updateOtherData="handleOtherData" @search="handleSearch" @reset="handleReset" @resetForm="handleResetFromChild" />
 
         <!-- WorkInstructions: v-model 방식으로 양방향 바인딩 -->
         <WorkInstructions v-model:work-order-data="workOrderData" />

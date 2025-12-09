@@ -61,31 +61,43 @@ const SELECT_ORDER_LIST = `
 
 /* ===========================
  *  출고요청 목록 (모달) - 전체
- *  프론트 컬럼:
- *   - releaseCode, releaseDate, orderCode, client, status, totalQty
  * =========================== */
 const SELECT_RELEASE_LIST_ALL = `
   SELECT
     orq.out_req_code                          AS releaseCode,
-    orq.out_req_date                          AS releaseDate,
+    DATE_FORMAT(orq.out_req_date, '%Y-%m-%d') AS releaseDate,
     orq.ord_code                              AS orderCode,
     c.client_name                             AS client,
 
-    /* 주문 전체 수량 (ord_d_tbl 기준) */
     odtot.totalOrderQty                       AS orderQty,
 
-    /* 이 출고요청(헤더)에서 요청한 수량 합 */
+    /* 총 요청수량 */
     SUM(ord.out_req_d_amount)                 AS totalQty,
 
-    /* 남은 미출고 수량 = 주문총수량 - 지금까지 전체 출고요청 수량 */
-    (odtot.totalOrderQty - COALESCE(rel.totalReleaseQty, 0)) AS remainingQty,
+    /* 총 실출고수량 */
+    COALESCE(SUM(ship.shipped_qty), 0)        AS shippedQty,
 
-    /* 상태: 남은 수량 없으면 출고완료, 아니면 요청 */
+    /* 요청 잔량 */
+    GREATEST(
+      0,
+      SUM(ord.out_req_d_amount) - COALESCE(SUM(ship.shipped_qty), 0)
+    )                                         AS remainingQty,
+
     CASE
-      WHEN (odtot.totalOrderQty - COALESCE(rel.totalReleaseQty, 0)) <= 0
-        THEN '출고완료'
-      ELSE '요청'
-    END                                        AS status
+      WHEN COALESCE(SUM(ship.shipped_qty), 0) <= 0
+        THEN '요청'
+      WHEN COALESCE(SUM(ship.shipped_qty), 0) < SUM(ord.out_req_d_amount)
+        THEN '부분 출고'
+      ELSE '출고완료'
+    END                                       AS status,
+
+    CASE
+      WHEN COALESCE(SUM(ship.shipped_qty), 0) <= 0
+        THEN 'q1'
+      WHEN COALESCE(SUM(ship.shipped_qty), 0) < SUM(ord.out_req_d_amount)
+        THEN 'q2'
+      ELSE 'q3'
+    END                                       AS statusCode
   FROM out_req_tbl orq
   LEFT JOIN client_tbl c
     ON c.client_code = orq.client_code
@@ -101,14 +113,14 @@ const SELECT_RELEASE_LIST_ALL = `
     ON odtot.ord_code = orq.ord_code
   LEFT JOIN (
     SELECT
-      r.ord_code,
-      SUM(d.out_req_d_amount) AS totalReleaseQty
-    FROM out_req_d_tbl d
-    JOIN out_req_tbl r
-      ON r.out_req_code = d.out_req_code
-    GROUP BY r.ord_code
-  ) rel
-    ON rel.ord_code = orq.ord_code
+      outbound_request_code,
+      prod_code,
+      SUM(outbnd_qtt) AS shipped_qty
+    FROM poutbnd_tbl
+    GROUP BY outbound_request_code, prod_code
+  ) ship
+    ON ship.outbound_request_code = ord.out_req_code
+   AND ship.prod_code              = ord.prod_code
 
   /*WHERE*/
   GROUP BY
@@ -116,8 +128,7 @@ const SELECT_RELEASE_LIST_ALL = `
     orq.out_req_date,
     orq.ord_code,
     c.client_name,
-    odtot.totalOrderQty,
-    rel.totalReleaseQty
+    odtot.totalOrderQty
 
   -- 🔹 전체 표시 (HAVING 없음)
   ORDER BY
@@ -216,41 +227,62 @@ const SELECT_ORDER_ITEMS = `
 `;
 
 /* ===========================
- *  출고요청 목록 (모달)
- *  프론트 컬럼:
- *   - releaseCode, releaseDate, orderCode, client, status, totalQty
+ *  출고요청 목록 (출고 불러오기 모달)
+ *  - 기준: 출고요청 수량 vs 실출고 수량
+ *  - 남은 요청수량(remainingQty) > 0 인 것만 노출
+ *  프론트 컬럼 예:
+ *   - releaseCode, releaseDate, orderCode, client,
+ *     orderQty, totalQty(요청합), shippedQty, remainingQty,
+ *     status, statusCode
  * =========================== */
 const SELECT_RELEASE_LIST = `
   SELECT
     orq.out_req_code                          AS releaseCode,
-    orq.out_req_date                          AS releaseDate,
+    DATE_FORMAT(orq.out_req_date, '%Y-%m-%d') AS releaseDate,
     orq.ord_code                              AS orderCode,
     c.client_name                             AS client,
 
-    /* 주문 전체 수량 (ord_d_tbl 기준) */
+    /* 주문 전체 수량 (참고용) */
     odtot.totalOrderQty                       AS orderQty,
 
-    /* 이 출고요청(헤더)에서 요청한 수량 합 */
+    /* 이 출고요청의 총 "요청수량" (out_req_d_tbl 합계) */
     SUM(ord.out_req_d_amount)                 AS totalQty,
 
-    /* 남은 미출고 수량 = 주문총수량 - 지금까지 전체 출고요청 수량 */
-    (odtot.totalOrderQty - COALESCE(rel.totalReleaseQty, 0)) AS remainingQty,
+    /* 이 출고요청의 총 "실출고수량" (poutbnd_tbl 기준) */
+    COALESCE(SUM(ship.shipped_qty), 0)        AS shippedQty,
 
-    /* 상태: 남은 수량 없으면 출고완료, 아니면 요청 */
+    /* 요청 잔량 = 요청수량 - 실출고수량 */
+    GREATEST(
+      0,
+      SUM(ord.out_req_d_amount) - COALESCE(SUM(ship.shipped_qty), 0)
+    )                                         AS remainingQty,
+
+    /* 상태(문자) */
     CASE
-      WHEN (odtot.totalOrderQty - COALESCE(rel.totalReleaseQty, 0)) <= 0
-        THEN '출고완료'
-      ELSE '요청'
-    END                                        AS status
+      WHEN COALESCE(SUM(ship.shipped_qty), 0) <= 0
+        THEN '요청'        -- 아직 실출고 0
+      WHEN COALESCE(SUM(ship.shipped_qty), 0) < SUM(ord.out_req_d_amount)
+        THEN '부분 출고'   -- 일부만 실출고
+      ELSE '출고완료'      -- 전부 실출고
+    END                                       AS status,
+
+    /* 상태 코드 (0Q 그룹) - 필요하면 사용 */
+    CASE
+      WHEN COALESCE(SUM(ship.shipped_qty), 0) <= 0
+        THEN 'q1'          -- 출고 대기
+      WHEN COALESCE(SUM(ship.shipped_qty), 0) < SUM(ord.out_req_d_amount)
+        THEN 'q2'          -- 부분 출고
+      ELSE 'q3'            -- 출고 완료
+    END                                       AS statusCode
   FROM out_req_tbl orq
   LEFT JOIN client_tbl c
     ON c.client_code = orq.client_code
 
-  /* 이 출고요청 헤더의 상세 (이번 출고요청에서 얼마를 요청했는지) */
+  /* 이 출고요청(헤더)의 요청 라인 */
   LEFT JOIN out_req_d_tbl ord
     ON ord.out_req_code = orq.out_req_code
 
-  /* 주문 전체 수량: ord_d_tbl 기준으로 한 번만 합산 */
+  /* 주문 전체 수량: ord_d_tbl 기준 (참고용) */
   LEFT JOIN (
     SELECT
       od.ord_code,
@@ -260,17 +292,17 @@ const SELECT_RELEASE_LIST = `
   ) odtot
     ON odtot.ord_code = orq.ord_code
 
-  /* 이 주문에 대해 지금까지 모든 출고요청 수량 합 (전체 누적) */
+  /* 이 출고요청 + 제품별 실출고수량 합계 */
   LEFT JOIN (
     SELECT
-      r.ord_code,
-      SUM(d.out_req_d_amount) AS totalReleaseQty
-    FROM out_req_d_tbl d
-    JOIN out_req_tbl r
-      ON r.out_req_code = d.out_req_code
-    GROUP BY r.ord_code
-  ) rel
-    ON rel.ord_code = orq.ord_code
+      outbound_request_code,
+      prod_code,
+      SUM(outbnd_qtt) AS shipped_qty
+    FROM poutbnd_tbl
+    GROUP BY outbound_request_code, prod_code
+  ) ship
+    ON ship.outbound_request_code = ord.out_req_code
+   AND ship.prod_code              = ord.prod_code
 
   /*WHERE*/
   GROUP BY
@@ -278,10 +310,9 @@ const SELECT_RELEASE_LIST = `
     orq.out_req_date,
     orq.ord_code,
     c.client_name,
-    odtot.totalOrderQty,
-    rel.totalReleaseQty
+    odtot.totalOrderQty
 
-  /* 🔹 미출고수량 남아 있는 것만 모달에 표시 */
+  /* 🔹 출고완료(remainingQty = 0)는 모달에서 제외 */
   HAVING
     remainingQty > 0
 
@@ -327,20 +358,34 @@ const SELECT_RELEASE_HEADER = `
 
 /* ===========================
  *  출고요청 라인 (상세목록)
- *  out_req_d_tbl 기준
+ *  프론트에서 기대하는 필드:
+ *   - productCode, productName, product_type(type),
+ *     spec, unit,
+ *     orderQty, requestQty, releaseQty, shippedQty,
+ *     current_stock, due_date
  * =========================== */
 const SELECT_RELEASE_LINES = `
   SELECT
-    1                                     AS line_no,
-    ord.prod_code                         AS product_code,
-    p.prod_name                           AS product_name,
-    p.com_value                           AS product_type,
-    od.spec                               AS spec,
-    od.unit                               AS unit,
-    ord.ord_amount                        AS order_qty,
-    ord.out_req_d_amount                  AS release_qty,
-    COALESCE(stock.stock_qty, 0)          AS current_stock,
-    od.delivery_date                      AS due_date
+    ord.out_req_d_code                     AS line_no,
+    ord.prod_code                          AS product_code,
+    p.prod_name                            AS product_name,
+    p.com_value                            AS product_type,
+    od.spec                                AS spec,
+    od.unit                                AS unit,
+
+    /* 주문수량 */
+    ord.ord_amount                         AS order_qty,
+
+    /* 출고요청 수량 (요청 기준) */
+    ord.out_req_d_amount                   AS requestQty,
+
+    /* 실출고 수량 (poutbnd 기준) */
+    COALESCE(ship.shipped_qty, 0)          AS shippedQty,
+
+    /* 현재 재고 */
+    COALESCE(stock.stock_qty, 0)           AS current_stock,
+
+    od.delivery_date                       AS due_date
   FROM out_req_d_tbl ord
   JOIN out_req_tbl orq
     ON orq.out_req_code = ord.out_req_code
@@ -369,7 +414,20 @@ const SELECT_RELEASE_LINES = `
   ) stock
     ON stock.prod_code = ord.prod_code
 
+  /* 이 출고요청 + 제품별 실출고수량 */
+  LEFT JOIN (
+    SELECT
+      outbound_request_code,
+      prod_code,
+      SUM(outbnd_qtt) AS shipped_qty
+    FROM poutbnd_tbl
+    GROUP BY outbound_request_code, prod_code
+  ) ship
+    ON ship.outbound_request_code = ord.out_req_code
+   AND ship.prod_code              = ord.prod_code
+
   WHERE ord.out_req_code = ?
+  ORDER BY ord.out_req_d_code
 `;
 
 /* ===========================
@@ -539,26 +597,52 @@ const SELECT_CLIENT_LIST = `
 /* ===========================
  *  출고요청 조회 리스트 (ForwardingCheck)
  *  프론트 컬럼:
- *   - releaseNo, productName, qty, date, manager, client, status
+ *   - releaseNo, releaseDate,
+ *     firstProductName, productCount,
+ *     requestedQty, shippedQty, remainingQty,
+ *     manager, client, status, statusCode
  * =========================== */
 const SELECT_FORWARDING_CHECK_LIST = `
   SELECT
     orq.out_req_code                          AS releaseNo,
-    p.prod_name                               AS productName,
-    ord.out_req_d_amount                      AS qty,
-    DATE_FORMAT(orq.out_req_date, '%Y-%m-%d') AS date,
+    DATE_FORMAT(orq.out_req_date, '%Y-%m-%d') AS releaseDate,
+
+    /* 대표 제품명 + 제품 개수 */
+    MIN(p.prod_name)                          AS firstProductName,
+    COUNT(DISTINCT ord.prod_code)             AS productCount,
+
+    /* 이 출고요청의 총 요청수량 (요청한 수량 합) */
+    SUM(ord.out_req_d_amount)                 AS requestedQty,
+
+    /* 이 출고요청의 총 실출고수량 (poutbnd 기준) */
+    COALESCE(SUM(ship.shipped_qty), 0)        AS shippedQty,
+
+    /* 요청 잔량 = 요청 - 실출고 */
+    GREATEST(
+      0,
+      SUM(ord.out_req_d_amount) - COALESCE(SUM(ship.shipped_qty), 0)
+    )                                         AS remainingQty,
+
     e.emp_name                                AS manager,
     c.client_name                             AS client,
 
-    /* 주문 전체 수량 - 누적 출고요청 수량 = 미출고수량 */
-    (odtot.totalOrderQty - COALESCE(rel.totalReleaseQty, 0)) AS remainingQty,
-
-    /* 상태: 미출고수량이 0 이하면 출고완료, 아니면 요청 */
+    /* 상태(문자) */
     CASE
-      WHEN (odtot.totalOrderQty - COALESCE(rel.totalReleaseQty, 0)) <= 0
-        THEN '출고완료'
-      ELSE '요청'
-    END                                         AS status
+      WHEN COALESCE(SUM(ship.shipped_qty), 0) <= 0
+        THEN '출고 대기'
+      WHEN COALESCE(SUM(ship.shipped_qty), 0) < SUM(ord.out_req_d_amount)
+        THEN '부분 출고'
+      ELSE '출고 완료'
+    END                                       AS status,
+
+    /* 상태 코드 (0Q 그룹) - 필요하면 사용 */
+    CASE
+      WHEN COALESCE(SUM(ship.shipped_qty), 0) <= 0
+        THEN 'q1'
+      WHEN COALESCE(SUM(ship.shipped_qty), 0) < SUM(ord.out_req_d_amount)
+        THEN 'q2'
+      ELSE 'q3'
+    END                                       AS statusCode
   FROM out_req_tbl orq
   LEFT JOIN out_req_d_tbl ord
     ON ord.out_req_code = orq.out_req_code
@@ -569,33 +653,144 @@ const SELECT_FORWARDING_CHECK_LIST = `
   LEFT JOIN client_tbl c
     ON c.client_code = orq.client_code
 
-  /* 🔹 주문 전체 수량 */
+  /* 라인별 실출고수량 집계 */
   LEFT JOIN (
     SELECT
-      od.ord_code,
-      SUM(od.ord_amount) AS totalOrderQty
-    FROM ord_d_tbl od
-    GROUP BY od.ord_code
-  ) odtot
-    ON odtot.ord_code = orq.ord_code
-
-  /* 🔹 이 주문에 대해 지금까지 누적된 출고요청 수량 */
-  LEFT JOIN (
-    SELECT
-      r.ord_code,
-      SUM(d.out_req_d_amount) AS totalReleaseQty
-    FROM out_req_d_tbl d
-    JOIN out_req_tbl r
-      ON r.out_req_code = d.out_req_code
-    GROUP BY r.ord_code
-  ) rel
-    ON rel.ord_code = orq.ord_code
+      outbound_request_code,
+      prod_code,
+      SUM(outbnd_qtt) AS shipped_qty
+    FROM poutbnd_tbl
+    GROUP BY outbound_request_code, prod_code
+  ) ship
+    ON ship.outbound_request_code = ord.out_req_code
+   AND ship.prod_code              = ord.prod_code
 
   /*WHERE*/
+  GROUP BY
+    orq.out_req_code,
+    orq.out_req_date,
+    e.emp_name,
+    c.client_name
+  /*HAVING*/
   ORDER BY
     orq.out_req_date DESC,
-    orq.out_req_code DESC,
-    p.prod_name ASC
+    orq.out_req_code DESC
+`;
+
+/* ===========================
+ *  실출고 코드 자동채번 (poutbnd_tbl)
+ *  예: OUT-20250625-P0001
+ * =========================== */
+const GENERATE_POUTBND_CODE = `
+  SELECT CONCAT(
+    'OUT-',
+    DATE_FORMAT(NOW(), '%Y%m%d'),
+    '-P',
+    LPAD(
+      IFNULL(
+        MAX(CAST(SUBSTRING(poutbnd_code, 15, 4) AS UNSIGNED)) + 1,
+        1
+      ),
+      4,
+      '0'
+    )
+  ) AS poutbnd_code
+  FROM poutbnd_tbl
+  WHERE poutbnd_code LIKE CONCAT('OUT-', DATE_FORMAT(NOW(), '%Y%m%d'), '-P%')
+`;
+
+/* ===========================
+ *  제품별 LOT 재고 조회 (FIFO용)
+ *  - pinbnd_tbl 기준
+ *  - remainQty > 0 인 lot만
+ *  - pinbnd_date 오름차순 = 선입선출
+ * =========================== */
+const SELECT_LOT_FIFO_LIST = `
+  SELECT
+    p.lot_num    AS lotNum,
+    p.prod_code  AS productCode,
+    (p.qtt - COALESCE(o.out_qty, 0)) AS remainQty
+  FROM pinbnd_tbl p
+  LEFT JOIN (
+    SELECT
+      lot_num,
+      prod_code,
+      SUM(outbnd_qtt) AS out_qty
+    FROM poutbnd_tbl
+    WHERE prod_code = ?
+    GROUP BY lot_num, prod_code
+  ) o
+    ON o.lot_num   = p.lot_num
+   AND o.prod_code = p.prod_code
+  WHERE p.prod_code = ?
+    AND (p.qtt - COALESCE(o.out_qty, 0)) > 0
+  ORDER BY
+    p.pinbnd_date ASC,
+    p.pinbnd_code ASC
+`;
+
+/* ===========================
+ *  실출고 INSERT (poutbnd_tbl)
+ * =========================== */
+const INSERT_POUTBND = `
+  INSERT INTO poutbnd_tbl (
+    poutbnd_code,
+    req_qtt,
+    outbnd_qtt,
+    deadline,
+    stat,
+    outbound_request_code,
+    lot_num,
+    prod_code,
+    client_code,
+    mcode
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`;
+
+/* ===========================
+ *  출고요청 코드로 주문/거래처 조회
+ *  (out_req_tbl 기준)
+ * =========================== */
+const SELECT_RELEASE_ORDER_CLIENT = `
+  SELECT
+    o.ord_code,
+    o.client_code
+  FROM out_req_tbl r
+  JOIN ord_tbl o
+    ON o.ord_code = r.ord_code
+  WHERE r.out_req_code = ?
+`;
+
+/* ===========================
+ *  특정 출고요청 + 제품 기준
+ *  요청수량 / 누적 출고수량 / 남은 수량 조회
+ * =========================== */
+const SELECT_RELEASE_LINE_SUMMARY = `
+  SELECT
+    d.out_req_code                        AS releaseCode,
+    d.prod_code                           AS productCode,
+    d.out_req_d_amount                    AS requestedQty,
+    COALESCE(ship.shipped_qty, 0)         AS shippedQty,
+    GREATEST(
+      0,
+      d.out_req_d_amount - COALESCE(ship.shipped_qty, 0)
+    )                                     AS remainingQty
+  FROM out_req_d_tbl d
+  LEFT JOIN (
+    SELECT
+      outbound_request_code,
+      prod_code,
+      SUM(outbnd_qtt) AS shipped_qty
+    FROM poutbnd_tbl
+    WHERE outbound_request_code = ?
+      AND prod_code = ?
+    GROUP BY outbound_request_code, prod_code
+  ) ship
+    ON ship.outbound_request_code = d.out_req_code
+   AND ship.prod_code = d.prod_code
+  WHERE d.out_req_code = ?
+    AND d.prod_code = ?
 `;
 
 module.exports = {
@@ -618,4 +813,9 @@ module.exports = {
   SELECT_CLIENT_LIST,
   SELECT_FORWARDING_CHECK_LIST,
   SELECT_RELEASE_LIST_ALL,
+  GENERATE_POUTBND_CODE,
+  INSERT_POUTBND,
+  SELECT_RELEASE_ORDER_CLIENT,
+  SELECT_RELEASE_LINE_SUMMARY,
+  SELECT_LOT_FIFO_LIST,
 };
