@@ -54,12 +54,12 @@ router.get("/qios", async (req, res, next) => {
 
 // 5. GET /api/quality/qiodetail - qio_tbl단건을 기반으로 품질검사지시 상세 조회
 router.get("/qiodetail", async (req, res, next) => {
-  const { qio_code, prdr_code, mpr_d_code } = req.query;
+  const { qio_code, prdr_code, mpo_d_code } = req.query;
   try {
     const orders = await qualityService.getQIODetail(
       qio_code,
       prdr_code,
-      mpr_d_code
+      mpo_d_code
     );
     res.json({ code: "Q200", data: orders });
   } catch (err) {

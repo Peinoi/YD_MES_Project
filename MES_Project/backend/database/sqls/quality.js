@@ -65,7 +65,7 @@ WHERE mpo.stat = 'c1' -- 발주 완료 상태인 발주서의 발주상세정보
   WHERE prdr.prdr_code = ?
 `,
   findMpr_dByQIO: `
-SELECT mpr_d_code
+SELECT mpo_d_code
 , req_qtt
 , mpr_d.unit AS 'mpr_d_unit'
 , mat.unit AS 'mat_unit'
@@ -80,7 +80,7 @@ SELECT mpr_d_code
 FROM mpr_d_tbl mpr_d
 JOIN mat_tbl mat
 ON mat.mat_code = mpr_d.mat_code
-WHERE mpr_d_code = ?
+WHERE mpo_d_code = ?
 `,
   findQualityEmployeeList: `
   SELECT emp.emp_code
@@ -129,7 +129,7 @@ ON qcr.unit = cc.com_value
 where qir.qio_code =  ?
 `,
   createQuailityInstructionOrder: `
-  INSERT INTO qio_tbl (qio_code, qio_date, insp_date, prdr_code, mpr_d_code, emp_code, insp_vol) 
+  INSERT INTO qio_tbl (qio_code, qio_date, insp_date, prdr_code, mpo_d_code, emp_code, insp_vol) 
 VALUES (
 ?  -- PK 생성해서 넣어줌
 , CURDATE()
@@ -140,7 +140,7 @@ VALUES (
 , ? -- 검사량  
 )`,
   createQuailityInstructionResult: `
-  INSERT INTO qir_tbl (qir_code, start_date, end_date, result, note, qio_code, qir_emp_code, qcr_code, mpr_d_code) 
+  INSERT INTO qir_tbl (qir_code, start_date, end_date, result, note, qio_code, qir_emp_code, qcr_code) 
   VALUES (? -- qir_code 애플리케이션에서 생성
   , ? -- 검사 시작일 - 검사 지시 일자 값으로 초기값 주면됨
   , ? -- 검사 종료일 - 검사 지시 일자 값으로 초기값 주면됨
@@ -149,14 +149,13 @@ VALUES (
   , ? -- qio_code - 어떤 검사지시서의 검사 문항인지 알아야 함.
   , ? -- qir_emp_code - 검사결과지 작성자 정보 넣어야되는데 이게왜 NotNull인데, 덮어써야해서 품질팀 관리자 PK넣어줌
   , ? -- qcr_code - 검사 항목 상세정보의 기준이 되는 값을 저장하고있는 테이블의 PK
-  , null -- 이거 넣어야됨? 넣을수는있는데 왜 mrp_d code만있고 prdr code는없음?
   )`,
   updateQuailityInstructionOrder: `
   UPDATE qio_tbl
   SET
     insp_date = ?,
     prdr_code = ?,
-    mpr_d_code = ?,
+    mpo_d_code = ?,
     emp_code = ?,
     insp_vol = ?
   WHERE qio_code = ?

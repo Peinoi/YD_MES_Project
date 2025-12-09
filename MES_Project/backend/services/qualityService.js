@@ -113,7 +113,7 @@ exports.getQIOList = async () => {
 };
 
 // 5. 기존의 품질검사 단건에 해당하는 prdr||mpr_d, qir && qcr 조회
-exports.getQIODetail = async (qio_code, prdr_code, mpr_d_code) => {
+exports.getQIODetail = async (qio_code, prdr_code, mpo_d_code) => {
   const conn = await getConnection(); // 트랜잭션용 연결
   const result = [];
   try {
@@ -121,14 +121,14 @@ exports.getQIODetail = async (qio_code, prdr_code, mpr_d_code) => {
 
     // 작업지시 전체 목록 조회
     if (
-      (prdr_code != null && mpr_d_code == null) ||
-      (prdr_code == null && mpr_d_code != null)
+      (prdr_code != null && mpo_d_code == null) ||
+      (prdr_code == null && mpo_d_code != null)
     ) {
       if (prdr_code != null) {
         const prdr = await conn.query(sqlList.findPrdrByQIO, [prdr_code]);
         result.push(prdr);
-      } else if (mpr_d_code != null) {
-        const mpr_d = await conn.query(sqlList.findMpr_dByQIO, [mpr_d_code]);
+      } else if (mpo_d_code != null) {
+        const mpr_d = await conn.query(sqlList.findMpr_dByQIO, [mpo_d_code]);
         result.push(mpr_d);
       } else {
         throw new Error("조회중 오류 발생");
@@ -152,7 +152,7 @@ exports.getQIODetail = async (qio_code, prdr_code, mpr_d_code) => {
 // 6. 품질검사 지시 생성
 exports.createQuailityInstructionOrder = async (data) => {
   // 1. 프론트엔드에서 받은 데이터 분해 할당
-  const { insp_date, prdr_code, mpr_d_code, emp_code, insp_vol, qcr_codes } =
+  const { insp_date, prdr_code, mpo_d_code, emp_code, insp_vol, qcr_codes } =
     data;
 
   const conn = await getConnection(); // 트랜잭션용 연결
@@ -190,7 +190,7 @@ exports.createQuailityInstructionOrder = async (data) => {
       qio_code, // 생성된 PK
       insp_date,
       prdr_code,
-      mpr_d_code,
+      mpo_d_code,
       emp_code,
       insp_vol,
     ]);
@@ -245,7 +245,7 @@ exports.updateQuailityInstructionOrder = async (data) => {
     qio_code,
     insp_date,
     prdr_code,
-    mpr_d_code,
+    mpo_d_code,
     emp_code,
     insp_vol,
     qcr_codes,
@@ -262,7 +262,7 @@ exports.updateQuailityInstructionOrder = async (data) => {
     await conn.query(sqlList.updateQuailityInstructionOrder, [
       insp_date,
       prdr_code,
-      mpr_d_code,
+      mpo_d_code,
       emp_code,
       insp_vol,
       qio_code, // WHERE 절에 들어갈 PK
