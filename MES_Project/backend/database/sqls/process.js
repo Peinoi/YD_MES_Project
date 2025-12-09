@@ -39,13 +39,9 @@ module.exports = {
     FROM
             prod_proc_d_tbl AS D
     INNER JOIN
-            po_tbl AS O 
-    ON 
-            D.po_code = O.po_code
+            po_tbl AS O ON D.po_code = O.po_code
     LEFT JOIN
-            common_code AS C 
-    ON 
-            D.eq_type = C.com_value 
+            common_code AS C ON D.eq_type = C.com_value 
     AND 
             C.group_value = '1A'
     WHERE
@@ -60,9 +56,7 @@ module.exports = {
             note AS remark, 
             qcr_code AS qcr 
     FROM 
-            po_tbl
-    WHERE 
-            po_code = ?`,
+            po_tbl`,
 
   getLineFlowList: `
   SELECT 
@@ -76,25 +70,19 @@ module.exports = {
         FROM 
             line_tbl AS A
         INNER JOIN 
-            common_code AS B
-        ON 
-            A.line_type = B.com_value
+            common_code AS B ON A.line_type = B.com_value
         AND 
             B.group_value = '0S'
         INNER JOIN 
-            common_code AS D
-        ON 
-            A.is_used = D.com_value
+            common_code AS D ON A.is_used = D.com_value
         AND 
             D.group_value = '0F'
         INNER JOIN 
-            dept_tbl AS C
-        ON 
-            A.mdept_code = C.dept_code
+            dept_tbl AS C ON A.mdept_code = C.dept_code
         WHERE 
             (? IS NULL OR A.line_code = ?)
         ORDER BY 
-            A.line_code ASC;`,
+            A.line_code ASC`,
 
   getLineDetailList: `
     SELECT
@@ -107,25 +95,24 @@ module.exports = {
     FROM
 	    line_d_tbl AS A
     INNER JOIN
-	    prod_proc_d_tbl AS PD
-    ON 
-	    A.pp_code = PD.pp_code
+	    prod_proc_d_tbl AS PD ON A.pp_code = PD.pp_code
     INNER JOIN
-	    prod_proc_tbl AS PT
-    ON
-	    PD.prod_proc_code = PT.prod_proc_code
+	    prod_proc_tbl AS PT ON PD.prod_proc_code = PT.prod_proc_code
     INNER JOIN
-	    eq_tbl AS B
-    ON
-	    A.eq_code = B.eq_code
+	    eq_tbl AS B ON A.eq_code = B.eq_code
     LEFT JOIN
-	    common_code AS C
-    ON
-	    B.is_used = C.com_value
+	    common_code AS C ON B.is_used = C.com_value
     AND
 	    C.group_value = '0F'
     WHERE
 	    A.line_code = ?
     ORDER BY
-	    PD.no ASC;`,
+	    PD.no ASC`,
+
+  getItemList: `
+    SELECT
+        prod_code AS itemCode,
+        prod_name AS itemName
+    FROM
+        prod_tbl`,
 };
