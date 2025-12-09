@@ -114,6 +114,7 @@ const exportToExcel = () => {
         처리일자: formatDateDisplay(item.procDate),
         자재코드: item.matCode,
         자재명: item.matName,
+        규격: item.spec,
         요청수량: item.reqQty,
         처리수량: item.procQty,
         단위: item.unit,
@@ -239,21 +240,22 @@ onMounted(() => {
                     </template>
                 </Column>
 
-                <Column field="procDate" header="처리일자" sortable headerClass="center-header" bodyClass="text-center" style="width: 8rem">
+                <Column field="procDate" header="처리일자" sortable headerClass="center-header" bodyClass="text-center" style="width: 10rem">
                     <template #body="{ data }">
                         {{ formatDateDisplay(data.procDate) }}
                     </template>
                 </Column>
-                <Column field="matCode" header="자재코드" sortable headerClass="center-header" bodyClass="text-center" style="width: 8rem"></Column>
-                <Column field="matName" header="자재명" sortable headerClass="center-header" bodyClass="text-center" style="width: 12rem"></Column>
+                <Column field="matCode" header="자재코드" sortable headerClass="center-header" bodyClass="text-center" style="width: 10rem"></Column>
+                <Column field="matName" header="자재명" sortable headerClass="center-header" bodyClass="text-center" style="width: 10rem"></Column>
+                <Column field="spec" header="규격" headerClass="center-header" bodyClass="text-center" style="width: 10rem"></Column>
 
-                <Column field="reqQty" header="요청수량" sortable headerClass="center-header" bodyClass="text-center" style="width: 7rem">
+                <Column field="reqQty" header="요청수량" headerClass="center-header" bodyClass="text-center" style="width: 7rem">
                     <template #body="{ data }">
                         {{ data.reqQty?.toLocaleString() }}
                     </template>
                 </Column>
 
-                <Column field="procQty" header="처리수량" sortable headerClass="center-header" bodyClass="text-center" style="width: 7rem">
+                <Column field="procQty" header="처리수량" headerClass="center-header" bodyClass="text-center" style="width: 7rem">
                     <template #body="{ data }">
                         <span :class="{ 'text-blue-600 font-bold': data.type === 'IN', 'text-orange-500 font-bold': data.type === 'OUT' }">
                             {{ data.procQty?.toLocaleString() }}
@@ -261,9 +263,9 @@ onMounted(() => {
                     </template>
                 </Column>
 
-                <Column field="unit" header="단위" headerClass="center-header" bodyClass="text-center" style="width: 4rem"></Column>
+                <Column field="unit" header="단위" headerClass="center-header" bodyClass="text-center" style="width: 5rem"></Column>
 
-                <Column field="status" header="처리상태" sortable headerClass="center-header" bodyClass="text-center" style="width: 8rem">
+                <Column field="status" header="처리상태" sortable headerClass="center-header" bodyClass="text-center" style="width: 10rem">
                     <template #body="{ data }">
                         <div class="status-chip justify-center">
                             <span class="status-dot" :class="`status-${data.status?.toLowerCase()}`"></span>
@@ -272,8 +274,8 @@ onMounted(() => {
                     </template>
                 </Column>
 
-                <Column field="manager" header="담당자" sortable headerClass="center-header" bodyClass="text-center" style="width: 6rem"></Column>
-                <Column field="remark" header="비고" headerClass="center-header" bodyClass="text-center" style="min-width: 10rem"></Column>
+                <Column field="manager" header="담당자" sortable headerClass="center-header" bodyClass="text-center" style="width: 8rem"></Column>
+                <Column field="remark" header="비고" headerClass="center-header" bodyClass="text-center" style="min-width: 8rem"></Column>
             </DataTable>
         </div>
     </div>
