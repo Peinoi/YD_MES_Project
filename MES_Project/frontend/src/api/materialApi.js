@@ -38,5 +38,15 @@ export default {
     // 재고 상세 조회 (단건)
     getStockDetail(code) {
         return api.get(`/material/stocks/${code}`);
+    },
+
+    // 5. 발주 목록 조회 (GET)
+    getOrderList() {
+        return api.get('/poder'); // PurchaseOrder.vue를 참조하여 엔드포인트 수정
+    },
+
+    // 6. 발주 상세 조회 (GET)
+    getOrderDetail(purchaseCode) {
+        return api.get(`/poder/${purchaseCode}`);
     }
 };

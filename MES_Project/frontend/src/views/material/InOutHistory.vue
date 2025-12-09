@@ -2,7 +2,9 @@
 import { ref, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useRouter } from 'vue-router';
-import inboundApi from '@/api/inbound'; // API 모듈 Import
+import materialApi from '@/api/materialApi'; // API 모듈 Import
+import * as XLSX from 'xlsx'; // 엑셀 다운로드 기능
+import { formatDate as formatDateDisplay, getHistoryTypeLabel, getHistoryTypeSeverity, getHistoryStatusLabel } from '@/utils/formatters';
 
 const toast = useToast();
 const router = useRouter();
@@ -56,7 +58,7 @@ const onSearch = async () => {
         };
 
         // API 호출
-        const response = await inboundApi.getHistoryList(params);
+        const response = await materialApi.getHistoryList(params);
 
         // 응답 데이터 바인딩
         historyList.value = response.data || [];
@@ -91,15 +93,47 @@ const goToPage = (path) => {
     router.push(path);
 };
 
-// ------------------------------------------------------------------
-// [Util] UI Helpers
-// ------------------------------------------------------------------
-const getTypeLabel = (type) => (type === 'IN' ? '입고' : '출고');
-const getTypeSeverity = (type) => (type === 'IN' ? 'success' : 'warn');
+const exportToExcel = () => {
+    // 내보낼 데이터 소스를 결정합니다. 선택된 항목이 있으면 그것을, 없으면 전체 목록을 사용합니다.
+    const sourceData = selectedHistory.value.length > 0 ? selectedHistory.value : historyList.value;
 
-const getStatusLabel = (status) => {
-    const map = { COMPLETED: '완료', PENDING: '대기', CANCELLED: '취소' };
-    return map[status] || status;
+    // 내보낼 데이터가 있는지 최종적으로 확인합니다.
+    if (!sourceData || sourceData.length === 0) {
+        toast.add({ severity: 'warn', summary: '내보낼 데이터 없음', detail: '테이블에 데이터가 없습니다.', life: 3000 });
+        return;
+    }
+
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const filename = `자재_입출고_내역_${year}${month}${day}.xlsx`;
+
+    const dataToExport = sourceData.map((item) => ({
+        구분: getHistoryTypeLabel(item.type),
+        처리일자: formatDateDisplay(item.procDate),
+        자재코드: item.matCode,
+        자재명: item.matName,
+        규격: item.spec,
+        요청수량: item.reqQty,
+        처리수량: item.procQty,
+        단위: item.unit,
+        처리상태: getHistoryStatusLabel(item.status),
+        담당자: item.manager,
+        비고: item.remark
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '입출고내역');
+
+    // 컬럼 너비 자동 조정 (선택 사항)
+    const colWidths = Object.keys(dataToExport[0]).map((key) => ({
+        wch: Math.max(15, key.length, ...dataToExport.map((row) => (row[key] ? String(row[key]).length : 0)))
+    }));
+    worksheet['!cols'] = colWidths;
+
+    XLSX.writeFile(workbook, filename);
 };
 
 // ------------------------------------------------------------------
@@ -169,9 +203,9 @@ onMounted(() => {
 
                 <div class="flex gap-2">
                     <!-- 실제 라우터 경로에 맞게 to 속성이나 click 핸들러 수정 필요 -->
-                    <Button label="입고등록" icon="pi pi-plus" severity="info" size="small" @click="goToPage('/inbound/register')" />
-                    <Button label="출고등록" icon="pi pi-minus" severity="warn" size="small" @click="goToPage('/outbound/register')" />
-                    <Button label="엑셀 다운로드" icon="pi pi-file-excel" severity="success" outlined size="small" />
+                    <Button label="입고등록" icon="pi pi-plus" severity="info" size="small" @click="goToPage('/inbound-registration')" />
+                    <Button label="출고등록" icon="pi pi-minus" severity="warn" size="small" @click="goToPage('/outbound-registration')" />
+                    <Button label="엑셀 다운로드" icon="pi pi-file-excel" severity="success" outlined size="small" @click="exportToExcel" />
                 </div>
             </div>
 
@@ -202,21 +236,26 @@ onMounted(() => {
 
                 <Column field="type" header="구분" sortable headerClass="center-header" bodyClass="text-center" style="width: 6rem">
                     <template #body="{ data }">
-                        <Tag :value="getTypeLabel(data.type)" :severity="getTypeSeverity(data.type)" rounded />
+                        <Tag :value="getHistoryTypeLabel(data.type)" :severity="getHistoryTypeSeverity(data.type)" rounded />
                     </template>
                 </Column>
 
-                <Column field="procDate" header="처리일자" sortable headerClass="center-header" bodyClass="text-center" style="width: 8rem"></Column>
-                <Column field="matCode" header="자재코드" sortable headerClass="center-header" bodyClass="text-center" style="width: 8rem"></Column>
-                <Column field="matName" header="자재명" sortable headerClass="center-header" bodyClass="text-center" style="width: 12rem"></Column>
+                <Column field="procDate" header="처리일자" sortable headerClass="center-header" bodyClass="text-center" style="width: 10rem">
+                    <template #body="{ data }">
+                        {{ formatDateDisplay(data.procDate) }}
+                    </template>
+                </Column>
+                <Column field="matCode" header="자재코드" sortable headerClass="center-header" bodyClass="text-center" style="width: 10rem"></Column>
+                <Column field="matName" header="자재명" sortable headerClass="center-header" bodyClass="text-center" style="width: 10rem"></Column>
+                <Column field="spec" header="규격" headerClass="center-header" bodyClass="text-center" style="width: 10rem"></Column>
 
-                <Column field="reqQty" header="요청수량" sortable headerClass="center-header" bodyClass="text-center" style="width: 7rem">
+                <Column field="reqQty" header="요청수량" headerClass="center-header" bodyClass="text-center" style="width: 7rem">
                     <template #body="{ data }">
                         {{ data.reqQty?.toLocaleString() }}
                     </template>
                 </Column>
 
-                <Column field="procQty" header="처리수량" sortable headerClass="center-header" bodyClass="text-center" style="width: 7rem">
+                <Column field="procQty" header="처리수량" headerClass="center-header" bodyClass="text-center" style="width: 7rem">
                     <template #body="{ data }">
                         <span :class="{ 'text-blue-600 font-bold': data.type === 'IN', 'text-orange-500 font-bold': data.type === 'OUT' }">
                             {{ data.procQty?.toLocaleString() }}
@@ -224,19 +263,19 @@ onMounted(() => {
                     </template>
                 </Column>
 
-                <Column field="unit" header="단위" headerClass="center-header" bodyClass="text-center" style="width: 4rem"></Column>
+                <Column field="unit" header="단위" headerClass="center-header" bodyClass="text-center" style="width: 5rem"></Column>
 
-                <Column field="status" header="처리상태" sortable headerClass="center-header" bodyClass="text-center" style="width: 8rem">
+                <Column field="status" header="처리상태" sortable headerClass="center-header" bodyClass="text-center" style="width: 10rem">
                     <template #body="{ data }">
                         <div class="status-chip justify-center">
                             <span class="status-dot" :class="`status-${data.status?.toLowerCase()}`"></span>
-                            <span class="status-text">{{ getStatusLabel(data.status) }}</span>
+                            <span class="status-text">{{ getHistoryStatusLabel(data.status) }}</span>
                         </div>
                     </template>
                 </Column>
 
-                <Column field="manager" header="담당자" sortable headerClass="center-header" bodyClass="text-center" style="width: 6rem"></Column>
-                <Column field="remark" header="비고" headerClass="center-header" bodyClass="text-center" style="min-width: 10rem"></Column>
+                <Column field="manager" header="담당자" sortable headerClass="center-header" bodyClass="text-center" style="width: 8rem"></Column>
+                <Column field="remark" header="비고" headerClass="center-header" bodyClass="text-center" style="min-width: 8rem"></Column>
             </DataTable>
         </div>
     </div>
