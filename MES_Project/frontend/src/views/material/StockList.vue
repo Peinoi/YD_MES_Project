@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useToast } from 'primevue/usetoast';
-import inboundApi from '@/api/inbound';
+import materialApi from '@/api/materialApi';
+import { formatDate, truncateText, getStockStatusLabel, getStockStatusDotClass } from '@/utils/formatters';
 
 const toast = useToast();
 
@@ -13,6 +14,24 @@ const filters = ref({
     type: 'ALL',
     status: 'ALL'
 });
+
+// 재고 분류 옵션
+const typeOptions = ref([
+    { label: '전체', value: 'ALL' },
+    { label: '원자재', value: '원자재' },
+    { label: '부자재', value: '부자재' },
+    { label: '반제품', value: '반제품' },
+    { label: '완제품', value: '완제품' }
+]);
+
+// 재고 상태 옵션
+const statusOptions = ref([
+    { label: '전체', value: 'ALL' },
+    { label: '정상', value: '정상' },
+    { label: '부족', value: '부족' },
+    { label: '과다', value: '과다' },
+    { label: '발주 필요', value: '발주 필요' }
+]);
 
 const materialList = ref([]);
 const selected = ref(null);
@@ -33,8 +52,7 @@ const search = async () => {
             type: filters.value.type === 'ALL' ? null : filters.value.type,
             status: filters.value.status === 'ALL' ? null : filters.value.status
         };
-
-        const response = await inboundApi.getStockList(params);
+        const response = await materialApi.getStockList(params);
         materialList.value = response.data || [];
 
         if (materialList.value.length === 0) {
@@ -61,7 +79,7 @@ const search = async () => {
 // 2) 자재 상세 정보 조회
 const selectMaterial = async (item) => {
     try {
-        const response = await inboundApi.getStockDetail(item.code);
+        const response = await materialApi.getStockDetail(item.code);
         selected.value = response.data;
     } catch (err) {
         console.error(err);
@@ -82,38 +100,6 @@ const resetFilters = () => {
         status: 'ALL'
     };
     search();
-};
-
-// ------------------------------------------------------------------
-// [Helper]
-// ------------------------------------------------------------------
-// 날짜/시간 포맷팅 (YYYY-MM-DD HH:mm)
-const formatDateTime = (isoString) => {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
-};
-
-const getStatusLabel = (status) => status;
-
-const getStatusDotClass = (status) => {
-    switch (status) {
-        case '정상':
-            return 'status-normal';
-        case '부족':
-            return 'status-insufficient';
-        case '과다':
-            return 'status-excess';
-        case '발주 필요':
-            return 'status-reorder';
-        default:
-            return 'status-unknown';
-    }
 };
 
 // 초기 로딩
@@ -137,10 +123,10 @@ onMounted(() => {
                 </div>
 
                 <div class="filter-row mb-4">
-                    <InputText v-model="filters.keyword" placeholder="자재명, 자재코드" class="w-40 mr-2" @keydown.enter="search" />
-                    <Dropdown v-model="filters.type" :options="typeOptions" optionLabel="label" optionValue="value" placeholder="분류" class="w-32 mr-2" />
-                    <Dropdown v-model="filters.status" :options="statusOptions" optionLabel="label" optionValue="value" placeholder="상태" class="w-32 mr-2" />
-                    <Button label="검색" @click="search" class="mr-2" />
+                    <InputText v-model="filters.keyword" placeholder="자재명, 자재코드" class="w-60 mr-4" @keydown.enter="search" />
+                    <Dropdown v-model="filters.type" :options="typeOptions" optionLabel="label" optionValue="value" placeholder="분류" class="w-32 mr-4" />
+                    <Dropdown v-model="filters.status" :options="statusOptions" optionLabel="label" optionValue="value" placeholder="상태" class="w-32 mr-4" />
+                    <Button label="검색" @click="search" class="mr-4" />
                 </div>
 
                 <div class="card-header mt-2">
@@ -155,14 +141,20 @@ onMounted(() => {
                         <div class="p-4 text-center text-gray-500">조회된 재고 목록이 없습니다.</div>
                     </template>
                     <Column field="code" header="자재코드" headerClass="center-header" bodyClass="text-center" />
-                    <Column field="name" header="자재명" headerClass="center-header" bodyClass="text-center" />
+                    <Column field="name" header="자재명" headerClass="center-header" bodyClass="text-center">
+                        <template #body="{ data }">
+                            {{ truncateText(data.name, 10) }}
+                        </template>
+                    </Column>
                     <Column field="category" header="분류" headerClass="center-header" bodyClass="text-center" />
-                    <Column field="stock" header="현재 재고" headerClass="center-header" bodyClass="text-center" />
+                    <Column field="stock" header="현재 재고" headerClass="center-header" bodyClass="text-center">
+                        <template #body="{ data }"> {{ truncateText(data.stock, 5) }} {{ data.unit }} </template>
+                    </Column>
                     <Column header="재고 상태" headerClass="center-header" bodyClass="text-center">
                         <template #body="{ data }">
                             <div class="status-chip justify-center">
-                                <span class="status-dot" :class="getStatusDotClass(data.status)"></span>
-                                <span class="status-text">{{ getStatusLabel(data.status) }}</span>
+                                <span class="status-dot" :class="getStockStatusDotClass(data.status)"></span>
+                                <span class="status-text">{{ getStockStatusLabel(data.status) }}</span>
                             </div>
                         </template>
                     </Column>
@@ -182,29 +174,32 @@ onMounted(() => {
                         <div><span class="info-label">자재명:</span> {{ selected.name }}</div>
                         <div><span class="info-label">분류:</span> {{ selected.category }}</div>
                         <div><span class="info-label">단위:</span> {{ selected.unit }}</div>
+                        <div><span class="info-label">규격:</span> {{ selected.spec }}</div>
                     </div>
 
                     <h3 class="section-title border-green">재고 정보</h3>
                     <div class="info-grid text-sm mb-4">
-                        <div><span class="info-label">현재 재고:</span> {{ selected.stock }}</div>
+                        <div><span class="info-label">현재 재고:</span> {{ selected.stock }} {{ selected.unit }}</div>
                         <div><span class="info-label">안전 재고:</span> {{ selected.minStock }}</div>
                         <div class="flex-center">
                             <span class="info-label mr-1">재고 상태:</span>
                             <div class="status-chip">
-                                <span class="status-dot" :class="getStatusDotClass(selected.status)"></span>
-                                <span class="status-text">{{ getStatusLabel(selected.status) }}</span>
+                                <span class="status-dot" :class="getStockStatusDotClass(selected.status)"></span>
+                                <span class="status-text">{{ getStockStatusLabel(selected.status) }}</span>
                             </div>
                         </div>
-                        <div><span class="info-label">최근 입고일:</span> {{ formatDateTime(selected.lastInput) }}</div>
+                        <div><span class="info-label">최근 입고일:</span> {{ formatDate(selected.lastInput) }}</div>
                     </div>
 
                     <h3 class="section-title border-yellow">상세 재고 (공급업체별)</h3>
                     <DataTable :value="selected.details" size="small" class="mb-4 text-sm" rowHover>
                         <Column field="supplier" header="공급업체" headerClass="center-header" bodyClass="text-center" />
-                        <Column field="amount" header="수량" headerClass="center-header" bodyClass="text-center" />
+                        <Column field="amount" header="수량" headerClass="center-header" bodyClass="text-center">
+                            <template #body="{ data }"> {{ data.amount }} {{ selected.unit }} </template>
+                        </Column>
                         <Column field="date" header="입고일" headerClass="center-header" bodyClass="text-center">
                             <template #body="{ data }">
-                                {{ formatDateTime(data.date) }}
+                                {{ formatDate(data.date) }}
                             </template>
                         </Column>
                         <Column field="lot" header="LOT번호" headerClass="center-header" bodyClass="text-center" />
@@ -214,11 +209,22 @@ onMounted(() => {
                     <DataTable :value="selected.history" size="small" class="text-sm" rowHover>
                         <Column field="date" header="일시" headerClass="center-header" bodyClass="text-center">
                             <template #body="{ data }">
-                                {{ formatDateTime(data.date) }}
+                                {{ formatDate(data.date) }}
                             </template>
                         </Column>
-                        <Column field="type" header="구분" headerClass="center-header" bodyClass="text-center" />
-                        <Column field="amount" header="수량" headerClass="center-header" bodyClass="text-center" />
+                        <Column field="type" header="구분" headerClass="center-header" bodyClass="text-center">
+                            <template #body="{ data }">
+                                <div class="status-chip justify-center">
+                                    <span class="status-dot" :class="data.type === '입고' ? 'type-dot-inbound' : 'type-dot-outbound'"></span>
+                                    <span>{{ data.type }}</span>
+                                </div>
+                            </template>
+                        </Column>
+                        <Column field="amount" header="수량" headerClass="center-header" bodyClass="text-center">
+                            <template #body="{ data }">
+                                <span :class="['font-bold', data.type === '입고' ? 'type-text-inbound' : 'type-text-outbound']"> {{ data.type === '입고' ? '+' : '-' }}{{ data.amount }} {{ selected.unit }} </span>
+                            </template>
+                        </Column>
                         <Column field="supplier" header="공급업체" headerClass="center-header" bodyClass="text-center" />
                         <Column field="manager" header="담당자" headerClass="center-header" bodyClass="text-center" />
                     </DataTable>
@@ -429,6 +435,22 @@ onMounted(() => {
 .status-text {
     font-size: 0.85rem;
     color: #374151;
+}
+
+.type-dot-inbound {
+    background-color: #16a34a;
+}
+.type-dot-outbound {
+    background-color: #3b82f6;
+}
+.type-text-inbound {
+    color: #16a34a;
+}
+.type-text-outbound {
+    color: #3b82f6;
+}
+.font-bold {
+    font-weight: 700;
 }
 </style>
 <style>

@@ -65,7 +65,7 @@ async function fetchDetail() {
 
         header.value = data.header || null;
         items.value = data.items || [];
-        // history는 나중에 추가하면 여기서 같이 세팅
+        history.value = data.history || [];
     } catch (err) {
         console.error(err);
         errorMessage.value = '요청서 상세 조회 중 오류가 발생했습니다.';
@@ -123,7 +123,11 @@ onMounted(fetchDetail);
                             </tr>
                             <tr>
                                 <th>현재상태</th>
-                                <td colspan="3">{{ header?.statusName || '-' }}</td>
+                                <td colspan="3" v-if="history && history.length">
+                                    {{ history[history.length - 1].statusName || '요청완료' }}
+                                </td>
+
+                                <td colspan="3" v-else>요청완료</td>
                             </tr>
                         </tbody>
                     </table>
@@ -176,12 +180,13 @@ onMounted(fetchDetail);
                             </tr>
                         </thead>
                         <tbody>
+                            <tr>
+                                <td>{{ formatDate(header?.reqDate) }}</td>
+                                <td>요청완료</td>
+                            </tr>
                             <tr v-for="(row, idx) in history" :key="idx">
                                 <td>{{ formatDate(row.changeDate) }}</td>
                                 <td>{{ row.statusName }}</td>
-                            </tr>
-                            <tr v-if="!history.length">
-                                <td colspan="2" class="empty-cell">상태 변경 이력이 없습니다.</td>
                             </tr>
                         </tbody>
                     </table>
