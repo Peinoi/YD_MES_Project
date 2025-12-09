@@ -5,31 +5,56 @@ import QcResultInstructionInfo from '../../components/qc/005/QcResultInstruction
 import QcResultItemTable from '../../components/qc/005/QcResultTable.vue';
 import QcSelectModal from '../../components/qc/005/QcSelectModal.vue';
 import { useQcAppService } from '../../service/qc/qcAppService';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
 
 const qcService = useQcAppService();
+const toast = useToast();
+const confirm = useConfirm();
 
 // 상단 버튼
-const deleted = async () => {
-    const result = await qcService.deleteResult();
-    if (!result.ok) {
-        alert(result.message);
-        return;
-    }
-    alert(result.message);
-};
+function onDeleteClick() {
+    confirm.require({
+        message: '정말 삭제하시겠습니까?',
+        header: '삭제 확인',
+        icon: 'pi pi-exclamation-triangle',
+        acceptLabel: '삭제',
+        rejectLabel: '취소',
+        acceptClass: 'p-button-danger',
 
-const save = async () => {
-    const result = await qcService.saveResult();
-    if (!result.ok) {
-        alert(result.message);
-        return;
-    }
-    alert(result.message);
-};
+        accept: async () => {
+            const result = await qcService.deleteResult();
+            if (!result.ok) {
+                alert(result.message);
+                return;
+            }
+            toast.add({ severity: 'success', summary: result.message, life: 5000 });
+        }
+    });
+}
+
+function onSaveClick() {
+    confirm.require({
+        message: '저장하시겠습니까?',
+        header: '저장 확인',
+        icon: 'pi pi-question-circle',
+        acceptLabel: '저장',
+        rejectLabel: '취소',
+
+        accept: async () => {
+            const result = await qcService.saveResult();
+            if (!result.ok) {
+                alert(result.message);
+                return;
+            }
+            toast.add({ severity: 'success', summary: result.message, life: 5000 });
+        }
+    });
+}
 
 // 검사결과 불러오기
-async function clickPendingList() {
-    const result = await qcService.loadPendingList();
+async function clickQioNullList() {
+    const result = await qcService.loadQioNullList();
     if (!result.ok) {
         alert(result.message);
         return;
@@ -37,13 +62,13 @@ async function clickPendingList() {
 }
 
 // 검사지시 불러오기
-async function clickLoadInstruction() {
-    const result = await qcService.loadInstruction();
-    if (!result.ok) {
-        alert(result.message);
-        return;
-    }
-}
+// async function clickLoadInstruction() {
+//     const result = await qcService.loadInstruction();
+//     if (!result.ok) {
+//         alert(result.message);
+//         return;
+//     }
+// }
 
 onMounted(() => {
     qcService.reset();
@@ -58,9 +83,9 @@ onMounted(() => {
                 <h3>기본정보</h3>
 
                 <div class="top-buttons">
-                    <Button label="삭제" class="p-button-danger" @click="deleted" />
+                    <Button label="삭제" class="p-button-danger" severity="danger" @click="onDeleteClick" />
                     <Button label="초기화" class="p-button-secondary" @click="qcService.reset" />
-                    <Button label="저장" class="p-button-primary" @click="save" />
+                    <Button label="저장" class="p-button-primary" severity="primary" @click="onSaveClick" />
                     <Button label="검사결과 불러오기" class="p-button-success" @click="clickPendingList" />
                 </div>
             </div>
@@ -74,7 +99,7 @@ onMounted(() => {
                 <h3>지시정보</h3>
 
                 <div class="top-buttons">
-                    <Button label="검사지시 불러오기" class="p-button-success" @click="clickLoadInstruction" />
+                    <Button label="검사지시 불러오기" class="p-button-success" @click="clickQioNullList" />
                 </div>
             </div>
 

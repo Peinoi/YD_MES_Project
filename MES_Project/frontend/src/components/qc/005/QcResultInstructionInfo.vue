@@ -14,13 +14,15 @@ const { instruction } = storeToRefs(qcStore);
         </div>
 
         <div class="cell">
-            <label>제품명</label>
-            <InputText v-model="instruction.prodName" readonly />
+            <label>제품코드</label>
+            <InputText v-if="instruction.mprDCode == null" v-model="instruction.prdrCode" readonly />
+            <InputText v-else v-model="instruction.mprDCode" readonly />
         </div>
 
         <div class="cell">
-            <label>검사유형</label>
-            <InputText v-model="instruction.qcrCode" readonly />
+            <label>제품명</label>
+            <InputText v-if="instruction.matName == null" v-model="instruction.prodName" readonly />
+            <InputText v-else v-model="instruction.matName" readonly />
         </div>
 
         <div class="cell">

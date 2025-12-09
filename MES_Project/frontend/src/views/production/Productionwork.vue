@@ -22,6 +22,8 @@ const getWorkList = async () => {
 
     const result = await axios.get(`/api/productionwork/work/process/${wko}/${prod}`);
     workList.value = result.data.data.result;
+    console.log('📡 [getWorkList] 조회 요청:', wko, prod);
+    console.log('📡 조회 결과:', workList.value);
 };
 
 // ------------------------------
@@ -36,6 +38,58 @@ const goIrregularWork = () => {
 };
 
 const goList = () => router.push('/Production/TaskProgressList');
+// ------------------------------
+// 🔄 로컬 타이머로 진행률 반영
+// ------------------------------
+let localTimer = null;
+
+const startLocalTimer = () => {
+    if (!workStore.isWorkRunning) {
+        console.log('⛔ 타이머 시작 조건 불충족 (isWorkRunning = false)');
+        return;
+    }
+
+    console.log('⏱ [startLocalTimer] 실행됨');
+    console.log('▶ 현재 저장된 공정 index:', workStore.currentProcessIndex);
+
+    if (localTimer) clearInterval(localTimer);
+
+    localTimer = setInterval(() => {
+        const idx = workStore.currentProcessIndex;
+
+        // 공정 수 초과 → 종료
+        if (idx >= workList.value.length) {
+            console.log('🏁 모든 공정 종료 → 타이머 stop');
+            stopLocalTimer();
+            return;
+        }
+
+        const process = workList.value[idx];
+        if (!process) {
+            console.log('⚠ 공정 데이터 없음. 타이머 중지');
+            stopLocalTimer();
+            return;
+        }
+
+        // 100% 도달 → 다음 공정으로 이동
+        if (process['진행률'] >= 100) {
+            console.log(`✔ 공정 ${idx} 완료 → 다음 공정 이동`);
+            workStore.setCurrentProcessIndex(idx + 1);
+            return;
+        }
+
+        // 증가
+        process['진행률'] += 10;
+        if (process['진행률'] > 100) process['진행률'] = 100;
+
+        console.log(`🔼 진행률 증가중... ${process['진행률']}%`);
+    }, 1000);
+};
+
+const stopLocalTimer = () => {
+    if (localTimer) clearInterval(localTimer);
+    localTimer = null;
+};
 
 // ------------------------------
 // 페이지 진입 시 1회 로드시 조회
@@ -43,6 +97,12 @@ const goList = () => router.push('/Production/TaskProgressList');
 onBeforeMount(async () => {
     workStore.restoreSelectedWork();
     await getWorkList();
+
+    console.log('🟢 [Productionwork Mounted] 페이지 로드됨');
+    console.log('selectedWork:', workInfo.value);
+
+    // 🔥 IrregularWorkProgress에서 작업 시작 후 돌아왔을 때 자동 실행
+    startLocalTimer();
 });
 
 /* --------------------------------------
@@ -64,7 +124,7 @@ const formatDate = (str) => {
         <div class="md:w-1/2 mb-6">
             <div class="card flex flex-col gap-2 p-4 border border-gray-200 rounded-lg shadow-md bg-white">
                 <h2 class="text-xl font-semibold mb-2 text-gray-700">작업 지시 정보</h2>
-                <button class="btn-action bg-blue-500 text-white" @click="goList()">작업 진행 목록</button>
+                <button id="goBtn" class="btn-action bg-blue-500 text-white" @click="goList()">작업 진행 목록</button>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div class="flex flex-col gap-1">
@@ -214,5 +274,11 @@ $grid-layout: 1.2fr 2.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr;
     border-radius: 5px;
     padding: 5px;
     font-weight: bold;
+}
+#goBtn {
+    width: 150px;
+    border-radius: 4px;
+    cursor: pointer;
+    height: 30px;
 }
 </style>

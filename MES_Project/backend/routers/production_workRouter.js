@@ -139,10 +139,10 @@ router.put("/work/prdrend/:code", async (req, res, next) => {
   try {
     const { code } = req.params;
     const { end_date, total_time, qtt, rate, stat } = req.body;
-
+    const formattedEndDate = toMysqlDatetime(end_date);
     const result = await production_workServices.prdrEnd({
       prdr_code: code,
-      end_date,
+      end_date: formattedEndDate,
       total_time,
       qtt,
       rate,
@@ -156,3 +156,12 @@ router.put("/work/prdrend/:code", async (req, res, next) => {
 });
 
 module.exports = router;
+function toMysqlDatetime(date) {
+  const d = new Date(date);
+  const pad = (n) => String(n).padStart(2, "0");
+
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+    `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  );
+}

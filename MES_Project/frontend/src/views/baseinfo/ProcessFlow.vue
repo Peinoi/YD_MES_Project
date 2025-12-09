@@ -1,11 +1,12 @@
 <script setup>
+// Vue의 반응성을 부여하기 위해 ref함수를 가져옴
 import { ref } from 'vue';
+// 백엔드 서버와 통신하기 위한 HTTP 클라이언트인 Axios를 가져옴
 import axios from 'axios';
-// PrimeVue 컴포넌트는 전역 등록되어 있다고 가정 (Sakai 템플릿 기본 구조)
+// 전체 제품 품목 조회
+import ProductSearchModal from '@/components/order/ProductSelectModal.vue';
 
-// -------------------------------
-// Mock 데이터 (API 연동 시 교체)
-// -------------------------------
+// PrimeVue 컴포넌트는 전역 등록되어 있다고 가정 (Sakai 템플릿 기본 구조)
 // 조회 필드
 const searchForm = ref({
     processCode: '',
@@ -17,7 +18,9 @@ const searchForm = ref({
 
 // 공정 흐름도
 const processList = ref([]);
-function applySeqChange(row) {
+
+// 순서변경
+const applySeqChange = (row) => {
     const list = subProcessData.value; // 이제 원본 배열에 대한 참조입니다.
     // 1. 현재 위치(fromIndex) 찾기
 
@@ -46,25 +49,22 @@ function applySeqChange(row) {
     list.splice(toIndex, 0, moved); // 6. poNumber 를 1,2,3,... 으로 다시 부여
 
     list.forEach((item, idx) => {
-        // 객체의 속성을 변경하는 것도 반응성을 유발합니다.
+        // 객체의 속성을 변경하는 것도 반응성
         item.poNumber = idx + 1;
     });
 
-    // 7. 반영 - 원본 배열을 직접 변경했으므로 이 단계가 필요 없어집니다.
-    // 하지만, 마지막에 원본을 **다시 대입하여** Vue의 반응성 시스템에 명확히 알립니다.
-    // 또는 `subProcessData.value = [...list];` 처럼 얕게 복사하여 대입해도 됩니다.
+    // 7. 반영
+    // 하지만, 마지막에 원본을 **다시 대입하여** Vue의 반응성 시스템에 명확히 알림
+    // 또는 `subProcessData.value = [...list];` 처럼 얕게 복사하여 대입
     subProcessData.value = list;
-}
+};
+
+// 공정 흐름도
 const selectedProcess = ref(null);
 
 // 흐름도 상세
 const subProcessData = ref([]);
 const selectedSubProcess = ref([]);
-
-// 공정순서에 따라 데이터를 자동 정렬
-// const subProcessList = computed(() => {
-//     return [...subProcessData.value].sort((a, b) => a.poNumber - b.poNumber);
-// });
 
 // 공형분류
 const processStructureOptions = [
@@ -96,6 +96,11 @@ const processModalList1 = ref([]); // 모달 데이터
 
 const showProcessModal2 = ref(false); // 제품 코드/명 모달 호출
 const processModalList2 = ref([]); // 모달 데이터
+
+const showPoDetailModal = ref(false);
+const processDetailModalList = ref([]); // 모달 데이터
+
+const showProductSearchModal = ref(false); // ProductSearchModal 모달
 
 const selectedProcessModal1 = ref([]);
 const selectedProcessModal2 = ref([]);
@@ -130,8 +135,26 @@ const openProcessModal2 = async () => {
     }
 };
 
-// 공정 코드를 클릭하면 해당 값 볼 수 있는 모달 호출
-// const openProcessDetail = async () =>
+// 공정 코드를 클릭하면 po_tbl 공정상세 흐름도 호출
+const openProcessDetail = async (rowData) => {
+    if (!rowData) {
+        console.error('공정 상세 정보 모달 실패');
+        return;
+    }
+    try {
+        const response = await axios.get('/api/process/podetail');
+        processDetailModalList.value = response.data;
+        showPoDetailModal.value = true;
+    } catch (error) {
+        console.error('공정 상세정보 모달 실패', error.message);
+    }
+};
+
+// 기준정보의 제품코드/제품명 호출
+const openItem = async () => {
+    // ProductSearchModal 내부에서 검색 API를 처리 단순히 모달을 열도록
+    showProductSearchModal.value = true;
+};
 
 // 흐름도 코드/명 값 전달
 const selectProcessFromModal1 = (event) => {
@@ -159,6 +182,19 @@ const onResetSearch = () => {
         itemCode: null,
         itemName: null,
         regDate: null
+    };
+};
+// 기준 정보 값 초기화
+const onResetInfo = () => {
+    detailForm.value = {
+        processCode: null,
+        processName: null,
+        itemCode: null,
+        itemName: null,
+        processStructure: null,
+        reg: null,
+        regDate: null,
+        remark: null
     };
 };
 // 조회
@@ -214,6 +250,12 @@ const onSelectProcess = async () => {
     }
 };
 
+// ProductSearchModal에서 제품을 선택했을 때 호출될 핸들러 추가
+const onProductSelect = ({ row }) => {
+    detailForm.value.itemCode = row.prod_code;
+    detailForm.value.itemName = row.prod_name;
+};
+
 const onDeleteProcess = () => {
     if (!selectedProcess.value) return;
     // TODO: 삭제 API 연동
@@ -241,14 +283,6 @@ const onDeleteSubProcess = () => {
     subProcessData.value = subProcessData.value.filter((m) => !ids.has(m.id));
     selectedSubProcess.value = [];
 };
-
-// 공정순서 변화 시 데이터 업데이트
-// const updateSeq = (row, e) => {
-//     const value = Number(e.value);
-//     row.poNumber = value;
-//     // 정렬되도록 데이터 변경
-//     subProcessData.value = [...subProcessData.value].sort((a, b) => Number(a.poNumber) - Number(b.poNumber));
-// };
 
 const onCreate = () => {
     // TODO: 등록 API 연동
@@ -344,6 +378,7 @@ const onUpdate = () => {
                     </DataTable>
 
                     <!-- 좌하단: 흐름도 상세 -->
+
                     <div class="sub-process-header">
                         <span>흐름도 상세</span>
                         <div class="sub-process-buttons">
@@ -353,7 +388,7 @@ const onUpdate = () => {
                     </div>
 
                     <div class="sub-process-wrapper">
-                        <DataTable :value="subProcessData" dataKey="subProcessData" v-model:selection="selectedSubProcess" selectionMode="single" class="p-datatable-sm sub-process-table">
+                        <DataTable :value="subProcessData" dataKey="subProcessData" v-model:selection="selectedSubProcess" scrollable scrollHeight="220px" selectionMode="single" class="p-datatable-sm sub-process-table">
                             <Column selectionMode="multiple" headerStyle="width:3rem"></Column>
                             <!-- 공정순서: 숫자 입력 -->
                             <Column field="poNumber" header="공정순서" style="width: 60px">
@@ -375,12 +410,22 @@ const onUpdate = () => {
                     </div>
                 </div>
 
+                <Dialog v-model:visible="showPoDetailModal" header="흐름도 코드/명 선택" modal>
+                    <DataTable :value="processDetailModalList" :paginator="true" :rows="10">
+                        <Column field="poCode" header="공정코드"></Column>
+                        <Column field="poName" header="공정명"></Column>
+                        <Column field="remark" header="비고"></Column>
+                        <Column field="qcr" header="품질검사코드"></Column>
+                    </DataTable>
+                </Dialog>
+
                 <!-- 우측: 기준정보 영역 -->
                 <div class="right-pane">
                     <div class="right-header">
                         <div class="flex-gap"></div>
                         <span>기준정보</span>
                         <div class="right-header-buttons">
+                            <Button label="초기화" class="p-button-secondary p-button-sm" @click="onResetInfo" />
                             <Button label="등록" class="p-button-success p-button-sm" @click="onCreate" />
                             <Button label="수정" class="p-button-primary p-button-sm" :disabled="!detailForm.id" @click="onUpdate" />
                         </div>
@@ -400,12 +445,12 @@ const onUpdate = () => {
 
                             <div class="field">
                                 <label>제품코드</label>
-                                <InputText v-model="detailForm.itemCode" placeholder="자동입력" />
+                                <InputText v-model="detailForm.itemCode" @click="openItem" readonly placeholder="자동입력" />
                             </div>
 
                             <div class="field">
                                 <label>제품명</label>
-                                <InputText v-model="detailForm.itemName" placeholder="자동입력" />
+                                <InputText v-model="detailForm.itemName" @click="openItem" readonly placeholder="자동입력" />
                             </div>
 
                             <div class="field">
@@ -431,6 +476,8 @@ const onUpdate = () => {
                             </div>
                         </div>
                     </div>
+
+                    <ProductSearchModal v-model="showProductSearchModal" @select="onProductSelect" :currentIndex="-1" />
                 </div>
             </div>
         </div>
@@ -440,6 +487,7 @@ const onUpdate = () => {
 <style scoped>
 .process-page {
     padding: 1rem;
+    height: 100%;
 }
 
 .process-card {
@@ -480,7 +528,7 @@ const onUpdate = () => {
     background-color: #cce5ff !important; /* 선택된 row 강조 */
 }
 /* 좌측 영역 */
-.left-pane {
+.left-panel {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -516,7 +564,7 @@ const onUpdate = () => {
 }
 
 /* 우측 영역 */
-.right-pane {
+.right-panel {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -589,27 +637,14 @@ const onUpdate = () => {
 .p-inputtext-tight {
     width: 60px;
 }
-.p-datatable-sm .pinputnumber {
+.p-datatable-sm .p-inputnumber {
     width: 100%;
 }
 .sub-process-table :deep(.p-inputnumber .p-inputnumber-input) {
     width: 60px;
 }
-.process-list-table :deep(.p-datatable .p-datatable-tbody > tr.p-highlight) {
-    background-color: var(--surface-card) !important;
-    color: var(--text-color) !important;
-}
-.sub-process-table :deep(.p-datatable .p-datatable-tbody > tr.p-highligt) {
-    background-color: var(--surface-card) !important;
-    color: var(--text-color) !important;
-}
-.sub-process-wrapper :deep(.p-datatable .p-datatable-tbody > tr.p-highlight) {
-    background-color: var(--surface-card) !important;
-    color: var(--text-color) !important;
-}
-.sub-process-wrapper :deep(.p-datatable .p-datatable-tbody > tr:not(.p-highlight):hover),
-.process-list-table :deep(.p-datatable .p-datatable-tbody > tr:not(.p-highlight):hover) {
-    background: var(--surface-hover);
-    color: var(--text-color);
+.process-list-table :deep(tr.selected-row) {
+    background-color: rgba(204, 229, 255) !important;
+    color: inherit !important;
 }
 </style>

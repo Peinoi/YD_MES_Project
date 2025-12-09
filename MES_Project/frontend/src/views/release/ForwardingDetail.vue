@@ -36,7 +36,8 @@ const header = reactive({
     registrantName: '',
     status: '',
     orderManagerCode: '',
-    orderManagerName: ''
+    orderManagerName: '',
+    orderRemark: '' // 🔹 주문 비고까지 쓴다면 추가
 });
 
 const lines = ref([]);
@@ -49,15 +50,28 @@ const formatDate = (d) => {
     return String(d).split('T')[0];
 };
 
-// 합계
+/* ===========================
+ *  합계 / 상태
+ * =========================== */
+
+// 🔹 총 "주문수량"(주문기준)
 const totalOrderQty = computed(() => lines.value.reduce((sum, l) => sum + (l.orderQty || 0), 0));
-const totalReleaseQty = computed(() => lines.value.reduce((sum, l) => sum + (l.releaseQty || 0), 0));
 
-// 🔹 미출고수량 = 총 주문수량 - 총 출고수량
-const remainingQty = computed(() => Math.max(0, totalOrderQty.value - totalReleaseQty.value));
+// 🔹 총 "출고요청수량"
+const totalRequestQty = computed(() => lines.value.reduce((sum, l) => sum + (l.requestQty || l.releaseQty || 0), 0));
 
-// 🔹 상태: 미출고수량이 0이면 출고완료, 아니면 요청
-const detailStatus = computed(() => (remainingQty.value <= 0 ? '출고완료' : '요청'));
+// 🔹 총 "실출고수량"
+const totalShippedQty = computed(() => lines.value.reduce((sum, l) => sum + (l.shippedQty || 0), 0));
+
+// 🔹 요청 잔량 = 요청 - 실출고
+const remainingQty = computed(() => Math.max(0, totalRequestQty.value - totalShippedQty.value));
+
+// 🔹 상태: 요청 vs 실출고
+const detailStatus = computed(() => {
+    if (totalShippedQty.value <= 0) return '출고 대기';
+    if (totalShippedQty.value < totalRequestQty.value) return '부분 출고';
+    return '출고 완료';
+});
 
 /* ===========================
  *  공통코드 조회
@@ -120,20 +134,29 @@ const fetchDetail = async () => {
         header.status = h.status || '';
         header.orderManagerCode = h.orderManagerCode || '';
         header.orderManagerName = h.orderManagerName || '';
+        header.orderRemark = h.orderRemark ?? ''; // 주문 비고 있으면
 
-        lines.value = (lineRows || []).map((r, idx) => ({
-            no: idx + 1,
-            productCode: r.productCode,
-            productName: r.productName,
-            type: r.type, // 공통코드 맵으로 한글변환
-            spec: r.spec,
-            unit: r.unit,
-            orderQty: r.orderQty,
-            releaseQty: r.releaseQty,
-            notReleasedQty: Math.max(0, (r.orderQty || 0) - (r.releaseQty || 0)),
-            stockQty: r.stockQty ?? r.currentStock ?? 0,
-            dueDate: r.dueDate ? formatDate(r.dueDate) : ''
-        }));
+        lines.value = (lineRows || []).map((r, idx) => {
+            const requestQty = r.requestQty ?? r.releaseQty ?? 0; // 출고요청 수량
+            const shippedQty = r.shippedQty ?? 0; // 실출고 수량
+
+            return {
+                no: idx + 1,
+                productCode: r.productCode,
+                productName: r.productName,
+                type: r.type,
+                spec: r.spec,
+                unit: r.unit,
+
+                orderQty: r.orderQty, // 주문수량(있으면 유지)
+                requestQty, // 출고요청 수량
+                shippedQty, // 실출고 수량
+                remainingQty: Math.max(0, requestQty - shippedQty), // 요청 잔량
+
+                stockQty: r.stockQty ?? r.currentStock ?? 0,
+                dueDate: r.dueDate ? formatDate(r.dueDate) : ''
+            };
+        });
     } catch (err) {
         console.error('[ForwardingDetail] 상세 조회 실패:', err);
         errorMessage.value = '출고요청 상세 조회 중 오류가 발생했습니다.';
@@ -202,9 +225,10 @@ onMounted(async () => {
                             </span>
                         </div>
 
+                        <!-- 🔹 총 주문수량: orderQty 합계 -->
                         <div class="info-row">
                             <span class="info-label">총 주문수량</span>
-                            <span class="info-value">{{ totalOrderQty.toLocaleString() }}개</span>
+                            <span class="info-value"> {{ totalOrderQty.toLocaleString() }}개 </span>
                         </div>
                     </div>
 
@@ -219,7 +243,7 @@ onMounted(async () => {
 
                 <!-- 출고정보 -->
                 <section class="detail-card">
-                    <h3 class="section-title">출고요청정보</h3>
+                    <h3 class="section-title">출고정보</h3>
 
                     <div class="info-grid">
                         <div class="info-row">
@@ -236,19 +260,30 @@ onMounted(async () => {
                                 {{ header.registrantName || header.registrantCode }}
                             </span>
                         </div>
+
+                        <div class="info-row">
+                            <span class="info-label">총 요청수량</span>
+                            <span class="info-value"> {{ totalRequestQty.toLocaleString() }}개 </span>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">총 실출고수량</span>
+                            <span class="info-value"> {{ totalShippedQty.toLocaleString() }}개 </span>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="info-label">요청 잔량</span>
+                            <span class="info-value"> {{ remainingQty.toLocaleString() }}개 </span>
+                        </div>
+
                         <div class="info-row">
                             <span class="info-label">상태</span>
                             <span class="info-value">
                                 {{ detailStatus }}
                             </span>
                         </div>
-                        <div class="info-row">
-                            <span class="info-label">총 출고수량</span>
-                            <span class="info-value">{{ totalReleaseQty.toLocaleString() }}개</span>
-                        </div>
                     </div>
 
-                    <!-- 🔹 출고 비고 -->
                     <div class="remark-block inside-remark">
                         <h4 class="remark-title">출고 비고</h4>
                         <div class="remark-box">
@@ -262,7 +297,8 @@ onMounted(async () => {
             <section class="detail-card detail-products-card">
                 <div class="products-header">
                     <h3 class="section-title">제품 내역</h3>
-                    <div class="products-summary">제품 {{ lines.length }}건 · 주문 {{ totalOrderQty.toLocaleString() }}개 · 출고 {{ totalReleaseQty.toLocaleString() }}개</div>
+                    <!-- 🔹 요약도 요청/실출고 기준으로 변경 -->
+                    <div class="products-summary">제품 {{ lines.length }}건 · 요청 {{ totalRequestQty.toLocaleString() }}개 · 실출고 {{ totalShippedQty.toLocaleString() }}개</div>
                 </div>
 
                 <div class="table-wrap">
@@ -276,8 +312,9 @@ onMounted(async () => {
                                 <th>규격</th>
                                 <th>단위</th>
                                 <th>주문수량</th>
-                                <th>출고수량</th>
-                                <th>미출고수량</th>
+                                <th>출고요청수량</th>
+                                <th>실출고수량</th>
+                                <th>요청 잔량</th>
                                 <th>출고 후 재고</th>
                                 <th>납기일</th>
                             </tr>
@@ -285,7 +322,7 @@ onMounted(async () => {
 
                         <tbody>
                             <tr v-if="!lines.length">
-                                <td colspan="10" class="empty-row">제품 내역이 없습니다.</td>
+                                <td colspan="12" class="empty-row">제품 내역이 없습니다.</td>
                             </tr>
 
                             <tr v-for="item in lines" :key="item.no">
@@ -295,14 +332,32 @@ onMounted(async () => {
                                 <td>{{ typeMap[item.type] ?? item.type }}</td>
                                 <td>{{ specMap[item.spec] ?? item.spec }}</td>
                                 <td>{{ unitMap[item.unit] ?? item.unit }}</td>
-                                <td class="text-right">{{ item.orderQty }}</td>
-                                <td class="text-right">{{ item.releaseQty }}</td>
+
+                                <!-- 주문수량 -->
                                 <td class="text-right">
-                                    {{ item.notReleasedQty }}
+                                    {{ (item.orderQty || 0).toLocaleString() }}
                                 </td>
+
+                                <!-- 출고요청수량 -->
                                 <td class="text-right">
-                                    {{ Math.max(0, (item.stockQty || 0) - (item.releaseQty || 0)) }}
+                                    {{ (item.requestQty || 0).toLocaleString() }}
                                 </td>
+
+                                <!-- 실출고수량 -->
+                                <td class="text-right">
+                                    {{ (item.shippedQty || 0).toLocaleString() }}
+                                </td>
+
+                                <!-- 요청 잔량 = 요청 - 실출고 -->
+                                <td class="text-right">
+                                    {{ (item.remainingQty || 0).toLocaleString() }}
+                                </td>
+
+                                <!-- 출고 후 재고 = 현재재고 - 실출고 -->
+                                <td class="text-right">
+                                    {{ Math.max(0, (item.stockQty || 0) - (item.shippedQty || 0)) }}
+                                </td>
+
                                 <td>{{ item.dueDate }}</td>
                             </tr>
                         </tbody>

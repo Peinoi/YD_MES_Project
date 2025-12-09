@@ -155,6 +155,24 @@ router.get("/mpr/list", async (req, res) => {
   }
 });
 
+router.get("/mpr/list-for-po", async (req, res) => {
+  try {
+    const { mprCode } = req.query;
+    const rows = await poService.getMprListForPo(mprCode || null);
+
+    res.json({
+      success: true,
+      data: rows,
+    });
+  } catch (err) {
+    console.error("발주용 요청 목록 조회 오류:", err);
+    res.status(500).json({
+      success: false,
+      message: "발주용 요청 목록 조회 중 오류가 발생했습니다.",
+    });
+  }
+});
+
 // 자재 구매요청서 자재별 목록 조회
 router.get("/mpr/req-items", async (req, res) => {
   try {
@@ -208,10 +226,10 @@ router.get("/mpr/detail/:mprCode", async (req, res) => {
       });
     }
 
-    // 병렬로 조회 (속도)
-    const [header, items] = await Promise.all([
+    // 병렬 조회
+    const [header, detail] = await Promise.all([
       poService.getMprDetailHeader(mprCode),
-      poService.getMprDetailItems(mprCode),
+      poService.getMprDetailItems(mprCode), // { items, history }
     ]);
 
     if (!header) {
@@ -225,7 +243,8 @@ router.get("/mpr/detail/:mprCode", async (req, res) => {
       success: true,
       data: {
         header,
-        items,
+        items: detail.items || [],
+        history: detail.history || [],
       },
     });
   } catch (err) {

@@ -29,29 +29,32 @@ const getEmployeeList = async () => query("getEmployeeList", []);
 
 // [Write] 입고 등록
 const registerInboundItems = async (items) => {
-  console.log("Starting Transaction...");
+  console.log("Starting Transaction for Inbound Registration...");
+  console.log("Received items:", JSON.stringify(items, null, 2));
 
   let conn;
   try {
     conn = await getConnection();
     await conn.beginTransaction();
+    console.log("Transaction started.");
 
-    const todayStr = getTodayStr(); // 예: '20251204'
+    const todayStr = getTodayStr();
 
-    // [수정] 쿼리에 todayStr 파라미터 전달
-    // 이렇게 해야 JS 기준 날짜로 된 마지막 번호를 정확히 찾아옵니다.
     const lastMinRows = await conn.query(sqlList.getLastMinbndSeq, [todayStr]);
     const lastLotRows = await conn.query(sqlList.getLastLotSeq, [todayStr]);
+    const lastQioRows = await conn.query(sqlList.getLastQioSeq, [todayStr]);
 
     let minSeq = generateSeq(
       lastMinRows[0] ? lastMinRows[0].minbnd_code : null
     );
     let lotSeq = generateSeq(lastLotRows[0] ? lastLotRows[0].lot_num : null);
+    let qioSeq = generateSeq(lastQioRows[0] ? lastQioRows[0].qio_code : null);
 
-    // 2. 데이터 가공
     const lotDataList = [];
     const inboundDataList = [];
+    const qioDataList = [];
 
+    console.log("Preparing data lists...");
     for (const item of items) {
       const seqStr = String(minSeq++).padStart(3, "0");
       const lotSeqStr = String(lotSeq++).padStart(3, "0");
@@ -59,15 +62,22 @@ const registerInboundItems = async (items) => {
       const newMinbndCode = `MIN-${todayStr}-${seqStr}`;
       const matTypePrefix = item.mat_type_code || "100";
       const newLotNum = `LOT-${matTypePrefix}-${todayStr}-${lotSeqStr}`;
-
       const nowDateTime = getNowDateTimeStr();
 
-      // LOT 데이터
       lotDataList.push([newLotNum, nowDateTime, "i4", item.matCode]);
 
-      // 입고 데이터 (qio_code 필수)
-      const qioCode = item.qioCode || "QIO-DEFAULT-TEMP";
-
+      let finalQioCode = item.qioCode;
+      if (!finalQioCode) {
+        const qioSeqStr = String(qioSeq++).padStart(3, "0");
+        finalQioCode = `QIO-${todayStr}-${qioSeqStr}`;
+        
+        qioDataList.push([
+          finalQioCode,
+          new Date(), // insp_date
+          item.manager, // emp_code
+        ]);
+      }
+      
       inboundDataList.push([
         newMinbndCode,
         item.matCode,
@@ -76,22 +86,53 @@ const registerInboundItems = async (items) => {
         Number(item.inQty),
         item.inboundDate,
         Number(item.inQty),
-        qioCode,
+        finalQioCode,
         newLotNum,
         item.client,
         item.manager,
       ]);
     }
+    console.log("Data preparation complete.");
+    console.log("Prepared qioDataList:", JSON.stringify(qioDataList, null, 2));
+    console.log("Prepared lotDataList:", JSON.stringify(lotDataList, null, 2));
+    console.log("Prepared inboundDataList:", JSON.stringify(inboundDataList, null, 2));
 
-    // 3. 실행 (batch 사용)
-    if (lotDataList.length > 0) {
-      await conn.batch(sqlList.insertMatLot, lotDataList);
+    // 3. 실행 (batch 사용) - 순서 보장 및 개별 로깅
+    try {
+      if (lotDataList.length > 0) {
+        console.log("Executing batch insert for mat_lot_tbl...");
+        await conn.batch(sqlList.insertMatLot, lotDataList);
+        console.log("Batch insert for mat_lot_tbl SUCCEEDED.");
+      }
+    } catch (err) {
+      console.error("Batch insert for mat_lot_tbl FAILED:", err);
+      throw err;
     }
-    if (inboundDataList.length > 0) {
-      await conn.batch(sqlList.insertMinbnd, inboundDataList);
+
+    try {
+      if (qioDataList.length > 0) {
+        console.log("Executing batch insert for qio_tbl...");
+        await conn.batch(sqlList.insertQio, qioDataList);
+        console.log("Batch insert for qio_tbl SUCCEEDED.");
+      }
+    } catch (err) {
+      console.error("Batch insert for qio_tbl FAILED:", err);
+      throw err;
+    }
+
+    try {
+      if (inboundDataList.length > 0) {
+        console.log("Executing batch insert for minbnd_tbl...");
+        await conn.batch(sqlList.insertMinbnd, inboundDataList);
+        console.log("Batch insert for minbnd_tbl SUCCEEDED.");
+      }
+    } catch (err) {
+      console.error("Batch insert for minbnd_tbl FAILED:", err);
+      throw err;
     }
 
     await conn.commit();
+    console.log("Transaction committed.");
 
     return {
       success: true,
@@ -126,6 +167,11 @@ const getHistoryList = async (params) => {
     if (params.keyword) {
       sql += " AND (matCode LIKE ? OR matName LIKE ?)";
       values.push(`%${params.keyword}%`, `%${params.keyword}%`);
+    }
+
+    if (params.status) {
+      sql += " AND status = ?";
+      values.push(params.status);
     }
 
     sql += " ORDER BY procDate DESC";

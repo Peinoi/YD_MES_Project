@@ -12,13 +12,11 @@ export const useQualityStore = defineStore('quality', {
         qioList: [],
         qirList: [],
         prdrList: [], // prdr_tbl: 생산실적 테이블
-        mpr_dList: [], // mpr_d_tbl: -- 자재구매요청상세 테이블: 기존사람들이 이걸로만들어서 나도 이걸로해야됨 월요일수정가능성 있음.
+        mpo_dList: [], // mpo_d_tbl: -- 자재구매요청상세 테이블: 기존사람들이 이걸로만들어서 나도 이걸로해야됨 월요일수정가능성 있음.
         qualityEmployeeList: [], // 품질팀 사원 목록
 
         // 사용자가 선택한 항목
         selectedQIO: null,
-        selectedPrdr: null,
-        selectedMpr_d: null,
 
         // 로딩 및 에러 상태
         loading: false,
@@ -38,12 +36,6 @@ export const useQualityStore = defineStore('quality', {
         //--- 데이터 선택 관련 액션 ---
         setSelectedQIO(data) {
             this.selectedQIO = data;
-        },
-        setSelectedQIR(data) {
-            this.selectedQIR = data;
-        },
-        setSelectedQCR(data) {
-            this.selectedQCR = data;
         },
 
         //--- API 연동 비동기 액션 ---
@@ -91,13 +83,13 @@ export const useQualityStore = defineStore('quality', {
                 this.loading = false;
             }
         },
-        async fetchMpr_dList() {
+        async fetchMpo_dList() {
             this.loading = true;
             this.error = null;
             try {
-                const response = await axios.get('/api/quality/mpr_ds');
+                const response = await axios.get('/api/quality/mpo_ds');
                 console.log(response.data.data);
-                this.mpr_dList = response.data.data; // 여기는 정상입니다.
+                this.mpo_dList = response.data.data; // 여기는 정상입니다.
             } catch (error) {
                 this.error = '데이터를 불러오는 데 실패했습니다.';
                 console.error('Error fetching Mpr_d list:', error);
@@ -148,19 +140,21 @@ export const useQualityStore = defineStore('quality', {
             }
         },
         /**
-         * 신규 품질검사기준(QCR)을 서버에 생성합니다. (POST)
-         * @param {object} newQcrData - 생성할 QCR 데이터 객체
+         * 신규 품질검사 지시(QIO)를 서버에 생성합니다. (POST)
+         * @param {object} saveQIO - 생성할 QCR 데이터 객체
          */
-        async createQCR(newQcrData) {
+        async createQIO(saveQIO) {
             this.loading = true;
             this.error = null;
+            console.log(`드가ㅏㅏㅏㅏ자ㅏ`, saveQIO);
             try {
-                const response = await axios.post('/api/quality/qcrs', newQcrData);
-                // 성공 시, qcrList에 새로 생성된 항목을 추가하여 UI를 즉시 업데이트합니다.
-                this.qcrList.push(response.data.data);
+                const response = await axios.post('/api/quality/qio', saveQIO);
+                console.log('create QIO response: ', response.data.data);
+                // 성공 시, savedQIOCode에 새로 생성된 qio_code값을 추가하여 UI를 즉시 업데이트합니다.
+                return response.data.data.qio_code;
             } catch (error) {
                 this.error = '데이터 생성에 실패했습니다.';
-                console.error('Error creating QCR:', error);
+                console.error('Error creating QIO:', error);
                 throw error; // 컴포넌트에서 에러를 추가로 처리할 수 있도록 throw
             } finally {
                 this.loading = false;
@@ -169,21 +163,19 @@ export const useQualityStore = defineStore('quality', {
 
         /**
          * 기존 품질검사기준(QCR)을 수정합니다. (PUT)
-         * @param {object} qcrToUpdate - 수정할 QCR 데이터 객체 (qcr_code 포함)
+         * @param {object} saveQIO - 수정할 QCR 데이터 객체 (qcr_code 포함)
          */
-        async updateQCR(qcrToUpdate) {
+        async updateQIO(saveQIO) {
             this.loading = true;
             this.error = null;
             try {
-                const response = await axios.put(`/api/quality/qcrs/${qcrToUpdate.qcr_code}`, qcrToUpdate);
-                // 성공 시, qcrList에서 해당 항목을 찾아 업데이트합니다.
-                const index = this.qcrList.findIndex((q) => q.qcr_code === qcrToUpdate.qcr_code);
-                if (index !== -1) {
-                    this.qcrList[index] = response.data.data;
-                }
+                const response = await axios.put('/api/quality/qio', saveQIO);
+                // 성공적으로 수정된 후, 목록을 다시 불러와서 화면에 최신 데이터를 반영합니다.
+                await this.fetchQIOList();
+                return response;
             } catch (error) {
                 this.error = '데이터 수정에 실패했습니다.';
-                console.error('Error updating QCR:', error);
+                console.error('Error updating QIO:', error);
                 throw error;
             } finally {
                 this.loading = false;
@@ -191,13 +183,13 @@ export const useQualityStore = defineStore('quality', {
         },
 
         /**
-         * 신규 또는 기존 품질검사기준(QCR)을 저장합니다. (Create/Update)
-         * ID 존재 여부에 따라 생성 또는 수정을 분기합니다.
-         * @param {object} qcrData - 저장할 QCR 데이터 객체
+         * 신규 또는 기존 품질검사기준(QIO)을 저장합니다. (Create/Update)
+         * qio_code 존재 여부에 따라 생성 또는 수정을 분기합니다.
+         * @param {object} saveQIO - 저장할 QIO 데이터 객체
          */
-        async saveQCR(qcrData) {
+        async saveQIO(saveQIO) {
             // qcrData에 qcr_code가 있으면 update, 없으면 create 호출
-            return qcrData.qcr_code ? this.updateQCR(qcrData) : this.createQCR(qcrData);
+            return saveQIO.qio_code ? this.updateQIO(saveQIO) : this.createQIO(saveQIO);
         },
 
         //--- 상태 초기화 액션 ---

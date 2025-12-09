@@ -125,9 +125,9 @@ module.exports = {
         ,od.prod_code -- 제품코드
         ,p.prod_name -- 제품명
         ,p.com_value -- 유형: 봉지라면 or 컵라면
-		    ,p.spec -- 규격
-		    ,p.unit -- 단위
-		    ,od.ord_amount -- 수량
+	  ,p.spec -- 규격
+	  ,p.unit -- 단위
+	  ,od.ord_amount -- 수량
         ,od.prod_price -- 단가
         ,od.delivery_date -- 납기일
         ,od.ord_priority -- 우선순위
@@ -243,4 +243,36 @@ module.exports = {
   DELETE FROM ord_d_tbl
   WHERE ord_d_code = ?
   `,
+
+  // 주문, 제품 단건 조회
+  selectOrder: `
+  SELECT o.ord_code -- 주문번호
+	  ,o.ord_name -- 주문명
+        ,o.ord_date -- 주문일자
+        ,o.ord_stat -- 상태
+        ,o.note -- 비고
+        ,o.mcode -- 담당자 코드
+        ,e.emp_name -- 담당자명
+        ,o.client_code -- 거래처 코드
+        ,c.client_name -- 거래처명
+        ,od.ord_d_code -- 주문상세코드
+        ,p.com_value -- 유형: 봉지라면 or 컵라면
+        ,od.unit -- 단위
+        ,od.spec -- 규격
+        ,od.ord_amount -- 수량
+        ,od.prod_price -- 단가
+        ,od.delivery_date -- 납기일
+        ,od.ord_priority -- 우선순위
+        ,od.total_price -- 총액
+        ,od.prod_code -- 제품코드
+        ,p.prod_name -- 제품명
+        ,cc.note AS ord_stat_name -- 상태명
+  FROM ord_tbl o
+  JOIN ord_d_tbl od ON o.ord_code = od.ord_code
+  JOIN prod_tbl p ON p.prod_code = od.prod_code
+  JOIN emp_tbl e ON e.emp_code = o.mcode
+  JOIN client_tbl c ON c.client_code = o.client_code
+  JOIN common_code cc ON cc.com_value = o.ord_stat
+  WHERE o.ord_code = ?
+`,
 };

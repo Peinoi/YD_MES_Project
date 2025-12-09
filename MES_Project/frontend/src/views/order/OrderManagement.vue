@@ -440,40 +440,49 @@ function formatCurrency(v) {
             <div class="card-header">
                 <h3>주문기본정보</h3>
                 <div class="actions">
-                    <button type="button" class="btn danger" @click="deleteOrder">삭제</button>
-                    <button type="button" class="btn ghost" @click="resetForm">초기화</button>
-                    <button type="button" class="btn" @click="saveOrder">저장</button>
+                    <button type="button" class="btn btn-delete" @click="deleteOrder">삭제</button>
+                    <button type="button" class="btn btn-reset" @click="resetForm">초기화</button>
+                    <button type="button" class="btn btn-save" @click="saveOrder">저장</button>
                     <button type="button" class="btn outline" @click="showOrderModal = true">주문정보 불러오기</button>
                 </div>
             </div>
 
             <div class="form-grid">
                 <div class="form-row">
-                    <label>주문번호</label>
-                    <input v-model="order.ord_code" type="text" :readonly="order.readonly" />
-
-                    <label>주문명</label>
-                    <input v-model="order.ord_name" type="text" />
-                </div>
-
-                <div class="form-row">
-                    <label>주문일자</label>
-                    <input v-model="order.ord_date" type="date" />
-
-                    <label>거래처</label>
-                    <div style="display: flex; gap: 6px; flex: 1">
-                        <input type="text" v-model="order.client_name" @click="openClientSearch" readonly />
+                    <div class="form-group">
+                        <label>주문번호</label>
+                        <input v-model="order.ord_code" type="text" :readonly="order.readonly" />
+                    </div>
+                    <div class="form-group">
+                        <label>주문명</label>
+                        <input v-model="order.ord_name" type="text" />
                     </div>
                 </div>
 
                 <div class="form-row">
-                    <label>거래처담당자</label>
-                    <div style="display: flex; gap: 6px; flex: 1">
-                        <input type="text" v-model="order.client_contact" @click="openManagerSearch" readonly />
+                    <div class="form-group">
+                        <label>주문일자</label>
+                        <input v-model="order.ord_date" type="date" readonly />
                     </div>
+                    <div class="form-group">
+                        <label>거래처</label>
+                        <div style="display: flex; gap: 6px; flex: 1">
+                            <input type="text" v-model="order.client_name" @click="openClientSearch" readonly />
+                        </div>
+                    </div>
+                </div>
 
-                    <label>비고</label>
-                    <input v-model="order.note" type="text" />
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>거래처담당자</label>
+                        <div style="display: flex; gap: 6px; flex: 1">
+                            <input type="text" v-model="order.client_contact" @click="openManagerSearch" readonly />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>비고</label>
+                        <input v-model="order.note" type="text" />
+                    </div>
                 </div>
             </div>
         </section>
@@ -483,8 +492,8 @@ function formatCurrency(v) {
             <div class="card-header small">
                 <h4>제품</h4>
                 <div class="product-actions">
-                    <button class="btn small danger" @click="removeSelectedProducts">제품삭제</button>
-                    <button class="btn small" @click="addProduct">제품추가</button>
+                    <button class="btn btn-prodel" @click="removeSelectedProducts">제품삭제</button>
+                    <button class="btn btn-proadd" @click="addProduct">제품추가</button>
                 </div>
             </div>
 
@@ -649,57 +658,47 @@ function formatCurrency(v) {
 
 /* 버튼 */
 .btn {
-    padding: 8px 16px;
+    padding: 9px 16px;
     border-radius: 8px;
     font-weight: 600;
     border: none;
     cursor: pointer;
     transition: 0.2s;
+    margin-left: 10px;
 }
 
-.btn.primary {
-    background: #2d8cf0;
-    color: white;
-}
-
-.btn.primary:hover {
-    background: #1769c2;
-}
-
-.btn.danger {
-    background: #ff4d4f;
-    color: white;
-}
-
-.btn.danger:hover {
-    background: #d9363e;
-}
-
-.btn.small {
-    padding: 6px 8px;
-    font-size: 14px;
-}
-
-.btn.ghost {
+.btn.btn-delete {
     background: #fff;
-    color: #374151;
-    border: 1px solid #d1d5db;
+    color: #e82d2d;
+    border: 1px solid #e82d2d;
+}
+
+.btn.btn-reset {
+    background: #fff;
+    color: #000000;
+    border: 1px solid #000000;
+}
+.btn.btn-save {
+    background: #fff;
+    color: #2563eb;
+    border: 1px solid #2563eb;
 }
 
 .btn.outline {
     background: #fff;
-    color: #2563eb;
-    border: 1px solid #c7ddff;
+    color: #2fc064;
 }
 
-.btn-line {
-    background: none;
-    border: 1px solid #888;
-    color: #555;
+.btn.btn-prodel {
+    background: #fff;
+    color: #e82d2d;
+    border: 1px solid #e82d2d;
 }
 
-.btn-line:hover {
-    background: #f0f0f0;
+.btn.btn-proadd {
+    background: #fff;
+    color: #2fc064;
+    border: 1px solid #2fc064;
 }
 
 /* 기본 정보 폼 */
@@ -716,8 +715,25 @@ function formatCurrency(v) {
     align-items: center;
 }
 
+.form-group {
+    display: flex;
+    flex: 1; /* form-row 내부의 공간을 form-group이 1:1로 분할 */
+    align-items: center;
+    gap: 14px; /* form-row와 동일한 간격으로 유지 */
+}
+
+.form-row .date-input {
+    /* flex: 0 1 180px; 을 권장합니다. */
+    /* flex-grow: 0 (늘어나지 않음) */
+    /* flex-shrink: 1 (줄어들 수는 있음) */
+    /* flex-basis: 180px (기본 너비를 180px로 설정) */
+    flex: 0 1 180px;
+    max-width: 200px; /* 너무 커지는 것을 방지 */
+}
+
 .form-row label {
-    width: 120px;
+    width: 120px; /* 레이블 너비를 120px로 고정 */
+    flex-shrink: 0; /* 레이블이 줄어들지 않도록 설정 */
     font-weight: 600;
     color: #374151;
     font-size: 15px;
@@ -725,12 +741,26 @@ function formatCurrency(v) {
 
 .form-row input[type='text'],
 .form-row input[type='date'],
-.form-row select {
-    flex: 1;
+.form-row select,
+.form-group .search-wrap {
+    /* search-wrap도 input처럼 남은 공간을 채우도록 flex: 1 부여 */
+    flex: 1; /* 남은 공간을 모두 input이 차지하며, 모든 input이 동일한 너비를 가짐 */
     padding: 8px 10px;
     border-radius: 6px;
     border: 1px solid #d1d5db;
     font-size: 15px;
+}
+
+.form-group .search-wrap {
+    display: flex;
+    gap: 6px; /* 버튼과 input 사이 간격 */
+    padding: 0; /* padding 제거 (내부 input에 padding 적용) */
+    border: none; /* border 제거 (내부 input에 border 적용) */
+}
+
+.form-group .search-wrap input {
+    flex: 1;
+    /* form-row input에서 설정한 스타일을 덮어쓰지 않도록 주의 */
 }
 
 /* ◆◆◆ 제품 테이블 영역 반영 — 1600px & 15px ◆◆◆ */
