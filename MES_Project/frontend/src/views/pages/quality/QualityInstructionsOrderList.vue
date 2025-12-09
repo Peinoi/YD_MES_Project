@@ -1,22 +1,29 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import { ref, onMounted, computed } from 'vue';
+import { useQualityStore } from '@/stores/qualityStore';
 import * as XLSX from 'xlsx';
 import { useRouter } from 'vue-router';
-import SearchSelectModal from '@/components/common/SearchSelectModal.vue'; // 경로가 맞는지 확인 필요
+import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
+import axios from 'axios'; // 모달 데이터 로딩을 위해 유지
 
 const router = useRouter();
+const qualityStore = useQualityStore();
 
 // --- 1. 상태 및 필터 ---
 const filters = ref({
     qio_code: '',
-    proc_name: '',
-    prod_name: '',
+    prod_name: '', // item_name으로 필터링하기 위해 유지
     insp_date_start: '',
     insp_date_end: ''
 });
 
-const allList = ref([]); // API로 가져온 원본 목록
+// API로 가져온 원본 목록 (Store와 연결)
+const allList = computed(() =>
+    qualityStore.qualityInstructionsOrderList.map((item) => ({
+        ...item,
+        checked: false
+    }))
+);
 const tableRows = ref([]); // 화면에 표시될 목록 (필터링 적용)
 const allChecked = ref(false); // 전체 선택 체크박스 상태
 
@@ -30,51 +37,33 @@ const modalSearchPlaceholder = ref('');
 
 // --- 3. API 및 데이터 로직 ---
 
-// 품질 검사 지시 목록 조회
-const fetchQIOList = async () => {
-    try {
-        // TODO: 실제 API 엔드포인트로 수정 필요
-        const response = await axios.get('/api/quality/qio/list');
-        allList.value = response.data.map((item) => ({
-            ...item,
-            qio_date: item.qio_date ? item.qio_date.slice(0, 10) : '',
-            insp_date: item.insp_date ? item.insp_date.slice(0, 10) : '',
-            checked: false
-        }));
-        tableRows.value = [...allList.value];
-    } catch (error) {
-        console.error('품질 검사 지시 목록 조회 실패:', error);
-        // 목 데이터 사용
-        const mockData = [
-            { qio_code: 'QIO-20240729-001', qio_date: '2024-07-29', insp_date: '2024-08-05', proc_name: '조립공정', prod_name: '엔진블록', insp_type: '수입검사', status: '지시', checked: false },
-            { qio_code: 'QIO-20240729-002', qio_date: '2024-07-29', insp_date: '2024-08-06', proc_name: '도장공정', prod_name: '차체 프레임', insp_type: '공정검사', status: '완료', checked: false }
-        ];
-        allList.value = mockData;
-        tableRows.value = [...allList.value];
-    }
-};
-
-// 모달에 표시할 데이터 조회
+// 모달에 표시할 데이터 조회 (axios 유지)
 const fetchModalData = async (type, keyword = '') => {
     let url = '';
     const params = { keyword };
     switch (type) {
         case 'qio':
-            url = '/api/quality/qio/list'; // 예시 API
-            break;
-        case 'process':
-            url = '/api/process/list'; // 예시 API
-            break;
+            // 이 API는 필터링 전용이므로, 전체 목록을 사용하거나 별도 API 필요
+            // 여기서는 allList를 사용하도록 수정
+            modalRows.value = allList.value.filter((item) => item.qio_code.includes(keyword));
+            return;
         case 'product':
-            url = '/api/product/list'; // 예시 API
-            break;
+            // 제품 목록 API는 없으므로, 현재 데이터에서 item_name을 추출하여 사용
+            const itemNames = [...new Set(allList.value.map((item) => item.item_name))];
+            modalRows.value = itemNames
+                .filter((name) => name.includes(keyword))
+                .map((name) => ({
+                    prod_name: name
+                }));
+            return;
     }
+    // 다른 모달 유형이 필요하다면 여기에 axios 호출 유지 가능
     try {
         const response = await axios.get(url, { params });
         modalRows.value = response.data;
     } catch (error) {
         console.error(`${type} 모달 데이터 조회 실패:`, error);
-        modalRows.value = []; // 오류 발생 시 빈 배열로 초기화
+        modalRows.value = [];
     }
 };
 
@@ -85,10 +74,9 @@ const onSearch = () => {
     const f = filters.value;
     tableRows.value = allList.value.filter((row) => {
         const isQioMatch = !f.qio_code || row.qio_code.includes(f.qio_code);
-        const isProcMatch = !f.proc_name || row.proc_name.includes(f.proc_name);
-        const isProdMatch = !f.prod_name || row.prod_name.includes(f.prod_name);
+        const isProdMatch = !f.prod_name || (row.item_name && row.item_name.includes(f.prod_name));
         const isDateMatch = (!f.insp_date_start || row.insp_date >= f.insp_date_start) && (!f.insp_date_end || row.insp_date <= f.insp_date_end);
-        return isQioMatch && isProcMatch && isProdMatch && isDateMatch;
+        return isQioMatch && isProdMatch && isDateMatch;
     });
 };
 
@@ -96,13 +84,14 @@ const onSearch = () => {
 const onReset = () => {
     filters.value = {
         qio_code: '',
-        proc_name: '',
         prod_name: '',
         insp_date_start: '',
         insp_date_end: ''
     };
     tableRows.value = [...allList.value];
     allChecked.value = false;
+    // 모든 행의 checked 상태도 초기화
+    tableRows.value.forEach((row) => (row.checked = false));
 };
 
 // 모달 열기
@@ -120,20 +109,9 @@ const openModal = async (type) => {
             ];
             modalSearchPlaceholder.value = '지시코드를 입력하세요.';
             break;
-        case 'process':
-            modalTitle.value = '공정 선택';
-            modalColumns.value = [
-                { field: 'proc_code', label: '공정코드' },
-                { field: 'proc_name', label: '공정명' }
-            ];
-            modalSearchPlaceholder.value = '공정명을 입력하세요.';
-            break;
         case 'product':
-            modalTitle.value = '제품 선택';
-            modalColumns.value = [
-                { field: 'prod_code', label: '제품코드' },
-                { field: 'prod_name', label: '제품명' }
-            ];
+            modalTitle.value = '제품명 선택';
+            modalColumns.value = [{ field: 'prod_name', label: '제품명' }];
             modalSearchPlaceholder.value = '제품명을 입력하세요.';
             break;
     }
@@ -154,9 +132,6 @@ const handleModalConfirm = (selectedItem) => {
     switch (modalType.value) {
         case 'qio':
             filters.value.qio_code = selectedItem.qio_code;
-            break;
-        case 'process':
-            filters.value.proc_name = selectedItem.proc_name;
             break;
         case 'product':
             filters.value.prod_name = selectedItem.prod_name;
@@ -184,41 +159,36 @@ const updateAllCheckedState = () => {
 // 엑셀 다운로드
 const downloadExcel = () => {
     const selected = tableRows.value.filter((row) => row.checked);
-
     if (selected.length === 0) {
         alert('다운로드할 항목을 선택해주세요.');
         return;
     }
-
     const dataToExport = selected.map((row) => ({
         지시코드: row.qio_code,
-        공정명: row.proc_name,
-        제품명: row.prod_name,
-        검사유형: row.insp_type,
-        검사예정일: row.insp_date,
-        지시일자: row.qio_date,
+        지시일자: row.insp_date,
+        검사유형: row.inspection_type,
+        제품명: row.item_name,
         상태: row.status
     }));
-
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, '품질검사지시목록');
-
-    // 파일명 생성 (예: 품질검사지시목록_20240730.xlsx)
     const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     XLSX.writeFile(workbook, `품질검사지시목록_${today}.xlsx`);
 };
 
-// 상세 페이지로 이동
+// 상세 페이지로 이동 -> 체크박스 토글 기능으로 변경
 const goDetail = (row) => {
-    if (!row?.qio_code) return;
-    // TODO: 상세 페이지 라우트 이름 확인 후 수정
-    router.push({ name: 'QualityInstructionsManagement', params: { qio_code: row.qio_code } });
+    if (row) {
+        row.checked = !row.checked;
+        updateAllCheckedState();
+    }
 };
 
 // --- 5. 라이프사이클 ---
-onMounted(() => {
-    fetchQIOList();
+onMounted(async () => {
+    await qualityStore.fetchQualityInstructionsOrderList();
+    tableRows.value = [...allList.value]; // 초기 데이터 로드
 });
 </script>
 
@@ -234,15 +204,9 @@ onMounted(() => {
                         <input class="input" v-model="filters.qio_code" readonly placeholder="지시코드 선택" @click="openModal('qio')" />
                     </div>
                     <div class="form-item">
-                        <label>공정명</label>
-                        <input class="input" v-model="filters.proc_name" readonly placeholder="공정 선택" @click="openModal('process')" />
-                    </div>
-                    <div class="form-item">
                         <label>제품명</label>
                         <input class="input" v-model="filters.prod_name" readonly placeholder="제품 선택" @click="openModal('product')" />
                     </div>
-
-                    <!-- 2행 -->
                     <div class="form-item">
                         <label>지시일자 - 시작일</label>
                         <Calendar v-model="filters.insp_date_start" dateFormat="yy-mm-dd" placeholder="시작일" showIcon class="date-calendar" />
@@ -252,7 +216,7 @@ onMounted(() => {
                         <Calendar v-model="filters.insp_date_end" dateFormat="yy-mm-dd" placeholder="종료일" showIcon class="date-calendar" />
                     </div>
 
-                    <!-- 3행 -->
+                    <!-- Actions -->
                     <div class="form-item form-actions">
                         <button class="btn-black" @click="onReset">전체</button>
                         <button class="btn-yellow" @click="onSearch">조회</button>
@@ -278,30 +242,26 @@ onMounted(() => {
                                 </th>
                                 <th>지시코드</th>
                                 <th>지시일자</th>
-                                <th>공정명</th>
-                                <th>제품명</th>
                                 <th>검사유형</th>
-                                <th>검사예정일</th>
+                                <th>제품명</th>
                                 <th>상태</th>
                             </tr>
                         </thead>
 
                         <tbody>
-                            <tr v-for="row in tableRows" :key="row.id" class="table-row">
+                            <tr v-for="row in tableRows" :key="row.qio_code" class="table-row" @click="goDetail(row)">
                                 <td>
                                     <input type="checkbox" v-model="row.checked" @change="updateAllCheckedState" @click.stop />
                                 </td>
                                 <td>{{ row.qio_code }}</td>
-                                <td>{{ row.qio_date }}</td>
-                                <td>{{ row.proc_name }}</td>
-                                <td>{{ row.prod_name }}</td>
-                                <td>{{ row.insp_type }}</td>
                                 <td>{{ row.insp_date }}</td>
+                                <td>{{ row.inspection_type }}</td>
+                                <td>{{ row.item_name }}</td>
                                 <td>{{ row.status }}</td>
                             </tr>
 
                             <tr v-if="!tableRows.length">
-                                <td colspan="8" class="empty-cell">조회 결과가 없습니다.</td>
+                                <td colspan="6" class="empty-cell">조회 결과가 없습니다.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -314,7 +274,6 @@ onMounted(() => {
             :title="modalTitle"
             :columns="modalColumns"
             :rows="modalRows"
-            :search-placeholder="modalSearchPlaceholder"
             @search="handleModalSearch"
             @confirm="handleModalConfirm"
             @cancel="isModalVisible = false"
@@ -358,7 +317,7 @@ onMounted(() => {
 
 .filter-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 14px 24px;
 }
 
@@ -385,8 +344,9 @@ onMounted(() => {
 .form-actions {
     flex-direction: row !important;
     align-items: center !important;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 8px;
+    margin-top: auto; /* Aligns buttons to the bottom */
 }
 
 .btn-black {
@@ -486,10 +446,6 @@ onMounted(() => {
     text-align: left;
 }
 
-.text-right {
-    text-align: right;
-}
-
 .empty-cell {
     text-align: center;
     color: #888;
@@ -497,7 +453,7 @@ onMounted(() => {
 }
 
 .table-scroll {
-    max-height: 410px; /* 대략 12행 정도 높이 */
+    max-height: 210px;
     overflow-y: auto;
     overflow-x: hidden;
     border-radius: 6px;

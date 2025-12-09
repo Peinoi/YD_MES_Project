@@ -67,6 +67,15 @@ router.get("/qiodetail", async (req, res, next) => {
   }
 });
 
+router.get("/instruction-orders", async (req, res, next) => {
+  try {
+    const orders = await qualityService.getQualityInstructionsOrderList();
+    res.json({ code: "Q200", data: orders });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
 // 6. POST /api/quality/qio - 신규 qio_tbl 데이터 추가
 router.post("/qio", async (req, res, next) => {
   const reqData = req.body;

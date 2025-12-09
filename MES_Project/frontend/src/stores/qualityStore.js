@@ -11,6 +11,7 @@ export const useQualityStore = defineStore('quality', {
         qcrList: [], // qcr_tbl: 품질검사 기준정보 + 검사항목 + 검사상세항목 합쳐진 테이블
         qioList: [],
         qirList: [],
+        qualityInstructionsOrderList: [],
         prdrList: [], // prdr_tbl: 생산실적 테이블
         mpo_dList: [], // mpo_d_tbl: -- 자재구매요청상세 테이블: 기존사람들이 이걸로만들어서 나도 이걸로해야됨 월요일수정가능성 있음.
         qualityEmployeeList: [], // 품질팀 사원 목록
@@ -29,6 +30,7 @@ export const useQualityStore = defineStore('quality', {
         hasQIOData: (state) => state.qioList.length > 0,
         hasPrdrData: (state) => state.prdrList.length > 0,
         hasEmployeeManager: (state) => state.qualityEmployeeList.length > 0,
+        hasQualityInstructionsOrderListData: (state) => state.qualityInstructionsOrderList.length > 0,
         getEmployeeManagers: (state) => state.qualityEmployeeList.filter((item) => item.emp_job_id === 'm1')
     },
     // 3. actions: 상태를 변경하는 동기/비동기 메서드를 정의합니다.
@@ -39,6 +41,19 @@ export const useQualityStore = defineStore('quality', {
         },
 
         //--- API 연동 비동기 액션 ---
+        async fetchQualityInstructionsOrderList() {
+            this.loading = true;
+            this.error = null;
+            try {
+                const response = await axios.get('/api/quality/instruction-orders');
+                this.qualityInstructionsOrderList = response.data.data;
+            } catch (error) {
+                this.error = '데이터를 불러오는 데 실패했습니다.';
+                console.error('Error fetching QIO list:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
         async fetchQCRList() {
             this.loading = true;
             this.error = null;

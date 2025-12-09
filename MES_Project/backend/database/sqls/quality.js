@@ -122,6 +122,34 @@ JOIN
 ON qcr.unit = cc.com_value
 where qir.qio_code =  ?
 `,
+  findAllQualityInstructionsOrderList: `
+SELECT
+    qio.qio_code,
+    DATE_FORMAT(qio.insp_date, '%Y-%m-%d') AS insp_date,
+    CASE
+        WHEN qio.prdr_code IS NOT NULL THEN '제품검사'
+        WHEN qio.mpo_d_code IS NOT NULL THEN '수입검사'
+        ELSE ''
+    END AS inspection_type,
+    COALESCE(prod.prod_name, mat.mat_name) AS item_name,
+    CASE
+        WHEN MIN(qir.result) = 'g0' AND MAX(qir.result) = 'g0' THEN '지시'
+        ELSE '완료'
+    END AS status
+FROM qio_tbl qio
+LEFT JOIN qir_tbl qir ON qio.qio_code = qir.qio_code
+LEFT JOIN prdr_tbl prdr ON qio.prdr_code = prdr.prdr_code
+LEFT JOIN prod_tbl prod ON prdr.prod_code = prod.prod_code
+LEFT JOIN mpo_d_tbl mpo_d ON qio.mpo_d_code = mpo_d.mpo_d_code
+LEFT JOIN mat_tbl mat ON mpo_d.mat_code = mat.mat_code
+WHERE (qio.prdr_code IS NOT NULL OR qio.mpo_d_code IS NOT NULL)
+GROUP BY
+    qio.qio_code,
+    qio.insp_date,
+    prod.prod_name,
+    mat.mat_name
+ORDER BY qio.insp_date DESC, qio.qio_code DESC
+`,
   createQuailityInstructionOrder: `
   INSERT INTO qio_tbl (qio_code, qio_date, insp_date, prdr_code, mpo_d_code, emp_code, insp_vol) 
 VALUES (

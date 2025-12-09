@@ -149,6 +149,15 @@ exports.getQIODetail = async (qio_code, prdr_code, mpo_d_code) => {
   }
 };
 
+exports.getQualityInstructionsOrderList = async () => {
+  try {
+    const result = await query("findAllQualityInstructionsOrderList", []);
+    return result;
+  } catch (err) {
+    throw err;
+  }
+};
+
 // 6. 품질검사 지시 생성
 exports.createQuailityInstructionOrder = async (data) => {
   // 1. 프론트엔드에서 받은 데이터 분해 할당
