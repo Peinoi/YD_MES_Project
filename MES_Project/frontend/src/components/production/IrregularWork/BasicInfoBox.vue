@@ -1,4 +1,5 @@
 <script setup>
+//BasicInfoBox.vue
 const props = defineProps({
     work: Object,
     detail: Array
@@ -29,7 +30,7 @@ const formatDate = (dateString) => {
             <div class="grid-row border-b border-r">
                 <label class="label-col">공정명</label>
                 <div class="input-col">
-                    <input type="text" readonly class="input-readonly" :value="props.work?.process_type || ''" />
+                    <input type="text" readonly class="input-readonly" :value="props.work?.line ? '정형' : '비정형' || ''" />
                 </div>
             </div>
 
@@ -43,14 +44,14 @@ const formatDate = (dateString) => {
             <div class="grid-row border-r">
                 <label class="label-col">생산계획</label>
                 <div class="input-col">
-                    <input type="text" readonly class="input-readonly" :value="(row?.지시량 ?? 0) + ' 개'" />
+                    <input type="text" readonly class="input-readonly" :value="props.work?.wko_qtt + ' 개'" />
                 </div>
             </div>
 
             <div class="grid-row border-b">
                 <label class="label-col">작업자</label>
                 <div class="input-col">
-                    <input type="text" readonly class="input-readonly" value="작업자명(임시)" />
+                    <input type="text" readonly class="input-readonly" value="김철수" />
                 </div>
             </div>
 

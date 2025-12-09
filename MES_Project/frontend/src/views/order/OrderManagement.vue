@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import SearchSelectModal from '@/views/order/SearchSelectModal.vue';
+import ProductSelectModal from '@/components/order/ProductSelectModal.vue';
 
 // 모달 ON/OFF
 const showOrderModal = ref(false);
@@ -11,7 +12,6 @@ const showManagerModal = ref(false);
 
 // 모달 검색 결과
 const orderSearchList = ref([]);
-const productSearchList = ref([]);
 const clientSearchList = ref([]);
 const managerSearchList = ref([]);
 
@@ -27,7 +27,7 @@ function formatDate(dateStr) {
     return `${y}.${m}.${day}`;
 }
 
-// 모달 검색 이벤트
+// 주문 검색
 const fetchOrderSearch = async (keyword = '') => {
     try {
         const res = await axios.get('/api/order/search', { params: { keyword } });
@@ -72,13 +72,10 @@ const fetchManagerSearch = async (keyword = '') => {
 
 // 거래처 선택 이벤트
 const onClientSelect = (row) => {
-    if (!row || !row.clientCode) return;
+    if (!row || !row.client_code) return;
+
     order.client_code = row.client_code;
     order.client_name = row.client_name;
-
-    // 담당자 초기화
-    order.mcode = '';
-    order.client_contact = '';
 
     showClientModal.value = false;
 };
@@ -93,42 +90,13 @@ const onManagerSelect = (row) => {
     showManagerModal.value = false;
 };
 
-const fetchProductSearch = async (keyword = '') => {
-    try {
-        // 엔드포인트 수정: /api/order/product/search
-        const res = await axios.get('/api/order/product/search', { params: { keyword } });
-        if (res.data && res.data.code === 'S200') {
-            // API 결과에서 필요한 필드를 직접 사용하고 저장합니다.
-            // unit, spec 등의 상세 정보를 선택 시 바로 반영하기 위해 전체 객체를 저장합니다.
-            productSearchList.value = (res.data.data || []).map((p) => ({
-                prod_code: p.prod_code,
-                prod_name: p.prod_name,
-
-                // 코드값 (DB 저장용)
-                unit: p.unit,
-                spec: p.spec,
-                com_value: p.com_value,
-
-                // 화면 표시용
-                unit_name: p.unit_name, // 상세 테이블에 반영
-                spec_name: p.spec_name, // 상세 테이블에 반영
-                com_value_name: p.com_value_name // 모달 컬럼에 필요
-            }));
-        } else {
-            productSearchList.value = [];
-        }
-    } catch (e) {
-        console.error('fetchProductSearch', e);
-        productSearchList.value = [];
-    }
-};
-
-const onProductSelect = (row) => {
-    const idx = currentProductIndex.value;
+const onProductSelect = ({ row, index }) => {
+    const idx = index;
     if (idx === -1 || !row || !row.prod_code) return;
 
     const p = products.value[idx];
 
+    // 제품 정보 반영
     p.prod_code = row.prod_code || '';
     p.prod_name = row.prod_name || '';
 
@@ -142,11 +110,6 @@ const onProductSelect = (row) => {
     p.spec_name = row.spec_name;
     p.type_name = row.com_value_name;
 
-    // 선택 상태 초기화
-    p._selected = false;
-
-    // 모달 닫기 및 인덱스 초기화
-    showProductModal.value = false;
     currentProductIndex.value = -1;
 };
 
@@ -333,16 +296,16 @@ function resetForm() {
     products.value = [createEmptyProduct(nextProductId++), createEmptyProduct(nextProductId++), createEmptyProduct(nextProductId++), createEmptyProduct(nextProductId++)];
 }
 
-// ⭐️ 새로운 함수 추가: 거래처 모달 열기
+// 거래처 모달 열기
 function openClientSearch() {
     fetchClientSearch('').then(() => {
-        // 모달 열기 전에 선택 상태 초기화 (SearchSelectModal 내부에 selectedKey 초기화 로직이 있으므로 필수 아님)
+        // 모달 열기 전에 선택 상태 초기화
         clientSearchList.value = clientSearchList.value.map((row) => ({ ...row, _selected: false }));
         showClientModal.value = true;
     });
 }
 
-// ⭐️ 새로운 함수 추가: 담당자 모달 열기
+// 담당자 모달 열기
 function openManagerSearch() {
     fetchManagerSearch('').then(() => {
         // 모달 열기 전에 선택 상태 초기화
@@ -462,15 +425,7 @@ function openProductSearch(idx) {
     // 1. 현재 선택된 행의 인덱스를 저장
     currentProductIndex.value = idx;
 
-    // 1. 모달 열기 전에 검색 API 호출
-    fetchProductSearch('').then(() => {
-        // 모달 열기 전에 새로운 배열 생성
-        const resetList = productSearchList.value.map((p) => ({ ...p, _selected: false }));
-        productSearchList.value = resetList;
-
-        // 모달 열기
-        showProductModal.value = true;
-    });
+    showProductModal.value = true;
 }
 
 function formatCurrency(v) {
@@ -485,42 +440,49 @@ function formatCurrency(v) {
             <div class="card-header">
                 <h3>주문기본정보</h3>
                 <div class="actions">
-                    <button type="button" class="btn danger" @click="deleteOrder">삭제</button>
-                    <button type="button" class="btn ghost" @click="resetForm">초기화</button>
-                    <button type="button" class="btn" @click="saveOrder">저장</button>
+                    <button type="button" class="btn btn-delete" @click="deleteOrder">삭제</button>
+                    <button type="button" class="btn btn-reset" @click="resetForm">초기화</button>
+                    <button type="button" class="btn btn-save" @click="saveOrder">저장</button>
                     <button type="button" class="btn outline" @click="showOrderModal = true">주문정보 불러오기</button>
                 </div>
             </div>
 
             <div class="form-grid">
                 <div class="form-row">
-                    <label>주문번호</label>
-                    <input v-model="order.ord_code" type="text" :readonly="order.readonly" />
-
-                    <label>주문명</label>
-                    <input v-model="order.ord_name" type="text" />
-                </div>
-
-                <div class="form-row">
-                    <label>주문일자</label>
-                    <input v-model="order.ord_date" type="date" />
-
-                    <label>거래처</label>
-                    <div style="display: flex; gap: 6px; flex: 1">
-                        <input type="text" v-model="order.client_name" readonly />
-                        <button class="btn small" @click="openClientSearch">검색</button>
+                    <div class="form-group">
+                        <label>주문번호</label>
+                        <input v-model="order.ord_code" type="text" :readonly="order.readonly" />
+                    </div>
+                    <div class="form-group">
+                        <label>주문명</label>
+                        <input v-model="order.ord_name" type="text" />
                     </div>
                 </div>
 
                 <div class="form-row">
-                    <label>거래처담당자</label>
-                    <div style="display: flex; gap: 6px; flex: 1">
-                        <input type="text" v-model="order.client_contact" readonly />
-                        <button class="btn small" @click="openManagerSearch">검색</button>
+                    <div class="form-group">
+                        <label>주문일자</label>
+                        <input v-model="order.ord_date" type="date" readonly />
                     </div>
+                    <div class="form-group">
+                        <label>거래처</label>
+                        <div style="display: flex; gap: 6px; flex: 1">
+                            <input type="text" v-model="order.client_name" @click="openClientSearch" readonly />
+                        </div>
+                    </div>
+                </div>
 
-                    <label>비고</label>
-                    <input v-model="order.note" type="text" />
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>거래처담당자</label>
+                        <div style="display: flex; gap: 6px; flex: 1">
+                            <input type="text" v-model="order.client_contact" @click="openManagerSearch" readonly />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>비고</label>
+                        <input v-model="order.note" type="text" />
+                    </div>
                 </div>
             </div>
         </section>
@@ -530,8 +492,8 @@ function formatCurrency(v) {
             <div class="card-header small">
                 <h4>제품</h4>
                 <div class="product-actions">
-                    <button class="btn small danger" @click="removeSelectedProducts">제품삭제</button>
-                    <button class="btn small" @click="addProduct">제품추가</button>
+                    <button class="btn btn-prodel" @click="removeSelectedProducts">제품삭제</button>
+                    <button class="btn btn-proadd" @click="addProduct">제품추가</button>
                 </div>
             </div>
 
@@ -555,7 +517,7 @@ function formatCurrency(v) {
                         <td class="center"><input type="checkbox" v-model="p._selected" /></td>
                         <td>
                             <div class="prod-name">
-                                <input type="text" v-model="p.prod_name" />
+                                <input type="text" v-model="p.prod_name" @click="openProductSearch(idx)" readonly />
                                 <button class="icon" @click="openProductSearch(idx)" title="제품 검색">🔍</button>
                             </div>
                         </td>
@@ -611,7 +573,7 @@ function formatCurrency(v) {
             @confirm="onOrderSelect"
         />
 
-        <SearchSelectModal
+        <!-- <SearchSelectModal
             v-model="showProductModal"
             searchPlaceholder="제품명 또는 제품코드를 입력해주세요."
             :columns="[
@@ -623,12 +585,14 @@ function formatCurrency(v) {
             rowKey="prod_code"
             @search="fetchProductSearch"
             @confirm="onProductSelect"
-        />
+        /> -->
+
+        <ProductSelectModal v-model="showProductModal" :currentIndex="currentProductIndex" @select="onProductSelect" />
 
         <!-- 거래처 선택 모달 -->
         <SearchSelectModal
             v-model="showClientModal"
-            searchPlaceholder="거래처 이름 또는 코드로 검색"
+            searchPlaceholder="거래처명 또는 거래처 코드를 입력해주세요."
             :columns="[
                 { field: 'client_code', label: '거래처 코드' },
                 { field: 'client_name', label: '거래처명' },
@@ -645,7 +609,7 @@ function formatCurrency(v) {
         <!-- 담당자 선택 모달 -->
         <SearchSelectModal
             v-model="showManagerModal"
-            searchPlaceholder="담당자 이름 또는 코드로 검색"
+            searchPlaceholder="담당자 이름 또는 담당자 코드를 입력해주세요."
             :columns="[
                 { field: 'emp_code', label: '사원 코드' },
                 { field: 'emp_name', label: '이름' },
@@ -694,57 +658,47 @@ function formatCurrency(v) {
 
 /* 버튼 */
 .btn {
-    padding: 8px 16px;
+    padding: 9px 16px;
     border-radius: 8px;
     font-weight: 600;
     border: none;
     cursor: pointer;
     transition: 0.2s;
+    margin-left: 10px;
 }
 
-.btn.primary {
-    background: #2d8cf0;
-    color: white;
-}
-
-.btn.primary:hover {
-    background: #1769c2;
-}
-
-.btn.danger {
-    background: #ff4d4f;
-    color: white;
-}
-
-.btn.danger:hover {
-    background: #d9363e;
-}
-
-.btn.small {
-    padding: 6px 8px;
-    font-size: 14px;
-}
-
-.btn.ghost {
+.btn.btn-delete {
     background: #fff;
-    color: #374151;
-    border: 1px solid #d1d5db;
+    color: #e82d2d;
+    border: 1px solid #e82d2d;
+}
+
+.btn.btn-reset {
+    background: #fff;
+    color: #000000;
+    border: 1px solid #000000;
+}
+.btn.btn-save {
+    background: #fff;
+    color: #2563eb;
+    border: 1px solid #2563eb;
 }
 
 .btn.outline {
     background: #fff;
-    color: #2563eb;
-    border: 1px solid #c7ddff;
+    color: #2fc064;
 }
 
-.btn-line {
-    background: none;
-    border: 1px solid #888;
-    color: #555;
+.btn.btn-prodel {
+    background: #fff;
+    color: #e82d2d;
+    border: 1px solid #e82d2d;
 }
 
-.btn-line:hover {
-    background: #f0f0f0;
+.btn.btn-proadd {
+    background: #fff;
+    color: #2fc064;
+    border: 1px solid #2fc064;
 }
 
 /* 기본 정보 폼 */
@@ -761,8 +715,25 @@ function formatCurrency(v) {
     align-items: center;
 }
 
+.form-group {
+    display: flex;
+    flex: 1; /* form-row 내부의 공간을 form-group이 1:1로 분할 */
+    align-items: center;
+    gap: 14px; /* form-row와 동일한 간격으로 유지 */
+}
+
+.form-row .date-input {
+    /* flex: 0 1 180px; 을 권장합니다. */
+    /* flex-grow: 0 (늘어나지 않음) */
+    /* flex-shrink: 1 (줄어들 수는 있음) */
+    /* flex-basis: 180px (기본 너비를 180px로 설정) */
+    flex: 0 1 180px;
+    max-width: 200px; /* 너무 커지는 것을 방지 */
+}
+
 .form-row label {
-    width: 120px;
+    width: 120px; /* 레이블 너비를 120px로 고정 */
+    flex-shrink: 0; /* 레이블이 줄어들지 않도록 설정 */
     font-weight: 600;
     color: #374151;
     font-size: 15px;
@@ -770,12 +741,26 @@ function formatCurrency(v) {
 
 .form-row input[type='text'],
 .form-row input[type='date'],
-.form-row select {
-    flex: 1;
+.form-row select,
+.form-group .search-wrap {
+    /* search-wrap도 input처럼 남은 공간을 채우도록 flex: 1 부여 */
+    flex: 1; /* 남은 공간을 모두 input이 차지하며, 모든 input이 동일한 너비를 가짐 */
     padding: 8px 10px;
     border-radius: 6px;
     border: 1px solid #d1d5db;
     font-size: 15px;
+}
+
+.form-group .search-wrap {
+    display: flex;
+    gap: 6px; /* 버튼과 input 사이 간격 */
+    padding: 0; /* padding 제거 (내부 input에 padding 적용) */
+    border: none; /* border 제거 (내부 input에 border 적용) */
+}
+
+.form-group .search-wrap input {
+    flex: 1;
+    /* form-row input에서 설정한 스타일을 덮어쓰지 않도록 주의 */
 }
 
 /* ◆◆◆ 제품 테이블 영역 반영 — 1600px & 15px ◆◆◆ */

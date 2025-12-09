@@ -401,3 +401,30 @@ exports.saveOrder = async (payload) => {
     conn.release();
   }
 };
+
+// 주문 단건 조회
+exports.getOrder = async (ordCode) => {
+  try {
+    const rows = await query("selectOrder", ordCode);
+    if (!rows || !rows.length) return [];
+
+    for (const order of rows) {
+      // 규격 공통 코드 0O인데 왜 0X에 16 추가되어 있는걸까...
+      // 일단 x1일 경우에 예외처리함
+      order.com_value_name = await commonService.getNote("0J", order.com_value);
+      if (order.spec.startsWith("x")) {
+        order.spec_name = await commonService.getNote("0X", order.spec);
+      } else if (order.spec.startsWith("z")) {
+        order.spec_name = await commonService.getNote("0Z", order.spec);
+      } else {
+        order.spec_name = await commonService.getNote("0O", order.spec);
+      }
+      order.unit_name = await commonService.getNote("0H", order.unit);
+    }
+
+    return rows;
+  } catch (err) {
+    console.error("[orderService.js || 주문 단건 조회 실패]", err.message);
+    throw err;
+  }
+};

@@ -1,11 +1,15 @@
 // [재고 목록 조회]
-// 수정사항: stock_tbl -> mat_stock_v (뷰 사용), 컬럼명 매핑 수정
+
+// [재고 목록 조회]
 const stockList = `
   SELECT 
     m.mat_code as code,
     m.mat_name as name,
     (SELECT note FROM common_code WHERE com_value = m.material_type_code) as category,
-    m.unit,
+    -- [수정] 규격 추가 및 단위 코드 변환
+    m.spec,
+    (SELECT note FROM common_code WHERE com_value = m.unit) as unit,
+    
     IFNULL(s.cur_qtt, 0) as stock, 
     m.save_inven as minStock,
     (SELECT MAX(inbnd_date) FROM minbnd_tbl WHERE mat_code = m.mat_code) as lastInput,
@@ -20,13 +24,16 @@ const stockList = `
   WHERE 1=1
 `;
 
-// [재고 상세 - 기본 정보] (단건 조회용)
+// [재고 상세 - 기본 정보]
 const stockBasicInfo = `
   SELECT 
     m.mat_code as code,
     m.mat_name as name,
     (SELECT note FROM common_code WHERE com_value = m.material_type_code) as category,
-    m.unit,
+    -- [수정] 규격 및 단위 추가
+    m.spec,
+    (SELECT note FROM common_code WHERE com_value = m.unit) as unit,
+    
     IFNULL(s.cur_qtt, 0) as stock,
     m.save_inven as minStock,
     (SELECT MAX(inbnd_date) FROM minbnd_tbl WHERE mat_code = m.mat_code) as lastInput,

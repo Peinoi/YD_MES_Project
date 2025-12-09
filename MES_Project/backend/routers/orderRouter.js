@@ -176,4 +176,17 @@ router.post("/", async (req, res, next) => {
   }
 });
 
+// GET /order/:ordCode - 주문 단건 조회
+router.get("/:ordCode", async (req, res, next) => {
+  try {
+    const ordCode = req.params.ordCode;
+
+    const order = await orderService.getOrder(ordCode);
+
+    res.json({ code: "S200", data: order });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
 module.exports = router;

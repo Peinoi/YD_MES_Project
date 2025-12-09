@@ -14,6 +14,15 @@ const props = defineProps({
     workOrderData: {
         type: Object,
         default: () => ({})
+    },
+    // 🔥 부모에서 받을 defaultInfoData 추가
+    defaultInfoData: {
+        type: Object,
+        default: () => ({
+            workOrderNo: '',
+            productionPlanNo: '', // PK 제외
+            planDate: ''
+        })
     }
 });
 
@@ -21,8 +30,8 @@ const props = defineProps({
 // 📌 자식에게 전달할 formData
 // -------------------------------------
 const formData = ref({
-    productionPlanNo: '',
-    workOrderNo: '',
+    productionPlanNo: '', // PK 제외, 데이터 필드로만 사용
+    workOrderNo: '', // 🔥 유일한 PK
     planDate: '',
     dueDate: '',
     planName: '',
@@ -34,7 +43,7 @@ const formData = ref({
 const otherDataStore = ref({});
 
 // -------------------------------------
-// 📌 자동 번호 생성 함수
+// 📌 자동 번호 생성 함수 (작업지시번호만 남김)
 // -------------------------------------
 const generateWorkOrderNo = () => {
     const today = new Date();
@@ -44,6 +53,8 @@ const generateWorkOrderNo = () => {
 
     const prefix = `WKO-${yyyy}${mm}${dd}-`;
 
+    // props.planData를 사용하여 다음 순번을 찾음
+    // DB 조회 데이터의 필드명이 '작업지시번호'라고 가정
     const todayList = props.planData.filter((row) => row.작업지시번호 && row.작업지시번호.startsWith(prefix));
 
     if (todayList.length === 0) return `${prefix}001`;
@@ -53,22 +64,7 @@ const generateWorkOrderNo = () => {
     return `${prefix}${String(lastNumber + 1).padStart(3, '0')}`;
 };
 
-const generateProductionPlanNo = () => {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-
-    const prefix = `PRDP-${yyyy}${mm}${dd}-`;
-
-    const todayList = props.planData.filter((row) => row.prdp_code && row.prdp_code.startsWith(prefix));
-
-    if (todayList.length === 0) return `${prefix}001`;
-
-    const lastNumber = todayList.map((row) => Number(row.prdp_code.split('-')[2])).sort((a, b) => b - a)[0];
-
-    return `${prefix}${String(lastNumber + 1).padStart(3, '0')}`;
-};
+// generateProductionPlanNo 함수 삭제 (PK 제외)
 
 const getToday = () => {
     const today = new Date();
@@ -82,13 +78,45 @@ const getToday = () => {
 // 📌 최초 로드시 자동 값 세팅
 // -------------------------------------
 onMounted(() => {
-    if (!formData.value.workOrderNo) formData.value.workOrderNo = generateWorkOrderNo();
-    if (!formData.value.productionPlanNo) formData.value.productionPlanNo = generateProductionPlanNo();
+    // PK는 처음부터 세팅하지 않고 빈 값으로 유지
     if (!formData.value.planDate) formData.value.planDate = getToday();
 });
 
+// 🔥 부모에서 받은 defaultInfoData를 formData에 반영 (조회 모드 처리)
+watch(
+    () => props.defaultInfoData,
+    (newVal) => {
+        console.log('🔥 DefaultInfo - defaultInfoData 받음:', newVal);
+
+        // 🔥 workOrderNo가 비어 있으면 (등록 모드)
+        const isRegistrationMode = !newVal.workOrderNo;
+
+        if (isRegistrationMode) {
+            console.log('✅ 등록 모드 - 빈 값으로 유지');
+            formData.value.workOrderNo = '';
+            formData.value.productionPlanNo = ''; // 생산계획번호도 빈 값으로 유지
+            formData.value.planDate = getToday();
+        } else {
+            console.log('✅ 조회 모드 - 받은 데이터 사용');
+            // 쿼리에서 값이 들어오면 사용 (조회 모드)
+            if (newVal.workOrderNo) {
+                formData.value.workOrderNo = newVal.workOrderNo;
+            }
+            if (newVal.productionPlanNo) {
+                formData.value.productionPlanNo = newVal.productionPlanNo;
+            }
+            if (newVal.planDate) {
+                formData.value.planDate = newVal.planDate;
+            }
+        }
+
+        console.log('✅ formData 업데이트 완료:', formData.value);
+    },
+    { deep: true, immediate: true }
+);
+
 // -------------------------------------
-// 📌 부모 → DefaultInfo 자동 업데이트
+// 📌 부모 → DefaultInfo 자동 업데이트 (workOrderData)
 // -------------------------------------
 watch(
     () => props.workOrderData,
@@ -108,17 +136,17 @@ watch(
             startDate: newVal.startDate || null,
             expectedCompletion: newVal.expectedCompletion || null,
             instructionStatus: newVal.instructionStatus,
-            lineCode: newVal.lineCode
+            lineCode: newVal.lineCode,
+            prodCode: newVal.prodCode // ⭐ 여기가 반드시 있어야 함
         };
     },
     { deep: true, immediate: true }
 );
 
 // -------------------------------------
-// 📌 PlanModal 연동
+// 📌 PlanModal 연동 (PK를 채우는 유일한 방법 1)
 // -------------------------------------
 const showPlanModal = ref(false);
-const emit = defineEmits(['updateOtherData']);
 
 const handlePlanSelected = (payload) => {
     if (!payload) return;
@@ -158,49 +186,100 @@ const formatDateOnly = (date) => {
 // 📌 버튼
 // -------------------------------------
 const handleDelete = () => console.log('삭제');
+// 📌 기존 emit 수정
+const emit = defineEmits(['updateOtherData', 'resetForm']); // ✅ 'resetForm' 이벤트 추가
 
+// 📌 handleReset 함수 수정
+// 📌 handleReset 함수 수정
 const handleReset = () => {
-    Object.keys(formData.value).forEach((key) => (formData.value[key] = ''));
+    console.log('🔥 초기화 버튼 클릭');
 
-    formData.value.workOrderNo = generateWorkOrderNo();
-    formData.value.productionPlanNo = generateProductionPlanNo();
-    formData.value.planDate = getToday();
+    // 등록 모드 판단
+    const isRegistrationMode = !props.defaultInfoData?.workOrderNo;
+
+    // 초기화용 새 객체 생성
+    formData.value = {
+        productionPlanNo: '',
+        workOrderNo: '',
+        planDate: getToday(),
+        dueDate: '',
+        planName: '',
+        status: '',
+        lineType: ''
+    };
+
     otherDataStore.value = {};
 
-    emit('updateOtherData', {}); // 부모가 받는 값도 빈 객체로
+    if (!isRegistrationMode) {
+        // 조회 모드면 defaultInfoData 기준으로 값 채움
+        formData.value.workOrderNo = props.defaultInfoData.workOrderNo || '';
+        formData.value.productionPlanNo = props.defaultInfoData.productionPlanNo || '';
+        formData.value.planDate = props.defaultInfoData.planDate || getToday();
+    }
+
+    // 부모에게 초기화 신호 전달
+    emit('updateOtherData', otherDataStore.value);
+
+    // ✅ 부모 컴포넌트에 초기화 이벤트 전달
+    emit('resetForm');
 };
 
 // -------------------------------------
-// 📌 저장 (서버 필드명과 정확히 매핑)
+// 📌 저장 (저장 시 PK가 비어있으면 자동 생성 및 등록/수정 분기 처리)
 // -------------------------------------
 const handleSave = async () => {
+    let wkoCode = formData.value.workOrderNo;
+    let exists = false; // DB 존재 여부 플래그
+
+    // 1. 등록 모드 (PK가 비어있는 경우) : 작업지시번호만 자동 생성
+    if (!wkoCode) {
+        console.log('🔥 등록 모드: 작업지시번호 자동 생성 시작');
+        wkoCode = generateWorkOrderNo();
+
+        // 화면에도 생성된 번호 반영
+        formData.value.workOrderNo = wkoCode;
+        // productionPlanNo는 그대로 유지하거나 (PlanModal을 통해 들어온 값), 비어있다면 빈 값으로 유지됨
+    } else {
+        // 2. 조회 모드 (PK가 채워져 있는 경우) : DB 존재 여부 확인
+        console.log(`🔍 조회 모드: PK(${wkoCode}) 존재 여부 확인`);
+        try {
+            const checkResponse = await axios.get('/api/production/check', {
+                params: { workOrderNo: wkoCode }
+            });
+            exists = checkResponse.data.exists;
+        } catch (err) {
+            console.error('PK 확인 중 오류 발생:', err);
+            alert('데이터 존재 여부 확인 중 오류가 발생했습니다.');
+            return;
+        }
+    }
+
+    // 3. Payload 구성 (생성/조회된 PK 사용)
     try {
         const payload = {
             wko_qtt: otherDataStore.value?.instructionQuantity || formData.value.quantity,
             start_date: otherDataStore.value?.startDate || null,
             end_date: formatDateOnly(otherDataStore.value?.expectedCompletion) || null,
             stat: otherDataStore.value?.instructionStatus || formData.value.status,
-            line_code: otherDataStore.value?.lineCode || (formData.value.lineType === '정형' ? 'LINE-001' : 'LINE-999'),
-            wko_code: formData.value.workOrderNo,
-            prdp_code: formData.value.productionPlanNo,
-            prdp_name: formData.value.prdp_name,
-            due_date: formatDateOnly(formData.value.dueDate)
+            line_code: otherDataStore.value?.lineCode || null,
+
+            // ⭐ 필수 추가
+            prod_code: otherDataStore.value?.prodCode || formData.value.prodCode || null,
+
+            wko_code: wkoCode
         };
-
-        // PK 존재 여부 조회
-        const checkResponse = await axios.get('/api/production/check', {
-            params: { workOrderNo: formData.value.workOrderNo }
-        });
-
-        const exists = checkResponse.data.exists;
-
+        // 4. 저장/수정 실행
         if (exists) {
+            // PK가 DB에 존재하면 수정 (UPDATE)
             const updateResponse = await axios.put(`/api/production/update`, payload);
             console.log('🔄 UPDATE 성공:', updateResponse.data);
-            alert('수정되었습니다!');
+            alert(`[${wkoCode}]이/가 수정되었습니다!`);
         } else {
-            // INSERT 로직 필요 시 작성
-            alert('등록되었습니다!');
+            // PK가 DB에 존재하지 않거나 새로 생성된 경우 등록 (INSERT)
+            // (TODO: INSERT API로 변경 필요)
+            const insertResponse = await axios.post(`/api/production/insert`, payload);
+            console.log('✨ INSERT 성공:', insertResponse.data);
+            alert(`[${wkoCode}]이/가 등록되었습니다!`);
         }
     } catch (err) {
         console.error('저장 중 오류 발생:', err);

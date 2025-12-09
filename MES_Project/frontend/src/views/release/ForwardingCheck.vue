@@ -1,8 +1,9 @@
 <!-- src/views/release/ForwardingCheck.vue -->
 <script setup>
-import { reactive, ref, computed, onMounted } from 'vue';
+import { reactive, ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 
 // 공통코드: 제품유형 맵
 const typeMap = ref({});
@@ -31,35 +32,17 @@ const rows = ref([]);
 // 출고번호별 체크 상태
 const checkedMap = reactive({});
 
-/* 🔹 출고번호 기준 그룹핑
- *  - 같은 releaseNo끼리 묶어서 qty 합계
- *  - 제품명: "첫 제품명 외 N개" 형태
- */
+// 출고번호별로 그룹화 + 제품명 표시 가공
 const groupedFilteredRows = computed(() => {
-    const map = new Map();
+    return rows.value.map((row) => {
+        const firstName = row.firstProductName ?? row.productName ?? '';
+        const count = row.productCount ?? 1;
 
-    for (const r of rows.value) {
-        const key = r.releaseNo;
-        const qty = Number(r.qty) || 0;
-
-        if (!map.has(key)) {
-            map.set(key, {
-                ...r,
-                qty, // 합계 시작
-                productCount: 1,
-                firstProductName: r.productName
-            });
-        } else {
-            const agg = map.get(key);
-            agg.qty += qty;
-            agg.productCount += 1;
-        }
-    }
-
-    return Array.from(map.values()).map((row) => ({
-        ...row,
-        displayProductName: row.productCount > 1 ? `${row.firstProductName} 외 ${row.productCount - 1}개` : row.firstProductName
-    }));
+        return {
+            ...row,
+            displayProductName: count > 1 ? `${firstName} 외 ${count - 1}개` : firstName
+        };
+    });
 });
 
 /* 🔹 선택된 출고(출고번호 단위) */
@@ -112,18 +95,54 @@ const doSearch = async () => {
 
         const list = Array.isArray(res.data?.data) ? res.data.data : [];
 
-        rows.value = list.map((row, idx) => ({
-            id: idx,
-            ...row // releaseNo, productName, qty, date, manager, client, status
-        }));
+        rows.value = list.map((row, idx) => {
+            // 🔹 백엔드가 어떤 이름으로 보내줄지 대비해서 넓게 받음
+            const requestedQty = Number(row.requestedQty ?? row.requestQty ?? row.releaseQty ?? 0) || 0; // "이 출고요청에서 요청한 총 수량"
 
-        // 기존 체크 상태 초기화
+            const shippedQty = Number(row.shippedQty ?? 0) || 0; // "실출고된 총 수량"
+
+            // 🔹 미출고수량: 백엔드가 주면 그대로 쓰고, 없으면 계산
+            const remainingQty = row.remainingQty != null ? Number(row.remainingQty) || 0 : Math.max(0, requestedQty - shippedQty);
+
+            // 🔹 상태 계산
+            let status = '';
+            if (shippedQty <= 0) {
+                status = '출고 대기'; // 아직 실출고가 하나도 없음
+            } else if (shippedQty < requestedQty) {
+                status = '부분 출고'; // 요청 <-> 실출고 차이 있음
+            } else {
+                status = '출고 완료'; // 요청수량만큼 다 실출고됨
+            }
+
+            return {
+                id: idx,
+                // ✅ 출고번호 단위 한 줄
+                releaseNo: row.releaseNo,
+                releaseDate: row.releaseDate, // '2025-06-25'
+
+                // ✅ 제품명 표현용 (N개 묶기)
+                firstProductName: row.firstProductName ?? row.productName,
+                productCount: row.productCount ?? row.productLineCount ?? 1,
+
+                // ✅ 수량/상태
+                requestedQty,
+                shippedQty,
+                remainingQty,
+                status,
+
+                // 기타 정보
+                manager: row.manager,
+                client: row.client
+            };
+        });
+
+        // 체크박스 초기화
         Object.keys(checkedMap).forEach((k) => delete checkedMap[k]);
 
         console.log('[ForwardingCheck] 검색 결과:', rows.value);
     } catch (err) {
         console.error('[ForwardingCheck] 조회 실패:', err);
-        alert('출고요청 조회 중 오류가 발생했습니다.');
+        alert('출고조회 중 오류가 발생했습니다.');
     }
 };
 
@@ -149,18 +168,24 @@ const downloadExcel = async () => {
                     return [];
                 }
 
-                const { header: h, lines } = res.data.data;
+                const { header: h, lines } = res.data.data || {};
 
-                // 총 주문/출고수량 (상태 계산용)
-                const totalOrder = (lines || []).reduce((sum, l) => sum + (l.orderQty || 0), 0);
-                const totalRelease = (lines || []).reduce((sum, l) => sum + (l.releaseQty || 0), 0);
-                const remaining = Math.max(0, totalOrder - totalRelease);
-                const status = remaining <= 0 ? '출고완료' : '요청';
+                // 🔹 총 요청/실출고 수량 기준으로 상태 계산
+                const totalRequest = (lines || []).reduce((sum, l) => sum + (l.requestQty ?? l.releaseQty ?? 0), 0);
+                const totalShipped = (lines || []).reduce((sum, l) => sum + (l.shippedQty || 0), 0);
 
-                // 이 출고요청의 각 제품 라인을 엑셀용 레코드로 변환
+                let status = '출고 대기';
+                if (totalShipped > 0 && totalShipped < totalRequest) status = '부분 출고';
+                else if (totalShipped >= totalRequest && totalRequest > 0) status = '출고 완료';
+
+                // 🔹 이 출고요청의 각 제품 라인을 엑셀용 레코드로 변환
                 return (lines || []).map((line) => {
+                    const requestQty = line.requestQty ?? line.releaseQty ?? 0;
+                    const shippedQty = line.shippedQty || 0;
+                    const remainingQty = line.remainingQty ?? Math.max(0, requestQty - shippedQty);
+
                     const stockBase = line.stockQty ?? line.currentStock ?? 0;
-                    const notReleased = (line.orderQty || 0) - (line.releaseQty || 0);
+                    const stockAfter = Math.max(0, stockBase - shippedQty);
 
                     return {
                         // 🔹 출고 헤더 영역
@@ -177,9 +202,10 @@ const downloadExcel = async () => {
                         specName: specMap.value[line.spec] ?? line.spec,
                         unitName: unitMap.value[line.unit] ?? line.unit,
                         orderQty: line.orderQty || 0,
-                        releaseQty: line.releaseQty || 0,
-                        notReleasedQty: Math.max(0, notReleased),
-                        stockAfter: Math.max(0, stockBase - (line.releaseQty || 0)),
+                        requestQty,
+                        shippedQty,
+                        remainingQty,
+                        stockAfter,
                         dueDate: line.dueDate ? formatDate(line.dueDate) : ''
                     };
                 });
@@ -195,9 +221,9 @@ const downloadExcel = async () => {
         }
 
         // 4) 헤더 정의
-        const headers = ['출고번호', '출고일자', '출고담당자', '거래처', '상태', '제품코드', '제품명', '유형', '규격', '단위', '주문수량', '출고수량', '미출고수량', '출고 후 재고', '납기일'];
+        const headers = ['출고번호', '출고일자', '출고담당자', '거래처', '상태', '제품코드', '제품명', '유형', '규격', '단위', '주문수량', '출고요청수량', '실출고수량', '요청잔량', '출고 후 재고', '납기일'];
 
-        // 5) 실제 데이터 행
+        // 5) 실제 데이터 행 (AOA 형식)
         const dataRows = flat.map((r) => [
             r.releaseNo || '',
             r.releaseDate || '',
@@ -210,38 +236,24 @@ const downloadExcel = async () => {
             r.specName || '',
             r.unitName || '',
             r.orderQty,
-            r.releaseQty,
-            r.notReleasedQty,
+            r.requestQty,
+            r.shippedQty,
+            r.remainingQty,
             r.stockAfter,
             r.dueDate || ''
         ]);
 
-        // 6) CSV 문자열 만들기 (엑셀에서 바로 열 수 있음)
-        const escapeCell = (value) => {
-            const s = value == null ? '' : String(value);
-            if (s.includes('"') || s.includes(',') || s.includes('\n')) {
-                return `"${s.replace(/"/g, '""')}"`;
-            }
-            return s;
-        };
+        // 6) 워크시트 / 워크북 생성 (xlsx 사용)
+        const wsData = [headers, ...dataRows]; // AOA (Array of Arrays)
+        const worksheet = XLSX.utils.aoa_to_sheet(wsData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, '출고요청상세');
 
-        const csvContent = [headers, ...dataRows].map((row) => row.map(escapeCell).join(',')).join('\r\n');
-
-        // 7) Blob 만들고 다운로드 트리거
-        const blob = new Blob(['\uFEFF' + csvContent], {
-            type: 'text/csv;charset=utf-8;'
-        });
-
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
         const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        const fileName = `출고요청상세_${today}.xlsx`;
 
-        a.href = url;
-        a.download = `출고요청상세_${today}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        // 7) 파일 다운로드
+        XLSX.writeFile(workbook, fileName);
     } catch (err) {
         console.error('[ForwardingCheck] 엑셀 다운로드 실패:', err);
         alert('엑셀 다운로드 중 오류가 발생했습니다.');
@@ -518,9 +530,34 @@ const openDatePicker = (event) => {
     }
 };
 
+// 🔑 전역 Enter 키로 조회 실행
+const handleGlobalEnter = (e) => {
+    if (e.key !== 'Enter') return;
+
+    // 입력 가능한 요소에 포커스가 있을 때는 건들지 않음 (폼 기본 동작 유지)
+    const tag = (e.target?.tagName || '').toLowerCase();
+    if (['input', 'textarea', 'select', 'button'].includes(tag)) return;
+
+    // 모달 열려 있을 때는 조회 막기 (모달 검색 엔터랑 헷갈리지 않게)
+    if (showReleaseModal.value || showProductModal.value || showEmpModal.value || showClientModal.value) {
+        return;
+    }
+
+    e.preventDefault();
+    doSearch();
+};
+
 onMounted(() => {
     fetchCommonCodes();
     doSearch();
+
+    // 🔹 전역 Enter 리스너 등록
+    window.addEventListener('keydown', handleGlobalEnter);
+});
+
+onBeforeUnmount(() => {
+    // 🔹 컴포넌트 사라질 때 꼭 제거
+    window.removeEventListener('keydown', handleGlobalEnter);
 });
 </script>
 
@@ -570,7 +607,7 @@ onMounted(() => {
         <!-- ✅ form 으로 변경 + submit 으로 조회 -->
         <form class="search-card" @submit.prevent="doSearch">
             <h3>출고조회</h3>
-            <div class="search-grid">
+            <div class="search-grid" @keydown.enter.prevent="doSearch">
                 <!-- 출고번호 -->
                 <div class="field">
                     <label>출고번호</label>
@@ -587,14 +624,14 @@ onMounted(() => {
                 <div class="field field-range qty-range">
                     <label>출고수량</label>
                     <div class="range-row">
-                        <input v-model="searchForm.qtyFrom" type="number" class="input" placeholder="from" />
+                        <input v-model="searchForm.qtyFrom" type="number" class="input" placeholder="최소" />
                         <span class="range-dash">~</span>
-                        <input v-model="searchForm.qtyTo" type="number" class="input" placeholder="to" />
+                        <input v-model="searchForm.qtyTo" type="number" class="input" placeholder="최대" />
                     </div>
                 </div>
 
                 <!-- 출고일자 범위 -->
-                <div class="field field-range">
+                <div class="field field-range qty-range">
                     <label>출고일자</label>
                     <div class="range-row">
                         <input v-model="searchForm.dateFrom" type="date" class="input" @click="openDatePicker" />
@@ -627,7 +664,7 @@ onMounted(() => {
             <div class="result-header">
                 <div class="result-count">검색 결과 {{ resultCount }}건</div>
 
-                <button class="btn btn-excel" @click="downloadExcel">엑셀 다운로드</button>
+                <Button label="엑셀 다운로드" icon="pi pi-file-excel" class="btn-excel" @click="downloadExcel" />
             </div>
 
             <div class="table-wrap">
@@ -639,8 +676,10 @@ onMounted(() => {
                             </th>
                             <th>출고번호</th>
                             <th>출고제품</th>
-                            <th>출고수량</th>
-                            <th>출고일자</th>
+                            <th>요청수량</th>
+                            <th>실출고수량</th>
+                            <th>미출고수량</th>
+                            <th>출고요청일</th>
                             <th>출고담당자</th>
                             <th>거래처</th>
                             <th>상태</th>
@@ -648,7 +687,7 @@ onMounted(() => {
                     </thead>
                     <tbody>
                         <tr v-if="!groupedFilteredRows.length">
-                            <td colspan="8" class="empty">검색 결과가 없습니다.</td>
+                            <td colspan="10" class="empty">검색 결과가 없습니다.</td>
                         </tr>
 
                         <tr
@@ -667,8 +706,10 @@ onMounted(() => {
                             </td>
                             <td>{{ row.releaseNo }}</td>
                             <td>{{ row.displayProductName }}</td>
-                            <td class="text-right">{{ row.qty.toLocaleString() }}개</td>
-                            <td>{{ row.date.replaceAll('-', '.') }}</td>
+                            <td class="text-right">{{ row.requestedQty.toLocaleString() }}개</td>
+                            <td class="text-right">{{ row.shippedQty.toLocaleString() }}개</td>
+                            <td class="text-right">{{ row.remainingQty.toLocaleString() }}개</td>
+                            <td>{{ row.releaseDate?.replaceAll('-', '.') }}</td>
                             <td>{{ row.manager }}</td>
                             <td>{{ row.client }}</td>
                             <td>{{ row.status }}</td>
@@ -793,7 +834,6 @@ onMounted(() => {
     font-size: 13px;
     border-radius: 6px;
     border: 1px solid #6cbf5a;
-    background: #f4fff2;
     cursor: pointer;
 }
 
@@ -872,7 +912,7 @@ onMounted(() => {
 
 /* 출고수량 input 너비 조절 */
 .field-range.qty-range .range-row .input {
-    width: 130px;
+    width: 100%;
 }
 
 /* 행 클릭 가능 표시 */

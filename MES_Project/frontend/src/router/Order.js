@@ -10,6 +10,11 @@ export default [
         component: () => import('@/views/release/ForwardingManagement.vue')
     },
     {
+        path: '/ForwardingApproval',
+        name: 'ForwardingApproval',
+        component: () => import('@/views/release/ForwardingApproval.vue')
+    },
+    {
         path: '/ForwardingCheck',
         name: 'ForwardingCheck',
         component: () => import('@/views/release/ForwardingCheck.vue')
@@ -28,5 +33,10 @@ export default [
         path: '/order/management',
         name: 'OrderManagement',
         component: () => import('@/views/order/OrderManagement.vue')
+    },
+    {
+        path: '/order/:ordCode',
+        name: 'OrderDetail',
+        component: () => import('@/views/order/OrderDetail.vue')
     }
 ];

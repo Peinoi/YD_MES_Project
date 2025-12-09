@@ -46,11 +46,25 @@ module.exports = {
     FOR UPDATE
   `,
 
+  getLastQioSeq: `
+    SELECT qio_code 
+    FROM qio_tbl 
+    WHERE qio_code LIKE CONCAT('QIO-', ?, '-%')
+    ORDER BY qio_code DESC 
+    LIMIT 1
+    FOR UPDATE
+  `,
+
   // 3. 등록용 INSERT 쿼리 (Bulk Insert)
   insertMatLot: `
     INSERT INTO mat_lot_tbl (
       lot_num, issdate, item_type_code, mat_code
     ) VALUES (?, ?, ?, ?)
+  `,
+
+  insertQio: `
+    INSERT INTO qio_tbl (qio_code, insp_date, emp_code) 
+    VALUES (?, ?, ?)
   `,
 
   insertMinbnd: `
@@ -70,9 +84,10 @@ module.exports = {
             m.inbnd_date AS procDate,
             mat.mat_code AS matCode,
             mat.mat_name AS matName,
+            mat.spec,
             m.ord_qtt AS reqQty,
             m.inbnd_qtt AS procQty,
-            m.unit AS unit,
+            (SELECT note FROM common_code WHERE com_value = m.unit) as unit,
             e.emp_name AS manager,
             'COMPLETED' AS status, -- 입고 테이블에 있으면 완료로 간주
             '' AS remark
@@ -89,9 +104,10 @@ module.exports = {
             mo.moutbnd_date AS procDate,
             mat.mat_code AS matCode,
             mat.mat_name AS matName,
+            mat.spec,
             mo.order_qtt AS reqQty,
             mo.outbnd_qtt AS procQty,
-            mat.unit AS unit,
+            (SELECT note FROM common_code WHERE com_value = mat.unit) as unit,
             e.emp_name AS manager,
             'COMPLETED' AS status,
             '' AS remark

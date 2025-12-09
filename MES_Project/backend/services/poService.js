@@ -84,7 +84,6 @@ async function savePo(poDto) {
 
       purchase_code = rows[0]?.next_code || "BJ0001";
 
-      // 헤더 INSERT
       await conn.query(sqlList.insertPoHeader, [
         purchase_code,
         purchase_req_date,
@@ -114,9 +113,9 @@ async function savePo(poDto) {
         const mapp_code = mapRows[0]?.next_code || "MAP0001";
 
         await conn.query(sqlList.insertMprMap, [
-          mapp_code, // mapp_code
-          mpr_code, // mpr_code
-          purchase_code, // purchase_code
+          mapp_code,
+          mpr_code,
+          purchase_code,
         ]);
       }
     } else {
@@ -131,15 +130,7 @@ async function savePo(poDto) {
       await conn.query(sqlList.deletePoDetailsByCode, [purchase_code]);
     }
 
-    const dRows = await conn.query(
-      `
-  SELECT COUNT(*) AS cnt
-  FROM mpo_d_tbl
-  WHERE mpo_d_code LIKE 'BJd%';
-  `
-    );
-
-    let nextDetailSeq = dRows[0]?.cnt || 0;
+    let localSeq = 0;
 
     if (Array.isArray(items) && items.length) {
       for (const item of items) {
@@ -155,8 +146,12 @@ async function savePo(poDto) {
 
         if (!hasValue) continue;
 
-        nextDetailSeq += 1;
-        const detailCode = "BJd" + String(nextDetailSeq).padStart(4, "0");
+        // 발주별 0001, 0002... 로 번호 부여
+        localSeq += 1;
+        const detailCode = `${purchase_code}-${String(localSeq).padStart(
+          4,
+          "0"
+        )}`;
 
         const unit = item.unit || null;
 
@@ -185,19 +180,18 @@ async function savePo(poDto) {
         const matCode = item.code || item.mat_code || "MAT-0001";
 
         await conn.query(sqlList.insertPoDetail, [
-          detailCode, // mpo_d_code
-          unit, // unit
-          needQty, // req_qtt
-          deadline, // deadline
-          purchase_code, // FK
-          clientCode, // client_code
-          matCode, // mat_code
+          detailCode,
+          unit,
+          needQty,
+          deadline,
+          purchase_code,
+          clientCode,
+          matCode,
         ]);
       }
     }
 
     await conn.commit();
-
     return { purchase_code };
   } catch (err) {
     await conn.rollback();
@@ -504,12 +498,21 @@ async function getMprDetailHeader(mprCode) {
     conn.release();
   }
 }
-// 요청상세 아이템
+
+// 요청상세 아이템 + 상태 이력
 async function getMprDetailItems(mprCode) {
   const conn = await getConnection();
   try {
     const rows = await conn.query(sqlList.selectMprDetailItems, [mprCode]);
-    return rows;
+    const historyRows = await conn.query(sqlList.getMprHistory, [
+      mprCode,
+      mprCode,
+    ]);
+
+    return {
+      items: rows || [],
+      history: historyRows || [],
+    };
   } finally {
     conn.release();
   }
@@ -541,6 +544,20 @@ async function getEmpList(keyword = "") {
   }
 }
 
+// 발주완료 제외 요청서 목록
+async function getMprListForPo(mprCode) {
+  const conn = await getConnection();
+  try {
+    const rows = await conn.query(sqlList.selectMprListForPo, [
+      mprCode || null,
+      mprCode || null,
+    ]);
+    return rows || [];
+  } finally {
+    conn.release();
+  }
+}
+
 module.exports = {
   getPoByCode,
   savePo,
@@ -558,4 +575,5 @@ module.exports = {
   getMprDetailHeader,
   getMprDetailItems,
   getEmpList,
+  getMprListForPo,
 };
