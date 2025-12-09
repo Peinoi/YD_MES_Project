@@ -44,6 +44,7 @@ async function saveResultService(list) {
   let qioCode = list[0].qio_code;
   let inspVol = list[0].insp_vol;
   let isPrdr = list[0].prdr_code !== null; // PRDR 검사 여부 체크
+  console.log(list[0].prdr_code);
   // 1) QIR 개별 저장
   for (const item of list) {
     // g1 존재 여부 기록
@@ -86,7 +87,7 @@ async function saveResultService(list) {
     await query('QC_PASS_QTT', [inspVol, qioCode]);
 
     // PRDR이면 완제품 입고 프로시저 실행
-    if (isPrdr) {
+    if (!isPrdr) {
       const params = [
         list[0].qir_code,
         list[0].start_date,

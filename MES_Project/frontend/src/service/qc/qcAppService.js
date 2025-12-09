@@ -91,7 +91,9 @@ export function useQcAppService() {
         }));
         const result = await qcService.saveResult(payload);
 
-        if (!result.data.ok) return result;
+        if (!result.data.ok) {
+            return { ok: false, message: '저장 중 오류가 발생하였습니다.' };
+        }
 
         store.reset();
         return { ok: true, message: '정상적으로 저장되었습니다.' };
