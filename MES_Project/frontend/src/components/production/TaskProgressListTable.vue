@@ -105,7 +105,7 @@ const downloadExcel = () => {
                         <td>{{ row.code }}</td>
                         <td>{{ row.name }}</td>
                         <td>{{ row.line }}</td>
-                        <td>{{ row.process_type }}</td>
+                        <td>{{ row.line ? '정형' : '비정형' }}</td>
                         <td>{{ formatDate(row.start) }}</td>
                         <td>{{ formatDate(row.end) }}</td>
                         <td>{{ formatStat(row.stat) }}</td>
