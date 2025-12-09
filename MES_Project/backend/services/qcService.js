@@ -13,84 +13,93 @@ async function findQcrList(params) {
 async function findQcListService(params) {
   try {
     const result = await query('QC_SEARCH', params);
-    console.log(result);
     return result;
   } catch (err) {
     throw err;
   }
 }
 
-// 005 검사결과 불러오기
+// 005 검사지시 불러오기
 async function pendingListService() {
   try {
-    return await query('QC_PENDING_LIST');
+    return await query('QC_QIO_NULL_LIST');
   } catch (err) {
     throw err;
   }
 }
 
-// 005 검사지시 불러오기
-async function findInstructionService(params) {
+// 005 QirList 불러오기
+async function findQirList(params) {
   try {
-    const prdr = await query('QC_INSTRUCTION', [params.qir_code]);
-    const mpr = await query('QC_INSTRUCTION_MPR_D', [params.qir_code]);
-
-    if (prdr.length > 0) {
-      const resultPrdr = [{ ...prdr[0], type: 'prdr' }];
-      return resultPrdr;
-    }
-
-    if (mpr.length > 0) {
-      const resultMpr = [{ ...mpr[0], type: 'mpr' }];
-      return resultMpr;
-    }
-
-    return { ok: false, message: 'type에 맞는 값이 없습니다.' };
+    const result = await query('QC_QIR_LIST', [params.qio_code]);
+    return result;
   } catch (err) {
     throw err;
   }
 }
 
 // 005 저장
-async function saveResultService(data) {
-  try {
-    if (data.type == 'mpr') {
-      const params = [
-        data.start_date,
-        data.end_date,
-        data.result,
-        data.note,
-        data.qir_emp_code,
-        data.qir_code,
-      ];
-      const result = await query('QC_RESULT_SAVE_MPR_D', params);
-
-      if (result.affectedRows == 0) {
-        throw new Error('저장된 데이터가 없습니다.');
-      }
-
-      return { ok: true, affectedRows: result.affectedRows };
+async function saveResultService(list) {
+  let isFail = false; // g1 존재 여부
+  let qioCode = list[0].qio_code;
+  let inspVol = list[0].insp_vol;
+  let isPrdr = list[0].prdr_code !== null; // PRDR 검사 여부 체크
+  // 1) QIR 개별 저장
+  for (const item of list) {
+    // g1 존재 여부 기록
+    if (item.result === 'g1') {
+      isFail = true;
     }
 
+    if (item.type === 'mpr') {
+      const params = [
+        item.start_date,
+        item.end_date,
+        item.result,
+        item.note,
+        item.qir_emp_code,
+        item.qir_code,
+      ];
+      await query('QC_RESULT_SAVE_MPR_D', params);
+      continue;
+    }
+
+    // prdr (제품)
     const params = [
-      data.qir_code,
-      data.start_date,
-      data.end_date,
-      data.result,
-      data.note,
-      data.qir_emp_code,
+      item.qir_code,
+      item.start_date,
+      item.end_date,
+      item.result,
+      item.note,
+      item.qir_emp_code,
     ];
 
-    const result = await query('QC_RESULT_SAVE', params);
-
-    if (result.affectedRows == 0) {
-      throw new Error('저장된 데이터가 없습니다.');
-    }
-
-    return { ok: true, affectedRows: result.affectedRows };
-  } catch (err) {
-    throw err;
+    await query('QC_RESULT_SAVE', params);
   }
+
+  // 2) 저장 완료 후 QIO의 pass/unpass 업데이트
+  if (isFail) {
+    // 불합격 → unpass_qtt 업데이트
+    await query('QC_UNPASS_QTT', [inspVol, qioCode]);
+  } else {
+    // 합격 → pass_qtt 업데이트
+    await query('QC_PASS_QTT', [inspVol, qioCode]);
+
+    // PRDR이면 완제품 입고 프로시저 실행
+    if (isPrdr) {
+      const params = [
+        list[0].qir_code,
+        list[0].start_date,
+        list[0].end_date,
+        'g2',
+        list[0].note,
+        list[0].qir_emp_code,
+      ];
+      await query(qcSql.QC_RESULT_SAVE, params);
+    }
+  }
+
+  return { ok: true };
 }
 
 async function deleteResultService(params) {
@@ -118,7 +127,7 @@ module.exports = {
   findQcrList,
   findQcListService,
   pendingListService,
-  findInstructionService,
+  findQirList,
   saveResultService,
   deleteResultService,
 };

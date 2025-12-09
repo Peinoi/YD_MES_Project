@@ -6,8 +6,8 @@ export const qcService = {
     getQcList: (criteria) => api.post(`/qc/list`, criteria),
 
     // 005
-    getPendingList: () => api.get(`/qc/pending-list`),
-    getInstruction: (qirCode) => api.get(`/qc/Instruction/${qirCode}`),
+    getQioNullList: () => api.get(`/qc/pending-list`),
+    getQirList: (qioCode) => api.get(`/qc/QirList/${qioCode}`),
     saveResult: (data) => api.put(`/qc/`, data),
     deleteResult: (qirCode) => api.post(`/qc/delete`, qirCode)
 };

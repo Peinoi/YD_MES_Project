@@ -38,18 +38,13 @@ export function useQcAppService() {
         const startDate = kstFormat(store.searchCriteria.startDate);
         const params = [qcrCode, store.searchCriteria.prodCode, store.searchCriteria.prodName, checkMethod, store.searchCriteria.result, startDate];
         const result = await qcService.getQcList(params);
-
-        console.log(result);
         store.qcList = [...result.data];
         return { ok: true };
     }
 
     // 005
-    async function loadPendingList() {
-        if (!store.isReset) {
-            return { ok: false, message: '새로운 결과를 불러오기 전 초기화를 진행해주세요.' };
-        }
-        const result = await qcService.getPendingList();
+    async function loadQioNullList() {
+        const result = await qcService.getQioNullList();
         store.modal.resultRows = result.data;
         store.modal.selectedRow = null;
         store.modal.showModal = true;
@@ -58,48 +53,46 @@ export function useQcAppService() {
         return { ok: true };
     }
 
-    function selectedQirCode() {
-        store.selectedQir = store.modal.selectedRow;
-        store.basic.qirCode = store.selectedQir.qirCode;
-        store.basic.qirEmpCode = 'EMP-10011';
-        store.basic.startDate = dateTime();
-        store.basic.note = store.selectedQir.note;
+    async function selectedQioCode() {
+        store.selectedQio = store.modal.selectedRow;
+        store.instruction = { ...store.selectedQio };
+        store.instruction.qirEmpCode = 'EMP-10011';
+        store.instruction.startDate = dateTime();
+
+        const result = await qcService.getQirList(store.selectedQio.qioCode);
+        store.resultItems = result.data;
+
         store.closeModal();
     }
 
-    async function loadInstruction() {
-        if (store.basic.qirCode == '') {
-            return { ok: false, message: '검사결과 선택해주세요.' };
-        }
-        const result = await qcService.getInstruction(store.selectedQir.qirCode);
-        if (!Array.isArray(result.data)) {
-            return { ok: result.data.ok, message: result.data.message };
-        }
-
-        if (result.data.length == 0) {
-            return { ok: false, message: '등록된 검사지시가 없습니다.' };
-        }
-        store.basic.qirEmpCode = 'EMP-10011';
-        store.basic.value = '';
-        store.instruction = result.data[0];
-        store.resultItems = result.data;
-        return { ok: true };
-    }
-
     async function saveResult() {
-        if (store.isReset || store.basic.value == '') {
-            return { ok: false, message: '검사결과를 확인해주세요.' };
+        const items = store.resultItems;
+
+        if (items.length === 0) {
+            return { ok: false, message: '항목이 없습니다.' };
         }
-        store.basic.endDate = dateTime();
-        store.basic.note = store.resultItems[0].note;
-        const payload = {
-            ...store.basic,
-            type: store.instruction.type
-        };
+
+        const hasEmpty = items.some((i) => !i.value || !i.result);
+        if (hasEmpty) {
+            return { ok: false, message: '모든 검사값을 입력해주세요.' };
+        }
+
+        const payload = items.map((i) => ({
+            qir_code: i.qirCode,
+            qio_code: i.qioCode,
+            start_date: store.instruction.startDate,
+            end_date: dateTime(),
+            result: i.result === '합격' ? 'g2' : 'g1',
+            note: i.note == null ? '' : '',
+            qir_emp_code: store.instruction.qirEmpCode,
+            type: i.type,
+            prod_code: i.prdrCode,
+            insp_vol: i.inspVol
+        }));
         const result = await qcService.saveResult(payload);
-        if (result.data.affectedRows == 0) {
-            throw new Error('품질검사결과 저장 중 오류 발생');
-        }
+
+        if (!result.data.ok) return result;
+
         store.reset();
         return { ok: true, message: '정상적으로 저장되었습니다.' };
     }
@@ -117,7 +110,14 @@ export function useQcAppService() {
     }
 
     function textClean(row) {
-        row.value = row.value.replace(/\D/g, '');
+        // 숫자와 .만 남김
+        row.value = row.value.replace(/[^0-9.]/g, '');
+
+        // 소수점이 2개 이상이면 첫 번째만 남겨두기
+        const parts = row.value.split('.');
+        if (parts.length > 2) {
+            row.value = parts[0] + '.' + parts.slice(1).join('');
+        }
     }
 
     function enterJudge(row) {
@@ -139,8 +139,8 @@ export function useQcAppService() {
     const funcList = {
         getSearchList,
         getQcList,
-        loadPendingList,
-        loadInstruction,
+        loadQioNullList,
+        selectedQioCode,
         saveResult,
         deleteResult
     };
@@ -155,7 +155,6 @@ export function useQcAppService() {
         ...wrapperFuncs,
         criteriaReset: store.criteriaReset,
         selectedQcrCode,
-        selectedQirCode,
         textClean,
         enterJudge,
         resultBody,

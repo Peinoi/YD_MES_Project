@@ -18,7 +18,7 @@ const { resultItems } = storeToRefs(qcStore);
 
         <Column field="value" header="검사값" style="width: 10%">
             <template #body="{ data }">
-                <InputText v-model="data.value" @keydown.enter="qcService.enterJudge(data)" @compositionend="data.value = data.value.replace(/\D/g, '')" @input="data.value = data.value.replace(/\D/g, '')" @paste.prevent />
+                <InputText v-model="data.value" @keydown.enter="qcService.enterJudge(data)" @input="data.value = data.value.replace(/[^0-9.]/g, '')" @compositionend="data.value = data.value.replace(/[^0-9.]/g, '')" @paste.prevent />
             </template>
         </Column>
 

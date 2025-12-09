@@ -14,14 +14,14 @@ function close() {
 
 // 확인
 function select() {
-    qcService.selectedQirCode();
+    qcService.selectedQioCode();
 }
 </script>
 
 <template>
     <Dialog v-model:visible="modal.showModal" header="검사결과 선택" modal :draggable="false" :style="{ width: '380px' }">
-        <DataTable v-model:selection="modal.selectedRow" :value="modal.resultRows" selectionMode="single" paginator :rows="10" dataKey="qirCode" style="margin-bottom: 1rem">
-            <Column field="qirCode" header="검사결과 코드"></Column>
+        <DataTable v-model:selection="modal.selectedRow" :value="modal.resultRows" selectionMode="single" paginator :rows="10" dataKey="qioCode" style="margin-bottom: 1rem">
+            <Column field="qioCode" header="검사결과 코드"></Column>
         </DataTable>
         <template #footer>
             <div class="flex justify-content-end gap-2">

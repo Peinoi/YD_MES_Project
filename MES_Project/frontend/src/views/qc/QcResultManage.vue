@@ -53,8 +53,8 @@ function onSaveClick() {
 }
 
 // 검사결과 불러오기
-async function clickPendingList() {
-    const result = await qcService.loadPendingList();
+async function clickQioNullList() {
+    const result = await qcService.loadQioNullList();
     if (!result.ok) {
         alert(result.message);
         return;
@@ -62,13 +62,13 @@ async function clickPendingList() {
 }
 
 // 검사지시 불러오기
-async function clickLoadInstruction() {
-    const result = await qcService.loadInstruction();
-    if (!result.ok) {
-        alert(result.message);
-        return;
-    }
-}
+// async function clickLoadInstruction() {
+//     const result = await qcService.loadInstruction();
+//     if (!result.ok) {
+//         alert(result.message);
+//         return;
+//     }
+// }
 
 onMounted(() => {
     qcService.reset();
@@ -99,7 +99,7 @@ onMounted(() => {
                 <h3>지시정보</h3>
 
                 <div class="top-buttons">
-                    <Button label="검사지시 불러오기" class="p-button-success" @click="clickLoadInstruction" />
+                    <Button label="검사지시 불러오기" class="p-button-success" @click="clickQioNullList" />
                 </div>
             </div>
 
