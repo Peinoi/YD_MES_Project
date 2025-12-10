@@ -79,18 +79,18 @@ const startLocalTimer = () => {
             stopLocalTimer();
             return;
         }
-        
+
         // **[핵심 수정]** 공정 시작 (진행률이 0이고, 시작일시가 기록되어 있지 않은 경우)
         // 이 로직은 `process['진행률']`이 0에서 10으로 증가하기 직전에 한 번 실행됩니다.
         if (process['진행률'] === 0 && !process['시작일시']) {
             // 시작일시 기록
             process['시작일시'] = getCurrentDateTime();
-            
+
             // 지시량 기록 (작업 시작 시 한 번만 기록)
-            process['지시량'] = workInfo.value.wko_qtt; 
+            process['지시량'] = workInfo.value.wko_qtt;
             console.log(`🚀 공정 ${idx} 시작. 시작일시: ${process['시작일시']}, 지시량: ${process['지시량']}`);
         }
-        
+
         // 100% 도달 (이미 완료된 공정) → 다음 공정으로 이동
         if (process['진행률'] >= 100) {
             console.log(`✔ 공정 ${idx} 이미 완료됨 → 다음 공정 이동`);
@@ -106,15 +106,15 @@ const startLocalTimer = () => {
         if (process['진행률'] === 100) {
             // 종료일시 기록 (현재 시간)
             process['종료일시'] = getCurrentDateTime();
-            
+
             // 생산량 기록 (요청에 따라 wko_qtt 사용)
-            process['생산량'] = workInfo.value.wko_qtt; 
-            
+            process['생산량'] = workInfo.value.wko_qtt;
+
             // 불량은 0으로 가정 (불량 항목이 UI에 있으므로 0으로 명시)
-            process['불량'] = 0; 
-            
+            process['불량'] = 0;
+
             console.log(`✅ 공정 ${idx} 100% 완료. 종료일시: ${process['종료일시']}, 생산량: ${process['생산량']}`);
-            
+
             // 다음 타이머 주기에 다음 공정으로 이동할 수 있도록 index를 업데이트합니다.
             // (위의 100% 도달 로직이 다음 틱에서 이를 처리합니다.)
         }
@@ -150,20 +150,20 @@ const getProgressText = (p) => (p['진행률'] === 0 ? '대기중' : `${p['진�
 // 지시량, 불량, 생산량에 '개'를 붙이는 함수
 const formatQuantity = (v) => {
     // null, undefined가 아니면 표시 (불량은 0으로 표기)
-    if (v === null || v === undefined) return ''; 
+    if (v === null || v === undefined) return '';
     return `${v}(개)`;
-}; 
+};
 
 const formatDate = (str) => {
     if (!str) return '';
     // getCurrentDateTime에서 포맷된 'YYYY-MM-DD HH:mm' 문자열이 들어올 경우 그대로 반환
     if (str.length === 16 && str.includes('-') && str.includes(':')) {
-        return str; 
+        return str;
     }
 
     // 그 외 (백엔드 초기 데이터 등)는 Date 객체로 변환 시도
     const d = new Date(str);
-    if (isNaN(d.getTime())) return str; 
+    if (isNaN(d.getTime())) return str;
 
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
@@ -218,21 +218,21 @@ const formatDate = (str) => {
                         <div
                             :class="[
                                 'progress-track',
-                             {
-                                'track-green': process['진행률'] === 100,
-                                'track-yellow': process['진행률'] > 0 && process['진행률'] < 100,
-                                'track-gray': process['진행률'] === 0
-                             }
+                                {
+                                    'track-green': process['진행률'] === 100,
+                                    'track-yellow': process['진행률'] > 0 && process['진행률'] < 100,
+                                    'track-gray': process['진행률'] === 0
+                                }
                             ]"
-                            >
+                        >
                             <div
                                 class="progress-bar"
                                 :style="{
-                                width: process['진행률'] + '%',
-                                backgroundColor: process['진행률'] === 100 ? '#4CAF50' : '#facc15'
+                                    width: process['진행률'] + '%',
+                                    backgroundColor: process['진행률'] === 100 ? '#4CAF50' : '#facc15'
                                 }"
                             ></div>
-                            </div>
+                        </div>
 
                         <span class="progress-text font-bold" :class="{ 'text-gray-500': process['진행률'] === 0 }">
                             {{ getProgressText(process) }}

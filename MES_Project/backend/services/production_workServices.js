@@ -5,7 +5,7 @@ const sqlList = require("../database/sqlList.js");
 exports.production_work = async (wko_code, prod_code) => {
   const conn = await getConnection();
   try {
-    wko_code = "WKO-20250624-001";
+    // wko_code = "WKO-20250624-001";
     prod_code = "PROD-0001";
     const result = await conn.query(sqlList.work, [wko_code, prod_code]);
     console.log(result);
@@ -132,7 +132,7 @@ exports.createPrdrDetail = async (conn, prdr_code) => {
           WHERE prod_code = ?
       )
     `,
-    [prdr_code]
+    [TEMPLATE_PROD_CODE]
   );
 
   const processList = Array.isArray(result[0]) ? result[0] : result;
