@@ -110,6 +110,8 @@ onMounted(() => {
 
 <template>
     <div class="inbound-container">
+        <Toast />
+
         <div class="header-section">
             <h2 class="page-title">자재 재고 현황</h2>
             <div class="breadcrumb">자재 관리 > 재고 현황</div>
@@ -451,6 +453,15 @@ onMounted(() => {
 }
 .font-bold {
     font-weight: 700;
+}
+/* 추가 필요 */
+.w-60 {
+    width: 15rem;
+}
+.filter-button {
+    width: 50px;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 </style>
 <style>
