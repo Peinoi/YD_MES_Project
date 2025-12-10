@@ -6,14 +6,17 @@ import axios from 'axios';
 import UnitSelectModal from '@/views/UnitSelectModal.vue';
 import ProdTypeSelectModal from '@/views/ProdTypeSelectModal.vue';
 import IsUsedSelectModal from '@/views/IsUsedSelectModal.vue';
-
+import SpecSelectModal from '@/views/SpecSelectorModal.vue';
+import ComValueSelectModal from '@/views/ComValueSelectModal.vue';
+import EmployeeSelectModal from '@/views/EmployeeSelectModal.vue';
+const showEmpModal = ref(false);
 const toast = useToast();
-
+const employees = ref([]);
 const form = ref({
     prod_code: '',
     prod_name: '',
     prod_type: '',
-    is_used: 'f2',
+    is_used: '',
     unit: '',
     edate: 180,
     spec: '',
@@ -24,8 +27,72 @@ const form = ref({
 });
 
 // ------------------------------------
-// 💡 데이터 및 모달 상태 정의
+// 💡 모달 상태 및 데이터 정의
 // ------------------------------------
+
+// 💡 1. 규격 모달 상태 추가
+const showSpecModal = ref(false);
+
+// 💡 2. 규격 데이터 정의 (Categories)
+const specOptions = ref([
+    {
+        key: 'O',
+        name: 'O 규격',
+        options: [
+            { label: 'O1 (20)', value: 'o1' },
+            { label: 'O2 (40)', value: 'o2' }
+        ]
+    },
+    {
+        key: 'X',
+        name: 'X 규격',
+        options: [
+            { label: 'X1 (16)', value: 'x1' },
+            { label: 'X2 (8)', value: 'x2' }
+        ]
+    },
+    {
+        key: 'Y',
+        name: 'Y 규격',
+        options: [
+            { label: 'Y1 (12)', value: 'y1' },
+            { label: 'Y2 (6)', value: 'y2' }
+        ]
+    },
+    {
+        key: 'Z',
+        name: 'Z 규격(중량)',
+        options: [
+            { label: 'Z1 (120g)', value: 'z1' },
+            { label: 'Z2 (110g)', value: 'z2' },
+            { label: 'Z3 (65g)', value: 'z3' },
+            { label: 'Z4 (25g)', value: 'z4' },
+            { label: 'Z5 (20g)', value: 'z5' },
+            { label: 'Z6 (15g)', value: 'z6' }
+        ]
+    }
+]);
+// 💡 1. 단품 종류 목록 (데이터) 추가
+const comValueOptions = [
+    { label: '봉지라면', value: 'j1' },
+    { label: '컵라면(대)', value: 'j2' },
+    { label: '컵라면(소)', value: 'j3' }
+];
+
+// ------------------------------------
+// 💡 핸들러: 규격 모달 결과 처리
+// ------------------------------------
+
+// 현재 form.spec 문자열을 모달에 전달할 수 있도록 배열로 변환하는 computed 속성
+const currentSpecArray = computed(() => {
+    return form.value.spec ? form.value.spec.split(' / ').map((s) => s.trim()) : [];
+});
+
+// 모달에서 선택된 코드 배열을 받아 form.spec 문자열로 저장
+function handleSpecSelect(selectedCodes) {
+    // 💡 선택된 코드 (value) 배열을 슬래시 구분자로 결합하여 저장
+    form.value.spec = selectedCodes.join(' / ');
+}
 
 // 1. 제품 유형 목록 (데이터)
 const productTypeOptions = [
@@ -60,7 +127,7 @@ const unitOptions = [
 const showUnitModal = ref(false);
 const showProdTypeModal = ref(false);
 const showIsUsedModal = ref(false);
-
+const showComValueModal = ref(false);
 // ------------------------------------
 // 💡 유틸리티: 코드 -> 레이블 매핑 (InputText 표시용)
 // ------------------------------------
@@ -85,6 +152,12 @@ const isUsedLabelMap = computed(() => {
         return map;
     }, {});
 });
+const comValueLabelMap = computed(() => {
+    return comValueOptions.reduce((map, item) => {
+        map[item.value] = item.label;
+        return map;
+    }, {});
+});
 
 // ------------------------------------
 // 💡 핸들러: 모달에서 선택된 값 적용
@@ -101,6 +174,19 @@ function handleProdTypeSelect(typeData) {
 function handleIsUsedSelect(usedData) {
     form.value.is_used = usedData.value;
 }
+function handleEmpSelect(emp) {
+    form.value.reg = emp.emp_code;
+    form.value.reg_name = emp.emp_name;
+}
+function handleComValueSelect(comValueData) {
+    form.value.com_value = comValueData.value;
+}
+
+//사원불러오는모달호출
+onMounted(async () => {
+    const res = await axios.get('/api/add-product/employee');
+    employees.value = res.data;
+});
 
 // 페이지 로드시 제품코드 자동생성
 onMounted(async () => {
@@ -116,10 +202,10 @@ onMounted(async () => {
 async function save() {
     try {
         await axios.post('/api/add-product', form.value);
-        toast.add({ severity: 'success', summary: '완료', detail: '제품이 등록되었습니다.' });
+        toast.add({ life: 3000, severity: 'success', summary: '완료', detail: '제품이 등록되었습니다.' });
     } catch (e) {
         console.error('등록 오류:', e.response?.data || e);
-        toast.add({ severity: 'error', summary: '오류', detail: '등록 실패' });
+        toast.add({ life: 3000, severity: 'error', summary: '오류', detail: '등록 실패' });
     }
 }
 </script>
@@ -127,10 +213,14 @@ async function save() {
 <template>
     <div class="page-wrapper">
         <Toast />
-        <div class="form-grid">
-            <div class="form-card">
-                <h3 class="section-title">기본 정보</h3>
 
+        <div class="form-panel">
+            <h2 style="margin-bottom: 0.5rem">제품 등록</h2>
+            <p style="color: #777; margin-bottom: 2rem">제품 정보를 입력해 주세요.</p>
+
+            <!-- 기본 정보 -->
+            <h3 class="section-title">기본 정보</h3>
+            <div class="form-grid">
                 <div class="form-item">
                     <label>제품코드</label>
                     <InputText v-model="form.prod_code" disabled class="input" />
@@ -143,17 +233,17 @@ async function save() {
 
                 <div class="form-item">
                     <label>제품 유형</label>
-                    <InputText :value="prodTypeLabelMap[form.prod_type] || ''" class="input" placeholder="제품 유형 선택" readonly @click="showProdTypeModal = true" />
+                    <InputText :value="prodTypeLabelMap[form.prod_type]" readonly class="input" placeholder="선택" @click="showProdTypeModal = true" />
                 </div>
 
                 <div class="form-item">
                     <label>사용 여부</label>
-                    <InputText :value="isUsedLabelMap[form.is_used] || ''" class="input" placeholder="사용 여부 선택" readonly @click="showIsUsedModal = true" />
+                    <InputText :value="isUsedLabelMap[form.is_used]" readonly class="input" placeholder="선택" @click="showIsUsedModal = true" />
                 </div>
 
                 <div class="form-item">
                     <label>단위</label>
-                    <InputText :value="unitLabelMap[form.unit] || ''" class="input" placeholder="단위 선택" readonly @click="showUnitModal = true" />
+                    <InputText :value="unitLabelMap[form.unit]" readonly class="input" placeholder="선택" @click="showUnitModal = true" />
                 </div>
 
                 <div class="form-item">
@@ -162,12 +252,12 @@ async function save() {
                 </div>
             </div>
 
-            <div class="form-card">
-                <h3 class="section-title">상세 정보</h3>
-
+            <!-- 상세 정보 -->
+            <h3 class="section-title" style="margin-top: 2.5rem">상세 정보</h3>
+            <div class="form-grid">
                 <div class="form-item">
                     <label>규격</label>
-                    <InputText v-model="form.spec" class="input" placeholder="예) z1 / x1 / o1 ..." />
+                    <InputText v-model="form.spec" readonly class="input" placeholder="선택" @click="showSpecModal = true" />
                 </div>
 
                 <div class="form-item">
@@ -176,86 +266,98 @@ async function save() {
                 </div>
 
                 <div class="form-item">
-                    <label>비고</label>
-                    <Textarea v-model="form.note" rows="3" class="input" />
+                    <label>단품 종류</label>
+                    <InputText :value="comValueLabelMap[form.com_value]" readonly class="input" placeholder="선택" @click="showComValueModal = true" />
                 </div>
 
                 <div class="form-item">
                     <label>등록자</label>
-                    <InputText v-model="form.reg" placeholder="EMP-00000" class="input" />
+                    <InputText :value="form.reg_name" readonly class="input" placeholder="선택" @click="showEmpModal = true" />
                 </div>
 
-                <div class="form-item">
-                    <label>기업 코드</label>
-                    <InputText v-model="form.com_value" placeholder="j1 / j2" class="input" />
+                <div class="form-item" style="grid-column: 1 / 3">
+                    <label>비고</label>
+                    <Textarea v-model="form.note" rows="3" class="textarea" placeholder="특이사항 입력" />
                 </div>
+            </div>
+            <div class="footer">
+                <Button label="제품 등록" severity="primary" @click="save" class="save-btn" />
             </div>
         </div>
 
         <UnitSelectModal v-model="showUnitModal" :unitOptions="unitOptions" @select="handleUnitSelect" />
         <ProdTypeSelectModal v-model="showProdTypeModal" :typeOptions="productTypeOptions" @select="handleProdTypeSelect" />
         <IsUsedSelectModal v-model="showIsUsedModal" :usedOptions="isUsedOptions" @select="handleIsUsedSelect" />
-
-        <div class="footer-fixed">
-            <Button label="제품 등록" severity="primary" @click="save" class="save-btn" />
-        </div>
+        <ComValueSelectModal v-model="showComValueModal" :comValueOptions="comValueOptions" @select="handleComValueSelect" />
+        <SpecSelectModal v-model="showSpecModal" :specOptions="specOptions" :currentSelection="currentSpecArray" @select="handleSpecSelect" />
+        <EmployeeSelectModal v-model="showEmpModal" :employees="employees" @select="handleEmpSelect" />
     </div>
 </template>
 
 <style scoped>
 .page-wrapper {
-    padding: 1.5rem;
+    padding: 2rem;
+    background: #f7f9fc;
+}
+
+.form-panel {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 1.25rem;
+    color: #222;
 }
 
 .form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-}
-
-.form-card {
-    background: #ffffff;
-    border-radius: 10px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 8px #00000008;
-}
-
-.section-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
+    gap: 2.2rem 3rem;
 }
 
 .form-item {
-    margin-bottom: 1rem;
     display: flex;
     flex-direction: column;
+    gap: 0.4rem;
 }
 
 .form-item label {
     font-size: 0.85rem;
+    font-weight: 600;
     color: #555;
-    margin-bottom: 0.3rem;
 }
 
 .input {
-    width: 100%;
-    /* 💡 수정: 모달이 잘 보이도록 포인터 추가 */
-    cursor: pointer;
+    height: 44px;
+    border-radius: 10px;
 }
 
-.footer-fixed {
-    position: sticky;
+.textarea {
+    border-radius: 12px;
+}
+
+.footer {
     bottom: 0;
-    background: #fff;
+    background: #ffffffcc;
+    backdrop-filter: blur(6px);
     padding: 1rem 0;
-    text-align: right;
     border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: center;
 }
 
 .save-btn {
-    width: 160px;
-    height: 42px;
-    font-size: 1rem;
+    width: 220px;
+    height: 48px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    border-radius: 10px;
 }
 </style>

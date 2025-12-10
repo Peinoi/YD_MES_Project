@@ -48,4 +48,13 @@ module.exports = {
 
     return await query("prod_insert", params);
   },
+  async getEmpList() {
+    const rows = await query("emp_list");
+
+    return rows.map((r) => ({
+      emp_code: r.emp_code,
+      emp_name: r.emp_name,
+      emp_job_id: r.emp_job_id,
+    }));
+  },
 };

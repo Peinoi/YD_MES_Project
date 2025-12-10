@@ -18,7 +18,15 @@ router.post("/", async (req, res) => {
     res.status(500).json({ error: "Insert failed" });
   }
 });
-
-module.exports = router;
+// 등록자 목록 조회
+router.get("/employee", async (req, res) => {
+  try {
+    const list = await productService.getEmpList();
+    res.json(list);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Employee load failed" });
+  }
+});
 
 module.exports = router;

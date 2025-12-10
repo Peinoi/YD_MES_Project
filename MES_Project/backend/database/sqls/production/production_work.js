@@ -10,7 +10,6 @@ module.exports = {
   SELECT
     ppd.pp_code,
     po.po_name AS 공정명,
-    -- 집계 함수를 사용하여 중복되는 값 중 하나를 선택
     MIN(COALESCE(pd.proc_rate, 0)) AS 진행률,
     MIN(eq.eq_code) AS 설비코드,
     MIN(eq.eq_name) AS 설비,
@@ -82,33 +81,48 @@ ORDER BY wk.wko_code ASC;
     `,
   // 생산실적
   work_performance: `
-SELECT 
-    prdr.prdr_code AS code,
-    prdr.end_date AS cr_date,
-    prod.prod_name AS name,
-    prdr.work_order_code AS order_num,  
-    prdr.production_qtt AS qtt,
-    COALESCE(SUM(prdrd.def_qtt), 0) AS notqtt,  
-    li.line_code AS linecode,
+  SELECT 
+    prdr.work_order_code as order_num,
+    prdr.prdr_code as code,
+    prdr.end_date as cr_date,
+    prdr.production_qtt as qtt,
     co.note AS stat,
-    lo.lot_num as lotnum
+    prod.prod_name as name
 FROM prdr_tbl prdr
-INNER JOIN common_code co ON prdr.stat = co.com_value 
-INNER JOIN prod_tbl prod ON prdr.prod_code = prod.prod_code
-LEFT JOIN prdr_d_tbl prdrd ON prdr.prdr_code = prdrd.prdr_code 
-INNER JOIN line_d_tbl lid ON lid.line_eq_code = prdrd.line_eq_code
-INNER JOIN line_tbl li ON li.line_code = lid.line_code
-inner join lot_tbl lo on lo.prod_code = prdr.prod_code
-GROUP BY 
-    prdr.prdr_code,
-    prdr.end_date,
-    prod.prod_name,
-    prdr.work_order_code,
-    prdr.production_qtt,
-    li.line_code,
-    co.note
+INNER JOIN common_code co ON prdr.stat = co.com_value
+JOIN prod_tbl prod ON prdr.prod_code = prod.prod_code
+WHERE prdr.stat = 'b3'
+GROUP BY prdr.work_order_code
 ORDER BY prdr.prdr_code DESC;
-`,
+  `,
+  //   work_performance: `
+  // SELECT
+  //     prdr.prdr_code AS code,
+  //     prdr.end_date AS cr_date,
+  //     prod.prod_name AS name,
+  //     prdr.work_order_code AS order_num,
+  //     prdr.production_qtt AS qtt,
+  //     COALESCE(SUM(prdrd.def_qtt), 0) AS notqtt,
+  //     li.line_code AS linecode,
+  //     co.note AS stat,
+  //     lo.lot_num as lotnum
+  // FROM prdr_tbl prdr
+  // INNER JOIN common_code co ON prdr.stat = co.com_value
+  // INNER JOIN prod_tbl prod ON prdr.prod_code = prod.prod_code
+  // LEFT JOIN prdr_d_tbl prdrd ON prdr.prdr_code = prdrd.prdr_code
+  // INNER JOIN line_d_tbl lid ON lid.line_eq_code = prdrd.line_eq_code
+  // INNER JOIN line_tbl li ON li.line_code = lid.line_code
+  // inner join lot_tbl lo on lo.prod_code = prdr.prod_code
+  // GROUP BY
+  //     prdr.prdr_code,
+  //     prdr.end_date,
+  //     prod.prod_name,
+  //     prdr.work_order_code,
+  //     prdr.production_qtt,
+  //     li.line_code,
+  //     co.note
+  // ORDER BY prdr.prdr_code DESC;
+  // `,
 
   //사용 가능 설비
   availableEquipment: `

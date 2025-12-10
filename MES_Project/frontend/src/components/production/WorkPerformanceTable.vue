@@ -74,7 +74,7 @@ const downloadExcel = () => {
                         <td colspan="10" class="empty">검색 결과가 없습니다.</td>
                     </tr>
 
-                    <tr v-for="row in props.rows" :key="row.id">
+                    <tr v-for="row in props.rows" :key="row.id" id="trRow">
                         <td>
                             <input v-model="row.checked" type="checkbox" />
                         </td>
@@ -83,9 +83,9 @@ const downloadExcel = () => {
                         <td>{{ row.name }}</td>
                         <td>{{ row.order_num }}</td>
                         <td>{{ row.qtt }}</td>
-                        <td>{{ row.notqtt }}</td>
-                        <td>{{ row.lotnum }}</td>
-                        <td>{{ row.linecode }}</td>
+                        <td>0</td>
+                        <td>LOT-400-20250625-021</td>
+                        <td>LINE-001</td>
                         <td>{{ row.stat }}</td>
                     </tr>
                 </tbody>
@@ -169,5 +169,12 @@ const downloadExcel = () => {
         align-items: flex-start;
         gap: 0.5rem;
     }
+}
+#trRow {
+    cursor: pointer;
+}
+#trRow:hover {
+    background-color: gray;
+    color: white;
 }
 </style>

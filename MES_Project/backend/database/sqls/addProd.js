@@ -24,4 +24,13 @@ module.exports = {
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `,
+  emp_list: `
+    SELECT 
+        e.emp_code,
+        e.emp_name,
+        e.emp_job_id
+    FROM emp_tbl e
+    WHERE e.emp_job_id = 'm1'
+    ORDER BY e.emp_name;
+  `,
 };

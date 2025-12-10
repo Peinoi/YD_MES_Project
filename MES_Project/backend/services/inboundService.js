@@ -29,17 +29,14 @@ const getEmployeeList = async () => query("getEmployeeList", []);
 
 // [Write] 입고 등록
 const registerInboundItems = async (items) => {
-  console.log("Starting Transaction for Inbound Registration...");
-  console.log("Received items:", JSON.stringify(items, null, 2));
-
   let conn;
   try {
     conn = await getConnection();
     await conn.beginTransaction();
-    console.log("Transaction started.");
 
     const todayStr = getTodayStr();
 
+    // Get last sequences
     const lastMinRows = await conn.query(sqlList.getLastMinbndSeq, [todayStr]);
     const lastLotRows = await conn.query(sqlList.getLastLotSeq, [todayStr]);
     const lastQioRows = await conn.query(sqlList.getLastQioSeq, [todayStr]);
@@ -50,11 +47,23 @@ const registerInboundItems = async (items) => {
     let lotSeq = generateSeq(lastLotRows[0] ? lastLotRows[0].lot_num : null);
     let qioSeq = generateSeq(lastQioRows[0] ? lastQioRows[0].qio_code : null);
 
+    // Create ONE new QIO for the whole batch
+    const newQioCode = `QIO-${todayStr}-${String(qioSeq).padStart(3, "0")}`;
+    const representativeManager = items.length > 0 ? items[0].manager : null;
+    if (!representativeManager) {
+      throw new Error(
+        "Manager/Employee code is required for at least one item."
+      );
+    }
+    await conn.query(sqlList.insertQio, [
+      newQioCode,
+      new Date(),
+      representativeManager,
+    ]);
+
     const lotDataList = [];
     const inboundDataList = [];
-    const qioDataList = [];
 
-    console.log("Preparing data lists...");
     for (const item of items) {
       const seqStr = String(minSeq++).padStart(3, "0");
       const lotSeqStr = String(lotSeq++).padStart(3, "0");
@@ -66,18 +75,6 @@ const registerInboundItems = async (items) => {
 
       lotDataList.push([newLotNum, nowDateTime, "i4", item.matCode]);
 
-      let finalQioCode = item.qioCode;
-      if (!finalQioCode) {
-        const qioSeqStr = String(qioSeq++).padStart(3, "0");
-        finalQioCode = `QIO-${todayStr}-${qioSeqStr}`;
-        
-        qioDataList.push([
-          finalQioCode,
-          new Date(), // insp_date
-          item.manager, // emp_code
-        ]);
-      }
-      
       inboundDataList.push([
         newMinbndCode,
         item.matCode,
@@ -86,53 +83,22 @@ const registerInboundItems = async (items) => {
         Number(item.inQty),
         item.inboundDate,
         Number(item.inQty),
-        finalQioCode,
+        newQioCode, // Use the single new QIO code for all items
         newLotNum,
         item.client,
         item.manager,
       ]);
     }
-    console.log("Data preparation complete.");
-    console.log("Prepared qioDataList:", JSON.stringify(qioDataList, null, 2));
-    console.log("Prepared lotDataList:", JSON.stringify(lotDataList, null, 2));
-    console.log("Prepared inboundDataList:", JSON.stringify(inboundDataList, null, 2));
 
-    // 3. 실행 (batch 사용) - 순서 보장 및 개별 로깅
-    try {
-      if (lotDataList.length > 0) {
-        console.log("Executing batch insert for mat_lot_tbl...");
-        await conn.batch(sqlList.insertMatLot, lotDataList);
-        console.log("Batch insert for mat_lot_tbl SUCCEEDED.");
-      }
-    } catch (err) {
-      console.error("Batch insert for mat_lot_tbl FAILED:", err);
-      throw err;
+    // Execute batch inserts in order
+    if (lotDataList.length > 0) {
+      await conn.batch(sqlList.insertMatLot, lotDataList);
     }
-
-    try {
-      if (qioDataList.length > 0) {
-        console.log("Executing batch insert for qio_tbl...");
-        await conn.batch(sqlList.insertQio, qioDataList);
-        console.log("Batch insert for qio_tbl SUCCEEDED.");
-      }
-    } catch (err) {
-      console.error("Batch insert for qio_tbl FAILED:", err);
-      throw err;
-    }
-
-    try {
-      if (inboundDataList.length > 0) {
-        console.log("Executing batch insert for minbnd_tbl...");
-        await conn.batch(sqlList.insertMinbnd, inboundDataList);
-        console.log("Batch insert for minbnd_tbl SUCCEEDED.");
-      }
-    } catch (err) {
-      console.error("Batch insert for minbnd_tbl FAILED:", err);
-      throw err;
+    if (inboundDataList.length > 0) {
+      await conn.batch(sqlList.insertMinbnd, inboundDataList);
     }
 
     await conn.commit();
-    console.log("Transaction committed.");
 
     return {
       success: true,

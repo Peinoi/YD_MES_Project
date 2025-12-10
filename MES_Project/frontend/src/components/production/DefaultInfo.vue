@@ -185,7 +185,27 @@ const formatDateOnly = (date) => {
 // -------------------------------------
 // 📌 버튼
 // -------------------------------------
-const handleDelete = () => console.log('삭제');
+const handleDelete = () => {
+    // 실제 삭제 로직은 API 호출 또는 상태 제거로 대체 가능
+    // 현재는 예시로 alert만 띄움
+    if (!formData.value.workOrderNo) {
+        alert('❌ 삭제할 데이터가 없습니다.');
+        return;
+    }
+
+    // 삭제 확인
+    const confirmDelete = confirm(`[${formData.value.workOrderNo}]을/를 정말 삭제하시겠습니까?`);
+    if (!confirmDelete) return;
+
+    // 실제 삭제 로직 예: API 호출
+    // await axios.delete(`/api/production/delete/${formData.value.workOrderNo}`)
+
+    // 삭제 후 안내
+    alert(`[${formData.value.workOrderNo}]이/가 삭제되었습니다!`);
+
+    // 화면 초기화
+    handleReset();
+};
 // 📌 기존 emit 수정
 const emit = defineEmits(['updateOtherData', 'resetForm']); // ✅ 'resetForm' 이벤트 추가
 
@@ -230,6 +250,10 @@ const handleReset = () => {
 const handleSave = async () => {
     let wkoCode = formData.value.workOrderNo;
     let exists = false; // DB 존재 여부 플래그
+    if (formData.value.status === 'v2') {
+        alert('✅ 작업완료 상태인 항목은 수정할 수 없습니다.');
+        return;
+    }
 
     // 1. 등록 모드 (PK가 비어있는 경우) : 작업지시번호만 자동 생성
     if (!wkoCode) {

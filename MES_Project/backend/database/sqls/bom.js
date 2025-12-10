@@ -94,4 +94,33 @@ AND mat_code = ?`,
         JOIN bom_tbl bt ON bm.bom_code = bt.bom_code
         ORDER BY bt.prod_code, bm.mat_code
     `,
+  create_bom_code: `SELECT 
+    LPAD(
+        IFNULL(MAX(CAST(SUBSTRING(bom_code, 10) AS SIGNED)), 0) + 1,
+        4,
+        '0'
+    ) AS seq
+FROM bom_tbl`,
+  insert_bom_tbl: `
+    INSERT INTO bom_tbl (
+        bom_code,
+        prod_code,
+        unit,
+        spec,
+        regdate,
+        udate,
+        is_used
+    )
+    VALUES (?, ?, ?, ?, NOW(), NOW(), ?)
+`,
+  updateBomInfo: `
+    UPDATE bom_tbl
+    SET is_used = ?
+    WHERE bom_code = ?
+`,
+  updateProdUseYn: `
+    UPDATE prod_tbl
+    SET is_used = ?
+    WHERE prod_code = ?
+`,
 };

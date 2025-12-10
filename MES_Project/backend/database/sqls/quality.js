@@ -48,7 +48,7 @@ JOIN mpo_tbl mpo -- 복수의 자재발주상세를 담은 발주서의 정보, 
 ON mpo_d.purchase_code = mpo.purchase_code -- 발주서 정보가 존재하는 발주상세 끌어옴
 JOIN common_code cc
 ON mat.material_type_code = cc.com_value
-WHERE mpo.stat = 'c1' -- 발주 완료 상태인 발주서의 발주상세정보 목록을 출력
+WHERE mpo.stat = 'c1' AND mpo_d.mpo_d_code NOT IN (SELECT mpo_d_code FROM qio_tbl WHERE mpo_d_code IS NOT NULL)
 `,
   findPrdrByQIO: `
   SELECT prdr.prdr_code
@@ -64,23 +64,17 @@ WHERE mpo.stat = 'c1' -- 발주 완료 상태인 발주서의 발주상세정보
   ON prdr.prod_code = prod.prod_code
   WHERE prdr.prdr_code = ?
 `,
-  findMpr_dByQIO: `
-SELECT mpr_d_code
-, req_qtt
-, mpr_d.unit AS 'mpr_d_unit'
-, mat.unit AS 'mat_unit'
-, mpr_d.note AS 'mpr_d_note'
-, mat.note AS 'mat_note'
-, mpr_code
-, mat_sup
-, mat.mat_code
-, mat.mat_name -- 발주 품목 이름
-, mat.material_type_code -- t1 원자재, t2부자재
-, mat.is_used -- f1 미사용, f2 사용중
-FROM mpr_d_tbl mpr_d
-JOIN mat_tbl mat
-ON mat.mat_code = mpr_d.mat_code
-WHERE mpr_d_code = ?
+  findMpo_dByQIO: `
+  SELECT 
+    mpo_d.mpo_d_code
+    , mpo_d.req_qtt
+    , mat.mat_name
+    , mat.material_type_code
+    , cc.note
+  FROM mpo_d_tbl mpo_d
+  JOIN mat_tbl mat ON mpo_d.mat_code = mat.mat_code
+  JOIN common_code cc ON mat.material_type_code = cc.com_value
+  WHERE mpo_d.mpo_d_code = ?
 `,
   findQualityEmployeeList: `
   SELECT emp.emp_code
@@ -128,8 +122,36 @@ JOIN
 ON qcr.unit = cc.com_value
 where qir.qio_code =  ?
 `,
+  findAllQualityInstructionsOrderList: `
+SELECT
+    qio.qio_code,
+    DATE_FORMAT(qio.insp_date, '%Y-%m-%d') AS insp_date,
+    CASE
+        WHEN qio.prdr_code IS NOT NULL THEN '제품검사'
+        WHEN qio.mpo_d_code IS NOT NULL THEN '수입검사'
+        ELSE ''
+    END AS inspection_type,
+    COALESCE(prod.prod_name, mat.mat_name) AS item_name,
+    CASE
+        WHEN MIN(qir.result) = 'g0' AND MAX(qir.result) = 'g0' THEN '지시'
+        ELSE '완료'
+    END AS status
+FROM qio_tbl qio
+LEFT JOIN qir_tbl qir ON qio.qio_code = qir.qio_code
+LEFT JOIN prdr_tbl prdr ON qio.prdr_code = prdr.prdr_code
+LEFT JOIN prod_tbl prod ON prdr.prod_code = prod.prod_code
+LEFT JOIN mpo_d_tbl mpo_d ON qio.mpo_d_code = mpo_d.mpo_d_code
+LEFT JOIN mat_tbl mat ON mpo_d.mat_code = mat.mat_code
+WHERE (qio.prdr_code IS NOT NULL OR qio.mpo_d_code IS NOT NULL)
+GROUP BY
+    qio.qio_code,
+    qio.insp_date,
+    prod.prod_name,
+    mat.mat_name
+ORDER BY qio.insp_date DESC, qio.qio_code DESC
+`,
   createQuailityInstructionOrder: `
-  INSERT INTO qio_tbl (qio_code, qio_date, insp_date, prdr_code, mpr_d_code, emp_code, insp_vol) 
+  INSERT INTO qio_tbl (qio_code, qio_date, insp_date, prdr_code, mpo_d_code, emp_code, insp_vol) 
 VALUES (
 ?  -- PK 생성해서 넣어줌
 , CURDATE()
@@ -140,7 +162,7 @@ VALUES (
 , ? -- 검사량  
 )`,
   createQuailityInstructionResult: `
-  INSERT INTO qir_tbl (qir_code, start_date, end_date, result, note, qio_code, qir_emp_code, qcr_code, mpr_d_code) 
+  INSERT INTO qir_tbl (qir_code, start_date, end_date, result, note, qio_code, qir_emp_code, qcr_code) 
   VALUES (? -- qir_code 애플리케이션에서 생성
   , ? -- 검사 시작일 - 검사 지시 일자 값으로 초기값 주면됨
   , ? -- 검사 종료일 - 검사 지시 일자 값으로 초기값 주면됨
@@ -149,14 +171,13 @@ VALUES (
   , ? -- qio_code - 어떤 검사지시서의 검사 문항인지 알아야 함.
   , ? -- qir_emp_code - 검사결과지 작성자 정보 넣어야되는데 이게왜 NotNull인데, 덮어써야해서 품질팀 관리자 PK넣어줌
   , ? -- qcr_code - 검사 항목 상세정보의 기준이 되는 값을 저장하고있는 테이블의 PK
-  , null -- 이거 넣어야됨? 넣을수는있는데 왜 mrp_d code만있고 prdr code는없음?
   )`,
   updateQuailityInstructionOrder: `
   UPDATE qio_tbl
   SET
     insp_date = ?,
     prdr_code = ?,
-    mpr_d_code = ?,
+    mpo_d_code = ?,
     emp_code = ?,
     insp_vol = ?
   WHERE qio_code = ?
@@ -171,7 +192,10 @@ VALUES (
     qir_emp_code = ?
   WHERE qir_code = ?
   `,
-  deleteQuailityInstructionResultsByQIO: `
+  deleteQirsByQioCode: `
   DELETE FROM qir_tbl WHERE qio_code = ?
+  `,
+  deleteQioByQioCode: `
+  DELETE FROM qio_tbl WHERE qio_code = ?
   `,
 };

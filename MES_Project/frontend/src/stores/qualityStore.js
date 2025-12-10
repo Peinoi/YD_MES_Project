@@ -11,6 +11,7 @@ export const useQualityStore = defineStore('quality', {
         qcrList: [], // qcr_tbl: 품질검사 기준정보 + 검사항목 + 검사상세항목 합쳐진 테이블
         qioList: [],
         qirList: [],
+        qualityInstructionsOrderList: [],
         prdrList: [], // prdr_tbl: 생산실적 테이블
         mpo_dList: [], // mpo_d_tbl: -- 자재구매요청상세 테이블: 기존사람들이 이걸로만들어서 나도 이걸로해야됨 월요일수정가능성 있음.
         qualityEmployeeList: [], // 품질팀 사원 목록
@@ -29,6 +30,7 @@ export const useQualityStore = defineStore('quality', {
         hasQIOData: (state) => state.qioList.length > 0,
         hasPrdrData: (state) => state.prdrList.length > 0,
         hasEmployeeManager: (state) => state.qualityEmployeeList.length > 0,
+        hasQualityInstructionsOrderListData: (state) => state.qualityInstructionsOrderList.length > 0,
         getEmployeeManagers: (state) => state.qualityEmployeeList.filter((item) => item.emp_job_id === 'm1')
     },
     // 3. actions: 상태를 변경하는 동기/비동기 메서드를 정의합니다.
@@ -39,6 +41,19 @@ export const useQualityStore = defineStore('quality', {
         },
 
         //--- API 연동 비동기 액션 ---
+        async fetchQualityInstructionsOrderList() {
+            this.loading = true;
+            this.error = null;
+            try {
+                const response = await axios.get('/api/quality/instruction-orders');
+                this.qualityInstructionsOrderList = response.data.data;
+            } catch (error) {
+                this.error = '데이터를 불러오는 데 실패했습니다.';
+                console.error('Error fetching QIO list:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
         async fetchQCRList() {
             this.loading = true;
             this.error = null;
@@ -119,11 +134,11 @@ export const useQualityStore = defineStore('quality', {
             this.loading = true;
             this.error = null;
             try {
-                const { qio_code, prdr_code, mpr_d_code } = qioItem;
+                const { qio_code, prdr_code, mpo_d_code } = qioItem;
 
                 // 1. 백엔드 API에 GET 요청을 보냅니다.
                 const response = await axios.get('/api/quality/qiodetail', {
-                    params: { qio_code, prdr_code, mpr_d_code }
+                    params: { qio_code, prdr_code, mpo_d_code }
                 });
                 console.log('품질검사 지시 상세정보', response.data.data);
                 console.log('받아왔습니다 드디어11111111!', response.data.data[1].length);
@@ -190,6 +205,21 @@ export const useQualityStore = defineStore('quality', {
         async saveQIO(saveQIO) {
             // qcrData에 qcr_code가 있으면 update, 없으면 create 호출
             return saveQIO.qio_code ? this.updateQIO(saveQIO) : this.createQIO(saveQIO);
+        },
+
+        async deleteQIO(qioCode) {
+            this.loading = true;
+            this.error = null;
+            try {
+                await axios.delete(`/api/quality/qio/${qioCode}`);
+                await this.fetchQIOList(); // 삭제 후 목록 새로고침
+            } catch (error) {
+                this.error = '데이터 삭제에 실패했습니다.';
+                console.error('Error deleting QIO:', error);
+                throw error;
+            } finally {
+                this.loading = false;
+            }
         },
 
         //--- 상태 초기화 액션 ---

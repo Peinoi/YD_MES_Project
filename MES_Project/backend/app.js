@@ -39,7 +39,6 @@ app.use(`/inbound`, inboundRouter);
 app.use(`/baseinfo/bom`, bomRouter);
 app.use(`/production`, productionRouter);
 app.use(`/material`, materialRouter);
-
 app.use(`/add-product`, addProdRouter);
 // 전역 오류 처리 미들웨어
 app.use((err, req, res, next) => {

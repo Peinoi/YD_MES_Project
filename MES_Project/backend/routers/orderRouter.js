@@ -144,6 +144,17 @@ router.get("/manager/list", async (req, res, next) => {
   }
 });
 
+// GET /order/newCode - 새 주문번호, 주문상세번호 조회
+router.get("/newCode", async (req, res, next) => {
+  try {
+    const codes = await orderService.addCode();
+
+    res.json({ code: "S200", data: codes });
+  } catch (err) {
+    next(err); // 에러를 전역 오류 처리 미들웨어로 전달
+  }
+});
+
 // DELETE /order/:ord_code - 주문 삭제
 router.delete("/:ord_code", async (req, res, next) => {
   try {

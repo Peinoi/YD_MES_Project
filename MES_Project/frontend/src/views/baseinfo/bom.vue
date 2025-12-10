@@ -6,6 +6,7 @@ import axios from 'axios';
 // import BomProductModal from '@/views/BomProductModal.vue';
 // PrimeVue 컴포넌트는 전역 등록되어 있다고 가정 (Sakai 템플릿 기본 구조)
 const deletedCodes = ref([]);
+const showIsUsedModal = ref(false);
 const isModalVisible = ref(false);
 const isSubMaterialModal = ref(false);
 const searchForm = ref({
@@ -225,15 +226,15 @@ const onDeleteSubMaterial = () => {
 
     selectedSubMaterials.value = [];
 };
-const onCreate = async () => {
-    if (!detailForm.value.prodCode) {
-        alert('제품을 먼저 선택하세요.');
-        return;
-    }
+async function onCreate() {
+    // 신규 vs 수정 판단
+    const isNew = !detailForm.value.bomCode; // bomCode가 없으면 신규
 
     const payload = {
-        bom_code: detailForm.value.bomCode,
-        deleted: deletedCodes.value,
+        prod_code: detailForm.value.prodCode,
+        unit: detailForm.value.unit,
+        spec: detailForm.value.spec,
+        is_used: detailForm.value.useYn,
         materials: subMaterialList.value.map((m) => ({
             mat_code: m.materialCode,
             mat_name: m.materialName,
@@ -241,12 +242,29 @@ const onCreate = async () => {
             req_qtt: Number(m.qty),
             unit: m.unit,
             loss_rate: Number(m.lossRate)
-        }))
+        })),
+        deleted: deletedCodes.value
     };
 
-    await axios.post('/api/baseinfo/bom/save', payload);
-    alert('저장 완료');
-};
+    try {
+        if (isNew) {
+            // 신규 BOM 생성
+            const res = await axios.post('/api/baseinfo/bom/create', payload);
+            alert('신규 BOM 생성 완료: ' + res.data.bom_code);
+
+            detailForm.value.bomCode = res.data.bom_code; // 화면 상태 갱신
+        } else {
+            // 기존 BOM 수정
+            payload.bom_code = detailForm.value.bomCode;
+            await axios.post('/api/baseinfo/bom/save', payload);
+            alert('BOM 수정 완료');
+        }
+    } catch (err) {
+        console.error('onCreate error:', err);
+        alert('저장 실패');
+    }
+}
+
 // const onUpdate = () => {
 //     // TODO: 수정 API 연동
 //     console.log('수정', detailForm.value, subMaterialList.value);

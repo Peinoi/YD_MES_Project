@@ -169,14 +169,14 @@ module.exports = {
   WHERE ord_code = ?
   `,
 
-  // 가장 큰 주문 코드 조회
+  // 최대 주문번호 조회
   selectMaxOrderCode: `
   SELECT MAX(ord_code) AS max_ord_code
   FROM ord_tbl
   WHERE ord_code LIKE 'ORD-%'
   `,
 
-  // 가장 큰 주문 상세 코드 조회
+  // 최대 주문상세번호 조회
   selectMaxOrderDetailCode: `
   SELECT MAX(ord_d_code) AS max_ord_d_code
   FROM ord_d_tbl

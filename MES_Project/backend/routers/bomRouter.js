@@ -63,18 +63,20 @@ router.get("/mat/:prodCode", async (req, res) => {
 });
 router.post("/save", async (req, res) => {
   try {
-    const { bom_code, materials, deleted } = req.body;
+    const { bom_code, prod_code, is_used, materials, deleted } = req.body;
 
     const result = await bomService.saveBomMaterials(
       bom_code,
       materials,
-      deleted || []
+      deleted,
+      prod_code,
+      is_used
     );
 
     res.json(result);
-  } catch (e) {
-    console.error("Router Error:", e);
-    res.status(500).json({ message: "서버 오류" });
+  } catch (err) {
+    console.error("Router Error:", err);
+    res.status(500).json({ error: "BOM 저장 실패" });
   }
 });
 // ==========================
@@ -98,6 +100,14 @@ router.get("/download", async (req, res) => {
   } catch (err) {
     console.error("엑셀 다운로드 오류:", err);
     res.status(500).json({ message: "엑셀 생성 실패" });
+  }
+});
+router.post("/create", async (req, res) => {
+  try {
+    const result = await bomService.createBom(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: "Create failed" });
   }
 });
 

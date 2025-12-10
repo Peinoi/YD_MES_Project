@@ -169,6 +169,52 @@ const bomExcelDownload = async () => {
 
   return workbook;
 };
+/** 신규 BOM 생성 */
+const createBom = async (payload) => {
+  const conn = await getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    const { prod_code, unit, spec, is_used, materials } = payload;
+
+    /** 1) 다음 bom_code 생성 */
+    const seqRow = await conn.query(sql.create_bom_code);
+    const seq = seqRow[0].seq;
+    const bom_code = `BOM-PROD-${seq}`;
+
+    /** 2) bom_tbl INSERT */
+    await conn.query(sql.insert_bom_tbl, [
+      bom_code,
+      prod_code,
+      unit,
+      spec,
+      is_used,
+    ]);
+
+    /** 3) 하위 자재 INSERT */
+    for (const m of materials) {
+      await conn.query(sql.insertBomMat, [
+        m.mat_code,
+        bom_code,
+        m.mat_name,
+        m.mat_type,
+        m.req_qtt,
+        m.unit,
+        m.loss_rate,
+      ]);
+    }
+
+    await conn.commit();
+    return { message: "BOM 생성 완료", bom_code };
+  } catch (err) {
+    await conn.rollback();
+    console.error("createBom ERROR:", err);
+    throw err;
+  } finally {
+    conn.release();
+  }
+};
 
 module.exports = {
   getBomList,
@@ -177,5 +223,6 @@ module.exports = {
   searchBom,
   allBomMatList,
   saveBomMaterials,
+  createBom,
   bomExcelDownload,
 };
