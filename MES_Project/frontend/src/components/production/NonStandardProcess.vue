@@ -18,9 +18,9 @@ const props = defineProps({
 const dummyRows = ref([
     { processName: '열처리 1차', equipmentCode: 'E-101', processType: '정형', status: '진행 중', checked: false },
     { processName: '프레스 성형', equipmentCode: 'E-205', processType: '비정형', status: '대기', checked: false },
-    { processName: '표면 연마', equipmentCode: 'E-330', processType: '정형', status: '완료', checked: false },
-    { processName: '도장/코팅', equipmentCode: 'E-412', processType: '비정형', status: '에러', checked: false },
-    { processName: '최종 검사', equipmentCode: 'E-500', processType: '정형', status: '대기', checked: false }
+    { processName: '표면 연마', equipmentCode: 'E-330', processType: '정형', status: '완료', checked: false }
+    // { processName: '도장/코팅', equipmentCode: 'E-412', processType: '비정형', status: '에러', checked: false },
+    // { processName: '최종 검사', equipmentCode: 'E-500', processType: '정형', status: '대기', checked: false }
 ]);
 
 // 컬럼 정의
@@ -183,6 +183,10 @@ const handleSubmit = () => {
 .table-wrap {
     width: 100%;
     overflow-x: auto;
+
+    /* 🔥 세로 스크롤 추가 */
+    max-height: 200px; /* 3행 정도 노출 높이 */
+    overflow-y: auto;
 }
 
 /* PrimeVue 테이블 폰트 및 패딩 조정 */

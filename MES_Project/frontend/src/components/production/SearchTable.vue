@@ -128,6 +128,14 @@ const goDetail = (row) => {
 .table-wrap {
     width: 100%;
     overflow-x: auto;
+
+    /* 🔥 스크롤 추가 */
+    max-height: 480px; /* 10개 정도 보이는 높이 */
+    overflow-y: auto;
+
+    /* Optional: 스크롤바 디자인 깔끔하게 */
+    scrollbar-width: thin;
+    scrollbar-color: #c1c5d0 #f1f1f5;
 }
 
 .result-table {

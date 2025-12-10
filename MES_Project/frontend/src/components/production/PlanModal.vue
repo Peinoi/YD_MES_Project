@@ -19,7 +19,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'select']);
 
 // -----------------------------------------
-// 🔥 상태 옵션 (label/value 매핑)
+// 상태 옵션 (label/value 매핑)
 // -----------------------------------------
 const statusOptions = [
     { label: '진행중', value: 'v1' },
@@ -33,7 +33,33 @@ const getStatusLabel = (v) => {
     return found ? found.label : v || '';
 };
 
+// -----------------------------------------
+// 날짜 포맷 함수
+// -----------------------------------------
+const formatDate = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
+const formatDateTime = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+};
+
+// -----------------------------------------
 // 검색 & 선택
+// -----------------------------------------
 const searchInput = ref('');
 const selectedPlanNo = ref('');
 
@@ -49,16 +75,20 @@ watch(
 );
 
 // -----------------------------------------
-// 🔥 검색 + 상태 라벨 변환된 리스트 생성
+// 검색 + 상태 라벨 + 날짜 포맷 적용
 // -----------------------------------------
 const filteredPlanList = computed(() => {
     const s = searchInput.value.toLowerCase();
 
     return props.planList
-        .filter((p) => p.계획번호 && p.계획번호.trim() !== '') // 🔥 계획번호 없는 데이터 제외
+        .filter((p) => p.계획번호 && p.계획번호.trim() !== '')
         .map((plan) => ({
             ...plan,
-            상태라벨: getStatusLabel(plan.상태)
+            상태라벨: getStatusLabel(plan.상태),
+            계획일자포맷: formatDate(plan.계획일자),
+            납기일자포맷: formatDate(plan.납기일자),
+            작업시작일시포맷: formatDateTime(plan.작업시작일시),
+            예상완료일시포맷: formatDateTime(plan.예상완료일시)
         }))
         .filter((p) => {
             if (!s) return true;
@@ -130,6 +160,8 @@ const handleCancel = () => {
                             <th>계획명</th>
                             <th>계획일자</th>
                             <th>납기일자</th>
+                            <th>작업시작일시</th>
+                            <th>예상완료일시</th>
                             <th>상태</th>
                         </tr>
                     </thead>
@@ -139,18 +171,17 @@ const handleCancel = () => {
                             <td class="select-col">
                                 <input type="checkbox" :checked="plan.계획번호 === selectedPlanNo.value" @click.stop="selectRow(plan)" class="h-4 w-4 text-yellow-500 border-gray-300" />
                             </td>
-
                             <td>{{ plan.계획번호 }}</td>
                             <td>{{ plan.계획명 }}</td>
-                            <td>{{ plan.계획일자 }}</td>
-                            <td>{{ plan.납기일자 }}</td>
-
-                            <!-- 🔥 상태를 라벨로 표시 -->
+                            <td>{{ plan.계획일자포맷 }}</td>
+                            <td>{{ plan.납기일자포맷 }}</td>
+                            <td>{{ plan.작업시작일시포맷 }}</td>
+                            <td>{{ plan.예상완료일시포맷 }}</td>
                             <td>{{ plan.상태라벨 }}</td>
                         </tr>
 
                         <tr v-if="filteredPlanList.length === 0">
-                            <td colspan="6" class="text-center py-4 text-gray-500">검색 결과가 없습니다.</td>
+                            <td colspan="8" class="text-center py-4 text-gray-500">검색 결과가 없습니다.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -159,7 +190,6 @@ const handleCancel = () => {
             <!-- 버튼 -->
             <div class="button-footer flex justify-center space-x-3 pt-3 border-t border-gray-200">
                 <button @click="handleCancel" class="btn-footer bg-gray-700 hover:bg-gray-800 text-white">취소</button>
-
                 <button @click="handleConfirm" class="btn-footer bg-yellow-500 hover:bg-yellow-600 text-white">확인</button>
             </div>
         </div>
@@ -222,5 +252,20 @@ const handleCancel = () => {
     border-radius: 4px;
     font-size: 16px;
     font-weight: 600;
+}
+
+.data-table th,
+.data-table td {
+    padding: 8px 12px;
+    text-align: center;
+    border-bottom: 1px solid #f0f0f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.data-table td.plan-name {
+    white-space: normal;
+    word-break: break-word;
 }
 </style>
