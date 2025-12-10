@@ -86,10 +86,6 @@ const model = ref([
                 to: '',
                 items: [
                     {
-                        label: '주문',
-                        to: '/uikit/formlayout'
-                    },
-                    {
                         label: '품질검사 목록조회',
                         to: '/quality/instructions-list'
                     },
