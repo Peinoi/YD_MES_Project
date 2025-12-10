@@ -13,7 +13,7 @@ const getTaskList = async () => {
     const res = result.data.data.result;
     //작업 완료는 표시 안함
     const filterList = JSON.parse(JSON.stringify(res)).filter((item) => {
-        return item.stat == 'v3' ? false : true;
+        return item.stat == 'v2' ? false : true;
     });
     taskList.value = filterList;
     console.log(taskList.value);

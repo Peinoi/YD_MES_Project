@@ -52,7 +52,6 @@ const resetForm = () => {
                     <option value="">전체</option>
                     <option value="v1">진행중</option>
                     <option value="v4">작업대기</option>
-                    <option value="v2">작업완료</option>
                     <option value="v3">작업보류</option>
                 </select>
             </div>

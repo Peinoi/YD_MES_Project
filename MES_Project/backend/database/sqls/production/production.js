@@ -15,7 +15,7 @@ FROM
     wko_tbl T2
 LEFT JOIN
     prdp_tbl T1 ON T1.prdp_code = T2.prdp_code 
-JOIN
+LEFT JOIN
     prod_tbl T3 ON T2.prod_code = T3.prod_code;
 `;
 

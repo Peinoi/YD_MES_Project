@@ -72,9 +72,18 @@ const callPrdrInsert = async () => {
 
     await axios.post('/api/productionwork/work/prdrinsert', payload);
     work.value.prdrcode = code;
+    // 🔥 추가
+    const updated = { ...work.value, prdrcode: code };
+    workStore.setSelectedWork(updated);
 
-    // ✅ 실적 등록 후 공정 목록 재조회 (prdr_d_code 가져오기)
+    // 공정 재조회
     await refreshProcessList();
+
+    console.log('🟢 [callPrdrInsert] 실적 코드 생성:', code);
+    // ✅ 실적 등록 후 공정 목록 재조회 (prdr_d_code 가져오기)
+
+    console.log('🟢 [callPrdrInsert] 실적 코드 생성:', code);
+    console.log('🟢 공정 재조회 완료:', details.value);
 };
 
 const updateEquipmentStat = async (stat) => {
@@ -87,6 +96,9 @@ const updateEquipmentStat = async (stat) => {
 const startRateTimer = () => {
     if (rateTimer) clearInterval(rateTimer);
     if (!currentProcess.value) return;
+    console.log('🟡 [startRateTimer] 실행됨');
+    console.log('현재 공정 index:', currentProcessIndex.value);
+    console.log('현재 공정 객체:', currentProcess.value);
 
     isRunning.value = true;
     workStore.setWorkRunning(true);
@@ -99,6 +111,7 @@ const startRateTimer = () => {
     rateTimer = setInterval(async () => {
         currentRate.value += 10;
         if (currentRate.value > 100) currentRate.value = 100;
+        console.log(`⏱ 진행률 증가중... ${currentRate.value}%`);
 
         const calculatedQty = Math.floor((totalOrderQty * currentRate.value) / 100);
 
@@ -115,6 +128,8 @@ const startRateTimer = () => {
 
 const completeCurrentProcess = async () => {
     if (currentProcessIndex.value < details.value.length - 1) {
+        console.log('🟣 [completeCurrentProcess] 호출됨, index:', currentProcessIndex.value);
+
         currentProcessIndex.value += 1;
         workStore.setCurrentProcessIndex(currentProcessIndex.value);
         startRateTimer();
@@ -134,6 +149,11 @@ const startWork = async () => {
     }
 
     if (!confirm('작업을 시작하시겠습니까?')) return;
+    console.log(' [startWork] 호출됨');
+    console.log('작업지시:', work.value);
+    console.log('공정 목록(details):', details.value);
+    console.log('선택 설비:', selectedEq.value);
+    console.log('isRunning:', isRunning.value);
 
     workStartTime.value = new Date();
     currentProcessIndex.value = 0;
@@ -154,23 +174,14 @@ const startWork = async () => {
     // 다음 페이지로 이동 (타이머는 Productionwork.vue에서 작동)
     router.push('/Production/productionwork');
 };
-
 const endWork = async () => {
-    if (!isFinishedAll.value) {
-        alert('모든 공정이 완료되어야 종료할 수 있습니다.');
-        return;
-    }
-    if (!work.value.prdrcode) {
-        alert('등록된 실적 정보가 없습니다.');
-        return;
-    }
-
     workEndTime.value = new Date();
     const wkoCode = work.value.code;
     const prdrCode = work.value.prdrcode;
     const finalQty = work.value.wko_qtt || 0;
 
     try {
+        // prdr_tbl 업데이트
         await axios.put(`/api/productionwork/work/prdrend/${prdrCode}`, {
             end_date: workEndTime.value,
             total_time: totalSeconds.value,
@@ -178,16 +189,19 @@ const endWork = async () => {
             rate: 100,
             stat: 'b3'
         });
+
+        // 모든 공정 한번에 완료 처리
         await axios.put('/api/productionwork/work/process/finish', {
-            prdr_code: work.value.prdrcode,
-            qtt: work.value.wko_qtt,
-            details: details.value // 모든 공정 정보 한번에 전달
+            prdr_code: prdrCode,
+            qtt: finalQty
         });
 
+        // 설비 상태 복원
         if (selectedEq.value) {
             await updateEquipmentStat('w1');
         }
 
+        // 작업지시 완료 처리
         await axios.put(`/api/productionwork/work/wkoupdate/${wkoCode}`, {
             stat: 'v2'
         });
@@ -195,10 +209,10 @@ const endWork = async () => {
         alert(`작업이 최종 완료되었습니다. 최종 생산량: ${finalQty}개`);
 
         workStore.setWorkRunning(false);
-        router.push('/Production/TaskProgressList');
+        router.push('/Production/WorkPerformance');
     } catch (error) {
         console.error('작업 종료 중 오류:', error);
-        alert('작업 종료 처리 중 오류가 발생했습니다. 콘솔을 확인하세요.');
+        alert('작업 종료 처리 중 오류가 발생했습니다. 콘솔 확인하세요.');
     }
 };
 
@@ -216,7 +230,7 @@ onBeforeUnmount(() => {
         <AvailableEquipment :selectedEq="selectedEq" @select-eq="handleSelectEquipment" />
 
         <div class="button-area">
-            <button class="btn btn-black" @click="endWork()" :disabled="!isFinishedAll || isRunning">작업 종료</button>
+            <button class="btn btn-black" @click="endWork()">작업 종료</button>
             <button class="btn btn-yellow" @click="startWork()" :disabled="isRunning || isFinishedAll">작업 시작</button>
         </div>
     </div>
