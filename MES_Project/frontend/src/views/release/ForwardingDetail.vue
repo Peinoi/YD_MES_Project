@@ -55,23 +55,31 @@ const formatDate = (d) => {
  * =========================== */
 
 // 🔹 총 "주문수량"(주문기준)
-const totalOrderQty = computed(() => lines.value.reduce((sum, l) => sum + (l.orderQty || 0), 0));
+const totalOrderQty = computed(() =>
+    lines.value.reduce((sum, l) => {
+        const qty = Number(l.orderQty ?? 0);
+        return sum + (Number.isNaN(qty) ? 0 : qty);
+    }, 0)
+);
 
 // 🔹 총 "출고요청수량"
-const totalRequestQty = computed(() => lines.value.reduce((sum, l) => sum + (l.requestQty || l.releaseQty || 0), 0));
+const totalRequestQty = computed(() =>
+    lines.value.reduce((sum, l) => {
+        const qty = Number(l.requestQty ?? l.releaseQty ?? 0);
+        return sum + (Number.isNaN(qty) ? 0 : qty);
+    }, 0)
+);
 
 // 🔹 총 "실출고수량"
-const totalShippedQty = computed(() => lines.value.reduce((sum, l) => sum + (l.shippedQty || 0), 0));
+const totalShippedQty = computed(() =>
+    lines.value.reduce((sum, l) => {
+        const qty = Number(l.shippedQty ?? 0);
+        return sum + (Number.isNaN(qty) ? 0 : qty);
+    }, 0)
+);
 
 // 🔹 요청 잔량 = 요청 - 실출고
 const remainingQty = computed(() => Math.max(0, totalRequestQty.value - totalShippedQty.value));
-
-// 🔹 상태: 요청 vs 실출고
-const detailStatus = computed(() => {
-    if (totalShippedQty.value <= 0) return '출고 대기';
-    if (totalShippedQty.value < totalRequestQty.value) return '부분 출고';
-    return '출고 완료';
-});
 
 /* ===========================
  *  공통코드 조회
