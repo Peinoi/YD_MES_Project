@@ -43,6 +43,18 @@ const onResetDetailForm = () => ({
 // 라인정보
 const detailForm = ref(onResetDetailForm());
 
+const onResetInfo = () => {
+    detailForm.value = {
+        lineCode: null,
+        lineName: null,
+        lineType: null,
+        mdept: null,
+        useYn: null,
+        regDate: null,
+        remark: null
+    };
+};
+
 // -------------------------------
 // 모달 데이터
 // -------------------------------
@@ -258,7 +270,7 @@ const onUpdate = () => {
                     </div>
 
                     <div class="sub-process-wrapper">
-                        <DataTable :value="subLineList" dataKey="id" v-model:selection="selectedSubLine" selectionMode="single" class="p-datatable-sm sub-process-table">
+                        <DataTable :value="subLineList" dataKey="id" v-model:selection="selectedSubLine" scrollable scrollHeight="220px" selectionMode="single" class="p-datatable-sm sub-process-table">
                             <Column selectionMode="multiple" headerStyle="width:3rem"></Column>
                             <!-- 공정순서: 숫자 입력 -->
                             <Column field="lineSeq" header="공정순서" style="width: 60px">
@@ -290,6 +302,7 @@ const onUpdate = () => {
                         <div class="flex-gap"></div>
                         <span>기준정보</span>
                         <div class="right-header-buttons">
+                            <Button label="초기화" class="p-button-secondary p-button-sm" @click="onResetInfo" />
                             <Button label="등록" class="p-button-success p-button-sm" @click="onCreate" />
                             <Button label="수정" class="p-button-primary p-button-sm" :disabled="!detailForm.id" @click="onUpdate" />
                         </div>
@@ -491,7 +504,7 @@ const onUpdate = () => {
 .p-inputtext-tight {
     width: 60px;
 }
-.p-datatable-sm .pinputnumber {
+.p-datatable-sm .p-inputnumber {
     width: 100%;
 }
 .sub-process-table :deep(.p-inputnumber .p-inputnumber-input) {

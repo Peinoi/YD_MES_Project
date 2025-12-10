@@ -428,3 +428,46 @@ exports.getOrder = async (ordCode) => {
     throw err;
   }
 };
+
+// 신규 주문번호, 주문상세번호 생성
+exports.addCode = async () => {
+  try {
+    // 신규 주문번호 생성
+    const currentYear = new Date().getFullYear().toString(); // 현재 연도(YYYY)
+    const codeLength = 4; // 주문번호 끝자리 숫자 길이
+
+    // DB에서 기존 주문번호 중 최대값 조회
+    const oRows = await query("selectMaxOrderCode");
+    const oMaxCode = oRows[0]?.max_ord_code || null; // 최대 주문번호 없으면 null
+
+    // 신규 주문번호 끝자리 숫자 계산
+    let oNextNum = 1; // 기본값: 1
+    if (oMaxCode) oNextNum = parseInt(oMaxCode.slice(-codeLength)) + 1; // 기존 최대값 +1
+
+    // 신규 주문번호 포맷: ORD-YYYY0001
+    new_ord_code = `ORD-${currentYear}${String(oNextNum).padStart(
+      codeLength,
+      "0"
+    )}`;
+
+    // 신규 주문상세번호 생성
+    const dRows = await query("selectMaxOrderDetailCode");
+    const dMaxCode = dRows[0]?.max_ord_d_code || null; // 최대 주문상세번호 없으면 null
+
+    // 신규 주문상세번호 끝자리 숫자 계산
+    let dNextNum = 1; // 기본값: 1
+    if (dMaxCode) dNextNum = parseInt(dMaxCode.slice(-4)) + 1; // 기존 최대값 +1
+
+    // 신규 주문상세번호 포맷: ORD-D-0001
+    new_ord_d_code = `ORD-D-${String(dNextNum).padStart(4, "0")}`;
+
+    return { new_ord_code, new_ord_d_code };
+  } catch (err) {
+    await conn.rollback();
+    console.error(
+      "[orderService.js || 신규 주문번호, 주문상세번호 생성 실패]",
+      err
+    );
+    throw err;
+  }
+};

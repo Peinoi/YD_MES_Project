@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import SearchSelectModal from '@/components/common/SearchSelectModal.vue';
@@ -68,8 +68,42 @@ const mateRows = ref([]);
 const clientRows = ref([]);
 const reqRows = ref([]);
 
-// 실제 테이블에 보여줄 데이터
 const tableRows = ref([...allList.value]);
+
+const sortKey = ref('');
+const sortOrder = ref('asc');
+
+const sortedRows = computed(() => {
+    if (!sortKey.value) return tableRows.value;
+
+    const key = sortKey.value;
+    const copied = [...tableRows.value];
+
+    copied.sort((a, b) => {
+        const va = a[key];
+        const vb = b[key];
+
+        // null / undefined는 뒤로
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+
+        // 숫자 정렬
+        if (typeof va === 'number' && typeof vb === 'number') {
+            return sortOrder.value === 'asc' ? va - vb : vb - va;
+        }
+
+        // 문자열 / 날짜 문자열 정렬
+        const sa = String(va).toLowerCase();
+        const sb = String(vb).toLowerCase();
+
+        if (sa < sb) return sortOrder.value === 'asc' ? -1 : 1;
+        if (sa > sb) return sortOrder.value === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    return copied;
+});
 
 const allChecked = ref(false);
 
@@ -123,7 +157,6 @@ const fetchReqModalList = async (keyword = '') => {
 
     reqRows.value = rows.map((row) => ({
         ...row,
-        // 날짜 문자열 잘라서 YYYY-MM-DD 형태로
         reqDate: row.reqDate ? String(row.reqDate).slice(0, 10) : ''
     }));
 };
@@ -173,7 +206,7 @@ function getUnitLabel(code) {
     return unitOptions[code] || code;
 }
 
-// 숫자 포맷
+// 숫자 포맷 (날짜 YYYY-MM-DD)
 function formatNumber(dateStr) {
     if (!dateStr) return '';
     return dateStr.toString().slice(0, 10);
@@ -189,6 +222,22 @@ function toggleAll() {
 function goDetail(row) {
     if (!row?.mprCode) return;
     router.push(`/purchaseReqDetail/${row.mprCode}`);
+}
+
+function sortBy(key) {
+    if (sortKey.value === key) {
+        sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortKey.value = key;
+        sortOrder.value = 'asc';
+    }
+}
+
+function sortIcon(key) {
+    if (sortKey.value !== key) {
+        return '↕';
+    }
+    return sortOrder.value === 'asc' ? '▲' : '▼';
 }
 
 // 엑셀 다운로드
@@ -346,17 +395,17 @@ onMounted(() => {
                     <!-- 1행 -->
                     <div class="form-item">
                         <label>요청번호</label>
-                        <input class="input" v-model="filters.mprCode" readonly placeholder="요청서 선택" @click="openReqModal(row)" />
+                        <input class="input" v-model="filters.mprCode" readonly placeholder="요청서 선택" @click="openReqModal" />
                     </div>
 
                     <div class="form-item">
                         <label>자재명</label>
-                        <input class="input" v-model="filters.matName" readonly placeholder="자재 선택" @click="openMateModal(row)" />
+                        <input class="input" v-model="filters.matName" readonly placeholder="자재 선택" @click="openMateModal()" />
                     </div>
 
                     <div class="form-item">
                         <label>자재코드</label>
-                        <input class="input" v-model="filters.matCode" readonly placeholder="자재 선택" @click="openMateModal(row)" />
+                        <input class="input" v-model="filters.matCode" readonly placeholder="자재 선택" @click="openMateModal()" />
                     </div>
 
                     <!-- 2행 -->
@@ -395,18 +444,46 @@ onMounted(() => {
                                 <th style="width: 40px">
                                     <input type="checkbox" v-model="allChecked" @change="toggleAll" />
                                 </th>
-                                <th>요청번호</th>
-                                <th>자재명</th>
-                                <th>자재코드</th>
-                                <th>요청일자</th>
-                                <th>요청수량</th>
-                                <th>단위</th>
-                                <th>공급업체</th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'mprCode' }]" @click="sortBy('mprCode')">
+                                    <span>요청번호</span>
+                                    <span class="sort-icon">{{ sortIcon('mprCode') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'matName' }]" @click="sortBy('matName')">
+                                    <span>자재명</span>
+                                    <span class="sort-icon">{{ sortIcon('matName') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'matCode' }]" @click="sortBy('matCode')">
+                                    <span>자재코드</span>
+                                    <span class="sort-icon">{{ sortIcon('matCode') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'reqDate' }]" @click="sortBy('reqDate')">
+                                    <span>요청일자</span>
+                                    <span class="sort-icon">{{ sortIcon('reqDate') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'reqQtt' }]" @click="sortBy('reqQtt')">
+                                    <span>요청수량</span>
+                                    <span class="sort-icon">{{ sortIcon('reqQtt') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'unit' }]" @click="sortBy('unit')">
+                                    <span>단위</span>
+                                    <span class="sort-icon">{{ sortIcon('unit') }}</span>
+                                </th>
+
+                                <th :class="['sortable', { 'is-active': sortKey === 'clientName' }]" @click="sortBy('clientName')">
+                                    <span>공급업체</span>
+                                    <span class="sort-icon">{{ sortIcon('clientName') }}</span>
+                                </th>
                             </tr>
                         </thead>
 
                         <tbody>
-                            <tr v-for="row in tableRows" :key="row.id" @click="goDetail(row)" class="table-row">
+                            <tr v-for="row in sortedRows" :key="row.id" @click="goDetail(row)" class="table-row">
                                 <td>
                                     <input type="checkbox" v-model="row.checked" @click.stop />
                                 </td>
@@ -414,13 +491,13 @@ onMounted(() => {
                                 <td>{{ row.matName }}</td>
                                 <td>{{ row.matCode }}</td>
                                 <td>{{ row.reqDate }}</td>
-                                <td>{{ row.reqQtt }}</td>
+                                <td class="text-right">{{ row.reqQtt }}</td>
                                 <td>{{ getUnitLabel(row.unit) }}</td>
                                 <td>{{ row.clientName }}</td>
                             </tr>
 
                             <tr v-if="!tableRows.length">
-                                <td colspan="11" class="empty-cell">조회 결과가 없습니다.</td>
+                                <td colspan="8" class="empty-cell">조회 결과가 없습니다.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -449,6 +526,7 @@ onMounted(() => {
             @cancel="handleCancelMate"
             @search="handleMateSearch"
         />
+
         <SearchSelectModal v-model="showReqModal" :columns="ReqColumns" :rows="reqRows" row-key="mprCode" search-placeholder="자재구매요청번호를 입력해주세요." @confirm="handleConfirmReq" @cancel="handleCancelReq" @search="handleReqSearch" />
     </div>
 </template>
@@ -525,9 +603,9 @@ onMounted(() => {
     width: 100%;
     height: 40px;
     padding: 0 12px;
-    border-radius: 6px 0 0 6px; /* 왼쪽만 둥글게 */
+    border-radius: 6px 0 0 6px;
     border: 1px solid #ccc;
-    border-right: 0; /* 아이콘 버튼이랑 경계선 공유 */
+    border-right: 0;
     box-sizing: border-box;
     font-size: 14px;
 }
@@ -535,7 +613,7 @@ onMounted(() => {
 :deep(.reqdate-calendar .p-datepicker-trigger) {
     height: 40px;
     padding: 0 10px;
-    border-radius: 0 6px 6px 0; /* 오른쪽만 둥글게 */
+    border-radius: 0 6px 6px 0;
     border: 1px solid #ccc;
     border-left: 0;
     box-sizing: border-box;
@@ -545,7 +623,7 @@ onMounted(() => {
 .range-row .input {
     flex: 1 1 0;
     min-width: 0;
-    width: auto; /* 부모 .input 의 width:100% 덮어쓰기 */
+    width: auto;
 }
 
 .form-range .range-row {
@@ -624,15 +702,17 @@ onMounted(() => {
     padding: 8px 10px;
     font-size: 14px;
     border-bottom: 1px solid #eee;
+    text-align: center;
 }
 
 .nice-table th {
     background: #faf7e8;
-    text-align: left;
+    text-align: center;
 }
 
-.text-right {
-    text-align: right;
+.nice-table td.text-right {
+    text-align: right !important;
+    padding-right: 20px !important;
 }
 
 .empty-cell {
@@ -642,9 +722,9 @@ onMounted(() => {
 }
 
 .table-scroll {
-    max-height: 410px; /* 대략 12행 정도 높이 */
+    max-height: 410px;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     border-radius: 6px;
 }
 
@@ -663,5 +743,33 @@ onMounted(() => {
 
 .table-row:hover {
     background: #faf6e4;
+}
+
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.sortable span {
+    margin-left: 4px;
+}
+
+.sortable:hover {
+    background: #f1e9d3;
+}
+
+.sort-icon {
+    display: inline-block;
+    width: 14px;
+    text-align: center;
+    margin-left: 4px;
+    font-size: 11px;
+    color: #b5b5b5;
+}
+
+.sortable.is-active,
+.sortable.is-active .sort-icon {
+    color: #e0a000;
 }
 </style>

@@ -1,4 +1,5 @@
 <script setup>
+// AvailableEquipment.vue
 import axios from 'axios';
 import { ref, onBeforeMount } from 'vue';
 

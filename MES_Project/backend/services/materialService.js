@@ -7,6 +7,7 @@ const getStockList = async (params) => {
   try {
     let sql = sqlList.stockList;
     const values = [];
+    console.log("yes: ", params);
 
     // 1. 키워드 검색
     if (params.keyword) {
@@ -14,10 +15,10 @@ const getStockList = async (params) => {
       values.push(`%${params.keyword}%`, `%${params.keyword}%`);
     }
 
-    // 2. 분류 필터 (한글명 '원자재' -> 공통코드 매핑 필요)
+    // 2. 분류 필터
     if (params.type && params.type !== "ALL") {
       // common_code 테이블의 note 컬럼(원자재, 부자재)과 비교
-      sql += ` AND m.material_type_code = (SELECT com_value FROM common_code WHERE note = ?)`;
+      sql += ` AND m.material_type_code IN (SELECT com_value FROM common_code WHERE note = ?)`;
       values.push(params.type);
     }
 

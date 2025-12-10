@@ -51,4 +51,43 @@ router.put("/update", async (req, res) => {
   }
 });
 
+router.post("/insert", async (req, res) => {
+  try {
+    const payload = req.body;
+    console.log("insert payload:", payload);
+
+    const result = await productionService.insertProductionPlan(payload);
+
+    res.status(200).json({
+      success: true,
+      message: "작업지시 등록 완료",
+      result,
+    });
+  } catch (error) {
+    console.error("INSERT 오류:", error);
+    res.status(500).json({
+      success: false,
+      message: "작업지시 등록 실패",
+    });
+  }
+});
+
+router.get("/line", async (req, res) => {
+  try {
+    // 서비스 계층의 getProductionPlan 함수를 호출합니다.
+    const LineList = await productionService.getSelectLine();
+
+    // 결과를 JSON 형태로 응답합니다.
+    res.status(200).json({
+      success: true,
+      data: LineList,
+    });
+  } catch (error) {
+    console.error("생산 계획 조회 라우트 에러:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "서버 내부 오류로 생산 계획 조회 실패",
+    });
+  }
+});
 module.exports = router;

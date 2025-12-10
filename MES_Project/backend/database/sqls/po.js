@@ -371,7 +371,7 @@ module.exports = {
       ON d.mpr_code = t.mpr_code
     ORDER BY
       t.reqdate DESC,
-      d.mpr_code,
+      d.mpr_code DESC,
       d.mat_code
   `,
 
@@ -428,4 +428,45 @@ module.exports = {
     LEFT JOIN dept_tbl d
       ON e.dept_code = d.dept_code
   `,
+
+  //요청 상태
+  getMprHistory: `
+    SELECT
+      mm.regdate           AS changeDate,
+      '발주완료'           AS statusName
+    FROM mpr_mapp_tbl mm
+    WHERE mm.mpr_code = ?
+    ORDER BY changeDate
+  `,
+  //발주된 요청서 제외 목록
+  selectMprListForPo: `
+SELECT
+    h.mpr_code AS mprCode,           -- 요청서 번호
+    h.reqdate  AS reqDate,           -- 요청일
+    h.mcode    AS mCode,             -- 요청자(사원코드)
+
+    CASE
+      WHEN COUNT(d.mpr_d_code) = 0 THEN ''
+      WHEN COUNT(d.mpr_d_code) = 1 THEN MIN(m.mat_name)
+      ELSE CONCAT(MIN(m.mat_name), ' 외 ', COUNT(d.mpr_d_code) - 1, '건')
+    END AS matName
+FROM mpr_tbl h
+LEFT JOIN mpr_d_tbl d
+  ON h.mpr_code = d.mpr_code
+LEFT JOIN mat_tbl m
+  ON d.mat_code = m.mat_code
+WHERE
+  (? IS NULL OR h.mpr_code LIKE CONCAT('%', ?, '%'))
+  AND NOT EXISTS (
+    SELECT 1
+    FROM mpr_mapp_tbl mm
+    WHERE mm.mpr_code = h.mpr_code
+  )
+GROUP BY
+  h.mpr_code,
+  h.reqdate,
+  h.mcode
+ORDER BY
+  h.mpr_code DESC
+`,
 };

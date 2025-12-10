@@ -27,6 +27,19 @@ function formatDate(dateStr) {
     return `${y}.${m}.${day}`;
 }
 
+// 새 주문 코드 조회
+const fetchNewOrderCode = async () => {
+    try {
+        const res = await axios.get('/api/order/newCode');
+        if (res.data.code === 'S200' && res.data.data) {
+            return res.data.data.new_ord_code;
+        }
+    } catch (e) {
+        console.error('fetchNewOrderCode failed', e);
+    }
+    return '';
+};
+
 // 주문 검색
 const fetchOrderSearch = async (keyword = '') => {
     try {
@@ -129,22 +142,27 @@ const order = reactive({
 const clientList = ref([]);
 const managerList = ref([]);
 
-// 모달에서 선택한 결과 받기
+// 주문 선택 시 상세 데이터 로딩
 const onOrderSelect = async (row) => {
-    if (!row || !row.ord_code) return;
+    if (!row) return;
 
-    // 주문 기본 정보
+    // 주문 기본 정보 매핑
     order.ord_code = row.ord_code || '';
     order.ord_name = row.ord_name || '';
-
     order.client_code = row.client_code || '';
     order.client_name = row.client_name || '';
-
+    order.mcode = row.mcode || '';
+    order.client_contact = row.emp_name || '';
     order.note = row.note || '';
     order.readonly = true;
 
-    order.client_contact = row.emp_name || '';
-    order.mcode = row.mcode || '';
+    if (row.ord_date) {
+        // 날짜 형식 '0000.00.00' -> '0000-00-00'로 변환
+        order.ord_date = row.ord_date.replace(/\./g, '-');
+    } else {
+        // 날짜 정보 없으면 초기값(오늘 날짜)
+        order.ord_date = '';
+    }
 
     // 제품 정보
     try {
@@ -168,8 +186,8 @@ const onOrderSelect = async (row) => {
                 delivery_date: p.delivery_date ? p.delivery_date.slice(0, 10) : '',
                 ord_priority: p.ord_priority || '',
                 total_price: p.total_price || 0,
-                prod_code: p.prod_code || '', // 제품 저장을 위해 필요
-                ord_d_code: p.ord_d_code || '', // 상세 수정을 위해 필요
+                prod_code: p.prod_code || '',
+                ord_d_code: p.ord_d_code || '',
                 _selected: false,
                 get total() {
                     return (Number(this.ord_amount) || 0) * (Number(this.prod_price) || 0);
@@ -249,7 +267,8 @@ watch(showOrderModal, (val) => {
     }
 });
 
-onMounted(() => {
+onMounted(async () => {
+    order.ord_code = await fetchNewOrderCode();
     fetchClientList();
     fetchManagerList();
 });
@@ -284,9 +303,10 @@ function recalcRow(idx) {
     p.prod_price = Number(p.prod_price) || 0;
 }
 
-function resetForm() {
-    order.ord_code = '';
+async function resetForm() {
+    order.ord_code = await fetchNewOrderCode();
     order.ord_name = '';
+    order.ord_date = new Date().toISOString().slice(0, 10);
     order.client_name = '';
     order.client_code = '';
     order.client_contact = '';
@@ -314,6 +334,7 @@ function openManagerSearch() {
     });
 }
 
+// 주문 저장
 async function saveOrder() {
     try {
         // 백엔드 필수 값 검증 (프론트에서도 1차 검증)
@@ -378,8 +399,6 @@ async function saveOrder() {
             orderDetailList, // 화면에 남은 제품
             removedProductIds: removedProductIds.value // 삭제된 제품 코드
         };
-
-        console.log('저장 payload', payload);
 
         const res = await axios.post('/api/order', payload);
 
@@ -451,7 +470,7 @@ function formatCurrency(v) {
                 <div class="form-row">
                     <div class="form-group">
                         <label>주문번호</label>
-                        <input v-model="order.ord_code" type="text" :readonly="order.readonly" />
+                        <input v-model="order.ord_code" type="text" readonly />
                     </div>
                     <div class="form-group">
                         <label>주문명</label>

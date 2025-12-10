@@ -88,6 +88,21 @@ function getToday() {
     return new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
 }
 
+function toDateOnly(value) {
+    if (!value) return null;
+
+    if (value instanceof Date) {
+        return value.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+    }
+
+    const s = String(value);
+    if (s.length >= 10) {
+        return s.substring(0, 10);
+    }
+
+    return s;
+}
+
 // 헤더 필드
 const writerCode = ref('');
 const writerName = ref('');
@@ -195,7 +210,7 @@ const savePo = async () => {
     const header = {
         mpr_code: Code.value,
         reqdate: reqDate.value || today,
-        deadline: deadLine.value || null,
+        deadline: toDateOnly(deadLine.value) || null,
         mrp_code: 'MRP-20250624-001', // 임시 나중에 MRP 연동되면 수정
         mcode: writerCode.value
     };
@@ -440,14 +455,12 @@ fetchNextCode();
     width: 100%;
 }
 
-/* 캘린더 래퍼: input + 아이콘을 한 줄에 */
 :deep(.po-header-calendar.p-calendar) {
-    display: inline-flex; /* 핵심: 한 줄에 나란히 */
+    display: inline-flex;
     width: 100%;
     align-items: center;
 }
 
-/* 인풋: 나머지 영역 꽉 채우기 */
 :deep(.po-header-calendar .p-inputtext) {
     flex: 1 1 auto;
     height: 40px;
@@ -455,7 +468,6 @@ fetchNextCode();
     box-sizing: border-box;
 }
 
-/* 아이콘 버튼: 오른쪽에 딱 붙이기 */
 :deep(.po-header-calendar .p-datepicker-trigger) {
     flex: 0 0 auto;
     height: 40px;

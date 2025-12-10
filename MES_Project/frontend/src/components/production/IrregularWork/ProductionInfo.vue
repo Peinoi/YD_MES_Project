@@ -1,4 +1,5 @@
 <script setup>
+// ProductionInfo.vue
 import { computed } from 'vue';
 const props = defineProps({
     work: Object,
@@ -28,7 +29,7 @@ const currentRow = computed(() => {
             <div class="grid-row border-b border-r">
                 <label class="label-col">지시량</label>
                 <div class="input-col">
-                    <input type="text" readonly class="input-readonly" :value="(currentRow?.지시량 ?? 0) + ' 개'" />
+                    <input type="text" readonly class="input-readonly" :value="props.work?.wko_qtt + ' 개'" />
                 </div>
             </div>
 
