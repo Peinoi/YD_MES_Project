@@ -56,30 +56,41 @@
 ## 팀 구성 및 역할
 
 <!-- 팀원 소개 테이블 -->
-<table align="center" border="1" cellpadding="12" cellspacing="0">
+<table border="1" cellpadding="12" cellspacing="0" align="center" >
   <tr>
-    <th>이름</th>
-    <th>이름</th>
-    <th>이름</th>
+    <th align="center">도우서</th>
+    <th align="center">정재은</th>
+    <th align="center">성찬혁</th>
+    <th align="center">송승일</th>
+    <th align="center">권수민</th>
   </tr>
   <tr>
     <td align="center">
-      <!-- 팀원 이미지 -->
-      <!-- <img src="이미지_경로" width="120" /> -->
+      <img  width="120" alt="image" src="https://github.com/user-attachments/assets/fd2ed4de-b16c-4339-a6f7-bc8f4d846d29" />
     </td>
     <td align="center">
-      <!-- <img src="이미지_경로" width="120" /> -->
+      <img width="120" alt="female" src="https://github.com/user-attachments/assets/8d5708ba-b9f8-41e6-bd47-7c5e777a0088" />
     </td>
     <td align="center">
-      <!-- <img src="이미지_경로" width="120" /> -->
+      <img width="120" alt="male" src="https://github.com/user-attachments/assets/4c713a36-ac69-4107-bf2e-e7de21af0f90" />
+    </td>
+    <td align="center">
+      <img width="120" alt="male" src="https://github.com/user-attachments/assets/4c713a36-ac69-4107-bf2e-e7de21af0f90" />
+    </td>
+    <td align="center">
+      <img width="120" alt="female" src="https://github.com/user-attachments/assets/8d5708ba-b9f8-41e6-bd47-7c5e777a0088" />
     </td>
   </tr>
   <tr>
-    <td align="center">담당 역할</td>
-    <td align="center">담당 역할</td>
-    <td align="center">담당 역할</td>
+    <td align="center">팀장 </br> 후원</td>
+    <td align="center">부팀장 </br> 조사지, 상담, 지원</td>
+    <td align="center">Git 관리 </br> 기관, 승인요청,</br> 히스토리 관리</td>
+    <td align="center">개발환경 구축 </br> 회원, 담당자 배정</td>
+    <td align="center">DB 관리 </br> 이벤트 </td>
   </tr>
 </table>
+
+
 
 ---
 
