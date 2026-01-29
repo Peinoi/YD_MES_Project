@@ -9,6 +9,8 @@
   <a href="#내-파트"><kbd>🧩 내 파트</kbd></a>
   &nbsp;&nbsp;
   <a href="#프로젝트-소감"><kbd>📝 프로젝트 소감</kbd></a>
+  &nbsp;&nbsp;
+  <a href="#Project-Structure"><kbd>📁 Project Structure</kbd></a>
 </p>
 
 ---
@@ -119,6 +121,8 @@
   <a href="#내-파트"><kbd>🧩 내 파트</kbd></a>
   &nbsp;&nbsp;
   <a href="#프로젝트-소감"><kbd>📝 프로젝트 소감</kbd></a>
+  &nbsp;&nbsp;
+  <a href="#Project-Structure"><kbd>📁 Project Structure</kbd></a>
 </p>
 
 ---
@@ -198,6 +202,8 @@
   <a href="#내-파트"><kbd>🧩 내 파트</kbd></a>
   &nbsp;&nbsp;
   <a href="#프로젝트-소감"><kbd>📝 프로젝트 소감</kbd></a>
+  &nbsp;&nbsp;
+  <a href="#Project-Structure"><kbd>📁 Project Structure</kbd></a>
 </p>
 
 ---
@@ -222,7 +228,19 @@ MES 프로젝트에서 **생산 관리 파트**를 담당하며,
 또한 **실제 현장 중심 시스템인 MES에서 정확한 데이터 관리와 실시간 반영의 중요성**을 경험하였으며,  
 **복잡한 비즈니스 로직을 단계적으로 분석하고 구현하는 역량**을 기를 수 있었습니다.
 
+---
 
+<p align="center">
+  <a href="#프로젝트-개요"><kbd>📘 프로젝트 개요</kbd></a>
+  &nbsp;&nbsp;
+  <a href="#내-파트"><kbd>🧩 내 파트</kbd></a>
+  &nbsp;&nbsp;
+  <a href="#프로젝트-소감"><kbd>📝 프로젝트 소감</kbd></a>
+  &nbsp;&nbsp;
+  <a href="#Project-Structure"><kbd>📁 Project Structure</kbd></a>
+</p>
+
+---
 
 ## Project Structure
 
