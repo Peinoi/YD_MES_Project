@@ -222,3 +222,42 @@ MES 프로젝트에서 **생산 관리 파트**를 담당하며,
 또한 **실제 현장 중심 시스템인 MES에서 정확한 데이터 관리와 실시간 반영의 중요성**을 경험하였으며,  
 **복잡한 비즈니스 로직을 단계적으로 분석하고 구현하는 역량**을 기를 수 있었습니다.
 
+
+
+## Project Structure
+
+### Client / Server Architecture
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" valign="top">
+        <b>Client</b><br/>
+        <img src="https://github.com/user-attachments/assets/257ac449-1b3c-4361-8918-30f3f4aeca70" width="420"/>
+      </td>
+      <td align="center" valign="top">
+        <b>Server</b><br/>
+        <img src="https://github.com/user-attachments/assets/ea9f0251-1d27-4328-ab6a-21e3cc585082" width="420"/>
+      </td>
+    </tr>
+  </table>
+</div>
+
+### MY Client / Server Architecture
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" valign="top">
+        <b>Client</b><br/>
+        <img src="https://github.com/user-attachments/assets/d4e55948-5bc2-45c6-bd54-3d5ddfeef7bb" width="420"/>
+      </td>
+      <td align="center" valign="top">
+        <b>Server</b><br/>
+        <img src="https://github.com/user-attachments/assets/e5dce849-8a59-46d4-bb0c-3b986505e3df" width="420"/>
+      </td>
+    </tr>
+  </table>
+
+</div>
+
